@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: pim-postgres
+    environment:
+      POSTGRES_DB: pim_db
+      POSTGRES_USER: pim
+      POSTGRES_PASSWORD: pim_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - pim-pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: pim-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: pim
+      RABBITMQ_DEFAULT_PASS: pim_local
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - pim-rmqdata:/var/lib/rabbitmq
+
+  minio:
+    image: minio/minio
+    container_name: pim-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: pim_minio
+      MINIO_ROOT_PASSWORD: pim_minio_local
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - pim-minio:/data
+
+volumes:
+  pim-pgdata:
+  pim-rmqdata:
+  pim-minio:

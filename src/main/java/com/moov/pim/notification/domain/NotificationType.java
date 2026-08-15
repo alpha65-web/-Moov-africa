@@ -1,0 +1,6 @@
+package com.moov.pim.notification.domain;
+
+public enum NotificationType {
+    ENRICHMENT_REQUIRED, VALIDATION_REQUIRED, STRATEGIC_VALIDATION,
+    OFFER_REJECTED, OFFER_PUBLISHED, OFFER_EXPIRING, CAMPAIGN_READY
+}

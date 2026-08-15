@@ -1,0 +1,48 @@
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+*.iml
+.idea/
+*.swp
+
+# Spring Boot
+application-local.yml
+application-dev.yml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment / Secrets
+.env
+*.env.local
+*.pem
+*.key
+
+# Node / Frontend
+node_modules/
+.next/
+dist/
+.pnpm-store/
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+*.g.dart
+*.freezed.dart
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/settings.json
+.vscode/launch.json
+*.suo
+*.user
