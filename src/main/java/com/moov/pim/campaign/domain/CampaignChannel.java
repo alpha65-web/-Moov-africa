@@ -45,7 +45,7 @@ public class CampaignChannel {
     @OneToOne(mappedBy = "channel", fetch = FetchType.LAZY)
     private CampaignStats stats;
 
-    protected CampaignChannel() {}
+    public CampaignChannel() {}
 
     public UUID getId() { return id; }
     public Campaign getCampaign() { return campaign; }

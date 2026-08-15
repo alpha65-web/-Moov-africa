@@ -33,7 +33,7 @@ public class OfferMedia {
     @Column(name = "display_order", nullable = false)
     private int displayOrder = 0;
 
-    protected OfferMedia() {}
+    public OfferMedia() {}
 
     public UUID getId() { return id; }
     public UUID getOfferId() { return offerId; }

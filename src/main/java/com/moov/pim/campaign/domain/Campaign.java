@@ -51,7 +51,7 @@ public class Campaign {
     @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<CampaignChannel> channels = new ArrayList<>();
 
-    protected Campaign() {}
+    public Campaign() {}
 
     @PrePersist
     void onCreate() {

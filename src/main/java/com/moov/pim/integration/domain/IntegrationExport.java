@@ -57,7 +57,7 @@ public class IntegrationExport {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    protected IntegrationExport() {}
+    public IntegrationExport() {}
 
     @PrePersist
     void onCreate() {

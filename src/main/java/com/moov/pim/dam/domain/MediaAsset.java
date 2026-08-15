@@ -64,7 +64,7 @@ public class MediaAsset {
     @OneToMany(mappedBy = "mediaAsset", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<MediaValidation> validations = new ArrayList<>();
 
-    protected MediaAsset() {}
+    public MediaAsset() {}
 
     @PrePersist
     void onCreate() {
