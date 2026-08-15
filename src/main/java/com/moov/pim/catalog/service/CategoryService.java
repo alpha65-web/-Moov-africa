@@ -42,6 +42,16 @@ public class CategoryService {
         return CategoryResponse.from(category);
     }
 
+    @Transactional
+    public CategoryResponse update(UUID id, CategoryRequest request) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Catégorie introuvable"));
+        category.setName(request.name());
+        category.setDescription(request.description());
+        category = categoryRepository.save(category);
+        return CategoryResponse.from(category);
+    }
+
     @Transactional(readOnly = true)
     public List<CategoryResponse> listRoots() {
         return categoryRepository.findByParentIsNullOrderByNameAsc().stream()

@@ -11,4 +11,6 @@ public interface OfferMediaRepository extends JpaRepository<OfferMedia, UUID> {
     List<OfferMedia> findByOfferIdOrderByDisplayOrderAsc(UUID offerId);
 
     boolean existsByOfferIdAndIsPrimaryTrue(UUID offerId);
+
+    void deleteByMediaAssetId(UUID mediaAssetId);
 }

@@ -1,12 +1,14 @@
 package com.moov.pim.analytics.service;
 
+import com.moov.pim.analytics.api.dto.AuditLogResponse;
 import com.moov.pim.analytics.domain.AuditAction;
 import com.moov.pim.analytics.domain.AuditLog;
 import com.moov.pim.analytics.repository.AuditLogRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -29,17 +31,18 @@ public class AuditService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuditLog> getEntityHistory(String entityType, UUID entityId) {
-        return auditLogRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId);
+    public Page<AuditLogResponse> getRecentLogs(Pageable pageable) {
+        return auditLogRepository.findAllByOrderByCreatedAtDesc(pageable).map(AuditLogResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public List<AuditLog> getUserHistory(UUID userId) {
-        return auditLogRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    public Page<AuditLogResponse> getEntityHistory(String entityType, UUID entityId, Pageable pageable) {
+        return auditLogRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId, pageable)
+                .map(AuditLogResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public List<AuditLog> getRecentLogs() {
-        return auditLogRepository.findTop50ByOrderByCreatedAtDesc();
+    public Page<AuditLogResponse> getUserHistory(UUID userId, Pageable pageable) {
+        return auditLogRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(AuditLogResponse::from);
     }
 }

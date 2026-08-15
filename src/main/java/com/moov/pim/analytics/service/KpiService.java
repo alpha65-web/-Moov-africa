@@ -1,12 +1,14 @@
 package com.moov.pim.analytics.service;
 
+import com.moov.pim.analytics.api.dto.KpiEventResponse;
 import com.moov.pim.analytics.domain.KpiEvent;
 import com.moov.pim.analytics.repository.KpiEventRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -26,12 +28,12 @@ public class KpiService {
     }
 
     @Transactional(readOnly = true)
-    public List<KpiEvent> getByOffer(UUID offerId) {
-        return kpiEventRepository.findByOfferId(offerId);
+    public Page<KpiEventResponse> getByOffer(UUID offerId, Pageable pageable) {
+        return kpiEventRepository.findByOfferId(offerId, pageable).map(KpiEventResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public List<KpiEvent> getByPeriod(LocalDateTime from, LocalDateTime to) {
-        return kpiEventRepository.findByPeriod(from, to);
+    public Page<KpiEventResponse> getByPeriod(LocalDateTime from, LocalDateTime to, Pageable pageable) {
+        return kpiEventRepository.findByPeriod(from, to, pageable).map(KpiEventResponse::from);
     }
 }

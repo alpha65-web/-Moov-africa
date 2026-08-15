@@ -16,23 +16,6 @@ services:
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: pim-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: pim
-      RABBITMQ_DEFAULT_PASS: pim_local
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - pim-rmqdata:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-
   minio:
     image: minio/minio
     container_name: pim-minio
@@ -59,24 +42,25 @@ services:
     ports:
       - "8092:8092"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pim_db
       SPRING_DATASOURCE_USERNAME: pim
       SPRING_DATASOURCE_PASSWORD: pim_local
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: pim
-      SPRING_RABBITMQ_PASSWORD: pim_local
       PIM_MINIO_ENDPOINT: http://minio:9000
       PIM_MINIO_ACCESS_KEY: pim_minio
       PIM_MINIO_SECRET_KEY: pim_minio_local
-      PIM_JWT_SECRET: changeme-dev-only-32-chars-minimum!!
+      JWT_SECRET: changeme-dev-only-32-chars-minimum!!
     depends_on:
       postgres:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
       minio:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8092/api/v1/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   frontend:
     build:
@@ -88,9 +72,9 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8092/api/v1
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pim-pgdata:
-  pim-rmqdata:
   pim-minio:

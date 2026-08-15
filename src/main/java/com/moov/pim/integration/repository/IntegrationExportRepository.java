@@ -3,6 +3,8 @@ package com.moov.pim.integration.repository;
 import com.moov.pim.integration.domain.ExportStatus;
 import com.moov.pim.integration.domain.IntegrationExport;
 import com.moov.pim.integration.domain.TargetSystem;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -13,7 +15,11 @@ public interface IntegrationExportRepository extends JpaRepository<IntegrationEx
 
     List<IntegrationExport> findByOfferId(UUID offerId);
 
+    Page<IntegrationExport> findByOfferId(UUID offerId, Pageable pageable);
+
     List<IntegrationExport> findByStatus(ExportStatus status);
+
+    Page<IntegrationExport> findByStatus(ExportStatus status, Pageable pageable);
 
     List<IntegrationExport> findByStatusAndRetryCountLessThan(ExportStatus status, int maxRetry);
 

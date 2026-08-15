@@ -1,5 +1,7 @@
 package com.moov.pim.lifecycle.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moov.pim.lifecycle.api.dto.CreateOfferRequest;
 import com.moov.pim.lifecycle.api.dto.EnrichOfferRequest;
 import com.moov.pim.lifecycle.api.dto.OfferResponse;
@@ -14,6 +16,8 @@ import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.shared.event.OfferCreatedEvent;
 import com.moov.pim.shared.event.OfferTransitionEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -108,6 +112,10 @@ public class OfferService {
 
         OfferStatusHistory history = new OfferStatusHistory();
         history.setOffer(offer);
+        history.setFromStatus(from);
+        history.setToStatus(to);
+        history.setChangedById(currentUserId());
+        history.setComment(request.comment());
         offer.getStatusHistory().add(history);
 
         offer.setStatus(to);
@@ -129,10 +137,13 @@ public class OfferService {
     }
 
     @Transactional(readOnly = true)
-    public List<OfferResponse> listByUser(UUID userId) {
-        return offerRepository.findByCreatedById(userId).stream()
-                .map(OfferResponse::from)
-                .toList();
+    public Page<OfferResponse> listByUser(UUID userId, Pageable pageable) {
+        return offerRepository.findByCreatedById(userId, pageable).map(OfferResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OfferResponse> search(OfferStatus status, String search, Pageable pageable) {
+        return offerRepository.search(status, search, pageable).map(OfferResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -158,11 +169,32 @@ public class OfferService {
         OfferVersion version = new OfferVersion();
         version.setOffer(offer);
         version.setVersionNumber(offer.getCurrentVersion());
-        version.setSnapshot("{}");
+        version.setSnapshot(serializeSnapshot(offer));
         version.setChangedById(currentUserId());
         version.setChangeDescription("Transition vers " + offer.getStatus());
         offer.getVersions().add(version);
         offer.setCurrentVersion(offer.getCurrentVersion() + 1);
+    }
+
+    private String serializeSnapshot(Offer offer) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            Map<String, Object> snapshot = Map.of(
+                    "name", offer.getName(),
+                    "status", offer.getStatus().name(),
+                    "shortDescription", offer.getShortDescription() != null ? offer.getShortDescription() : "",
+                    "longDescription", offer.getLongDescription() != null ? offer.getLongDescription() : "",
+                    "seoTitle", offer.getSeoTitle() != null ? offer.getSeoTitle() : "",
+                    "seoDescription", offer.getSeoDescription() != null ? offer.getSeoDescription() : "",
+                    "promotionalPrice", offer.getPromotionalPrice() != null ? offer.getPromotionalPrice().toString() : "",
+                    "legalMentions", offer.getLegalMentions() != null ? offer.getLegalMentions() : "",
+                    "qualityScore", offer.getQualityScore()
+            );
+            return mapper.writeValueAsString(snapshot);
+        } catch (Exception e) {
+            return "{}";
+        }
     }
 
     private UUID currentUserId() {

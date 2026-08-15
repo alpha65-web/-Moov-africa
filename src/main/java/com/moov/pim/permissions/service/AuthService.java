@@ -44,13 +44,34 @@ public class AuthService {
         this.eventPublisher = eventPublisher;
     }
 
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+        User user = userRepository.findByEmail(request.email()).orElse(null);
 
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+        if (user != null && user.getStatus() == AccountStatus.LOCKED) {
+            throw new org.springframework.security.authentication.LockedException(
+                    "Compte verrouillé après trop de tentatives");
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+        } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+            if (user != null) {
+                user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+                if (user.getFailedLoginAttempts() >= MAX_FAILED_ATTEMPTS) {
+                    user.setStatus(AccountStatus.LOCKED);
+                }
+                userRepository.save(user);
+            }
+            throw ex;
+        }
+
+        if (user == null) {
+            throw new IllegalArgumentException("Utilisateur introuvable");
+        }
 
         user.setFailedLoginAttempts(0);
         user.setLastLoginAt(LocalDateTime.now());

@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/pim_db
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+pim:
+  jwt:
+    secret: ${JWT_SECRET}
+  minio:
+    endpoint: ${PIM_MINIO_ENDPOINT:http://minio:9000}
+    access-key: ${PIM_MINIO_ACCESS_KEY}
+    secret-key: ${PIM_MINIO_SECRET_KEY}
+  cors:
+    allowed-origins: ${PIM_CORS_ORIGINS:http://localhost:3000}
+  swagger:
+    enabled: ${PIM_SWAGGER_ENABLED:false}
+
+logging:
+  level:
+    com.moov.pim: INFO

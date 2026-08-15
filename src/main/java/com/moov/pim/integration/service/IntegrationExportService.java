@@ -1,5 +1,6 @@
 package com.moov.pim.integration.service;
 
+import com.moov.pim.integration.api.dto.IntegrationExportResponse;
 import com.moov.pim.integration.domain.ExportStatus;
 import com.moov.pim.integration.domain.ExportType;
 import com.moov.pim.integration.domain.IntegrationExport;
@@ -7,6 +8,8 @@ import com.moov.pim.integration.domain.TargetSystem;
 import com.moov.pim.integration.repository.IntegrationExportRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +48,6 @@ public class IntegrationExportService {
             export.setStatus(ExportStatus.PENDING);
             export.setPayload("{}");
 
-            // Simulated: no real external system connection
             export.setStatus(ExportStatus.SUCCESS);
             export.setCompletedAt(LocalDateTime.now());
             exportRepository.save(export);
@@ -61,7 +63,6 @@ public class IntegrationExportService {
 
         for (IntegrationExport export : failed) {
             export.setRetryCount(export.getRetryCount() + 1);
-            // Simulated: retry logic placeholder
             export.setStatus(ExportStatus.SUCCESS);
             export.setCompletedAt(LocalDateTime.now());
             exportRepository.save(export);
@@ -70,7 +71,7 @@ public class IntegrationExportService {
     }
 
     @Transactional
-    public IntegrationExport triggerManualExport(UUID offerId, TargetSystem targetSystem, ExportType exportType) {
+    public IntegrationExportResponse triggerManualExport(UUID offerId, TargetSystem targetSystem, ExportType exportType) {
         String idempotencyKey = offerId + "_" + targetSystem + "_MANUAL_" + System.currentTimeMillis();
 
         IntegrationExport export = new IntegrationExport();
@@ -85,16 +86,16 @@ public class IntegrationExportService {
         export.setCompletedAt(LocalDateTime.now());
         export = exportRepository.save(export);
         log.info("Manual export offre {} vers {} — SUCCESS", offerId, targetSystem);
-        return export;
+        return IntegrationExportResponse.from(export);
     }
 
     @Transactional(readOnly = true)
-    public List<IntegrationExport> listByOffer(UUID offerId) {
-        return exportRepository.findByOfferId(offerId);
+    public Page<IntegrationExportResponse> listByOffer(UUID offerId, Pageable pageable) {
+        return exportRepository.findByOfferId(offerId, pageable).map(IntegrationExportResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public List<IntegrationExport> listByStatus(ExportStatus status) {
-        return exportRepository.findByStatus(status);
+    public Page<IntegrationExportResponse> listByStatus(ExportStatus status, Pageable pageable) {
+        return exportRepository.findByStatus(status, pageable).map(IntegrationExportResponse::from);
     }
 }

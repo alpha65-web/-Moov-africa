@@ -1,7 +1,9 @@
 package com.moov.pim.analytics.api;
 
-import com.moov.pim.analytics.domain.KpiEvent;
+import com.moov.pim.analytics.api.dto.KpiEventResponse;
 import com.moov.pim.analytics.service.KpiService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -27,15 +28,16 @@ public class KpiController {
 
     @GetMapping("/offers/{offerId}")
     @PreAuthorize("hasAuthority('ANALYTICS_VIEW')")
-    public ResponseEntity<List<KpiEvent>> byOffer(@PathVariable UUID offerId) {
-        return ResponseEntity.ok(kpiService.getByOffer(offerId));
+    public ResponseEntity<Page<KpiEventResponse>> byOffer(@PathVariable UUID offerId, Pageable pageable) {
+        return ResponseEntity.ok(kpiService.getByOffer(offerId, pageable));
     }
 
     @GetMapping
     @PreAuthorize("hasAuthority('ANALYTICS_VIEW')")
-    public ResponseEntity<List<KpiEvent>> byPeriod(
+    public ResponseEntity<Page<KpiEventResponse>> byPeriod(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
-        return ResponseEntity.ok(kpiService.getByPeriod(from, to));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            Pageable pageable) {
+        return ResponseEntity.ok(kpiService.getByPeriod(from, to, pageable));
     }
 }

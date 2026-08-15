@@ -55,8 +55,12 @@ public class OfferStatusHistory {
     public Offer getOffer() { return offer; }
     public void setOffer(Offer offer) { this.offer = offer; }
     public OfferStatus getFromStatus() { return fromStatus; }
+    public void setFromStatus(OfferStatus fromStatus) { this.fromStatus = fromStatus; }
     public OfferStatus getToStatus() { return toStatus; }
+    public void setToStatus(OfferStatus toStatus) { this.toStatus = toStatus; }
     public UUID getChangedById() { return changedById; }
+    public void setChangedById(UUID changedById) { this.changedById = changedById; }
     public String getComment() { return comment; }
+    public void setComment(String comment) { this.comment = comment; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

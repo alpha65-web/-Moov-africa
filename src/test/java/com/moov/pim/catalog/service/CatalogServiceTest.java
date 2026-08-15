@@ -26,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -46,6 +47,7 @@ class CatalogServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private ServiceRepository serviceRepository;
     @Mock private PackRepository packRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks private CatalogService catalogService;
 

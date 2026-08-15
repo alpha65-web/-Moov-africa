@@ -54,7 +54,9 @@ public class Category {
 
     public UUID getId() { return id; }
     public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
     public Category getParent() { return parent; }
     public int getLevel() { return level; }
     public LocalDateTime getCreatedAt() { return createdAt; }

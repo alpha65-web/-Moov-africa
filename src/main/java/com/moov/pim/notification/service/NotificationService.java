@@ -1,8 +1,11 @@
 package com.moov.pim.notification.service;
 
+import com.moov.pim.notification.api.dto.NotificationResponse;
 import com.moov.pim.notification.domain.Notification;
 import com.moov.pim.notification.domain.NotificationType;
 import com.moov.pim.notification.repository.NotificationRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +28,15 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Notification> listForUser(UUID userId) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId);
+    public Page<NotificationResponse> listForUser(UUID userId, Pageable pageable) {
+        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable)
+                .map(NotificationResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public List<Notification> listUnreadForUser(UUID userId) {
-        return notificationRepository.findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId);
+    public Page<NotificationResponse> listUnreadForUser(UUID userId, Pageable pageable) {
+        return notificationRepository.findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId, pageable)
+                .map(NotificationResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -53,5 +58,10 @@ public class NotificationService {
                 .findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId);
         unread.forEach(n -> n.setRead(true));
         notificationRepository.saveAll(unread);
+    }
+
+    @Transactional
+    public void delete(UUID notificationId) {
+        notificationRepository.deleteById(notificationId);
     }
 }

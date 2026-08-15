@@ -8,6 +8,8 @@ import com.moov.pim.lifecycle.domain.OfferStatus;
 import com.moov.pim.lifecycle.service.OfferService;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -61,16 +62,17 @@ public class OfferController {
 
     @GetMapping("/mine")
     @PreAuthorize("hasAuthority('OFFER_CREATE')")
-    public ResponseEntity<List<OfferResponse>> myOffers(@AuthenticationPrincipal CustomUserDetails principal) {
-        return ResponseEntity.ok(offerService.listByUser(principal.getUserId()));
+    public ResponseEntity<Page<OfferResponse>> myOffers(@AuthenticationPrincipal CustomUserDetails principal,
+                                                        Pageable pageable) {
+        return ResponseEntity.ok(offerService.listByUser(principal.getUserId(), pageable));
     }
 
     @GetMapping
     @PreAuthorize("hasAuthority('CATALOG_READ')")
-    public ResponseEntity<List<OfferResponse>> list(@RequestParam(required = false) OfferStatus status) {
-        if (status != null) {
-            return ResponseEntity.ok(offerService.listByStatus(status));
-        }
-        return ResponseEntity.ok(offerService.listAll());
+    public ResponseEntity<Page<OfferResponse>> list(
+            @RequestParam(required = false) OfferStatus status,
+            @RequestParam(required = false) String search,
+            Pageable pageable) {
+        return ResponseEntity.ok(offerService.search(status, search, pageable));
     }
 }

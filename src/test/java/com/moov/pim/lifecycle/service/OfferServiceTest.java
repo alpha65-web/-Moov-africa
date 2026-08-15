@@ -23,6 +23,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -40,6 +41,7 @@ import static org.mockito.Mockito.when;
 class OfferServiceTest {
 
     @Mock private OfferRepository offerRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
     @InjectMocks private OfferService offerService;
 
     private UUID userId;
