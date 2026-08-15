@@ -33,6 +33,8 @@ public class CampaignService {
     public CampaignResponse create(CreateCampaignRequest request) {
         Campaign campaign = new Campaign();
         campaign.setName(request.name());
+        campaign.setOfferId(request.offerId());
+        campaign.setCreatedById(currentUserId());
         campaign.setScheduledAt(request.scheduledAt());
 
         for (CreateCampaignRequest.ChannelConfig channelConfig : request.channels()) {
@@ -68,6 +70,63 @@ public class CampaignService {
     public CampaignResponse getById(UUID id) {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+        return CampaignResponse.from(campaign);
+    }
+
+    @Transactional
+    public CampaignResponse update(UUID id, CreateCampaignRequest request) {
+        Campaign campaign = campaignRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+
+        if (campaign.getStatus() != CampaignStatus.DRAFT && campaign.getStatus() != CampaignStatus.SCHEDULED) {
+            throw new IllegalStateException("Seule une campagne en DRAFT ou SCHEDULED peut être modifiée");
+        }
+
+        campaign.setName(request.name());
+        campaign.setOfferId(request.offerId());
+        campaign.setScheduledAt(request.scheduledAt());
+        campaign.getChannels().clear();
+
+        for (CreateCampaignRequest.ChannelConfig channelConfig : request.channels()) {
+            CampaignChannel channel = new CampaignChannel();
+            channel.setChannelType(channelConfig.channelType());
+            channel.setMessage(channelConfig.message());
+            campaign.addChannel(channel);
+        }
+
+        if (request.scheduledAt() != null) {
+            campaign.setStatus(CampaignStatus.SCHEDULED);
+        } else {
+            campaign.setStatus(CampaignStatus.DRAFT);
+        }
+
+        campaign = campaignRepository.save(campaign);
+        return CampaignResponse.from(campaign);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        Campaign campaign = campaignRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+
+        if (campaign.getStatus() == CampaignStatus.PUBLISHED || campaign.getStatus() == CampaignStatus.COMPLETED) {
+            throw new IllegalStateException("Impossible de supprimer une campagne publiée ou terminée");
+        }
+
+        campaignRepository.delete(campaign);
+    }
+
+    @Transactional
+    public CampaignResponse cancel(UUID id) {
+        Campaign campaign = campaignRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+
+        if (campaign.getStatus() == CampaignStatus.COMPLETED || campaign.getStatus() == CampaignStatus.CANCELLED) {
+            throw new IllegalStateException("Impossible d'annuler une campagne terminée ou déjà annulée");
+        }
+
+        campaign.setStatus(CampaignStatus.CANCELLED);
+        campaign = campaignRepository.save(campaign);
         return CampaignResponse.from(campaign);
     }
 

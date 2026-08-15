@@ -38,6 +38,10 @@ public class IntegrationExportService {
             }
 
             IntegrationExport export = new IntegrationExport();
+            export.setOfferId(offerId);
+            export.setTargetSystem(target);
+            export.setExportType(ExportType.AUTO_PUBLISH);
+            export.setIdempotencyKey(idempotencyKey);
             export.setStatus(ExportStatus.PENDING);
             export.setPayload("{}");
 
@@ -63,6 +67,25 @@ public class IntegrationExportService {
             exportRepository.save(export);
             log.info("Simulated: retry export {} — tentative {}", export.getId(), export.getRetryCount());
         }
+    }
+
+    @Transactional
+    public IntegrationExport triggerManualExport(UUID offerId, TargetSystem targetSystem, ExportType exportType) {
+        String idempotencyKey = offerId + "_" + targetSystem + "_MANUAL_" + System.currentTimeMillis();
+
+        IntegrationExport export = new IntegrationExport();
+        export.setOfferId(offerId);
+        export.setTargetSystem(targetSystem);
+        export.setExportType(exportType);
+        export.setIdempotencyKey(idempotencyKey);
+        export.setStatus(ExportStatus.PENDING);
+        export.setPayload("{}");
+
+        export.setStatus(ExportStatus.SUCCESS);
+        export.setCompletedAt(LocalDateTime.now());
+        export = exportRepository.save(export);
+        log.info("Manual export offre {} vers {} — SUCCESS", offerId, targetSystem);
+        return export;
     }
 
     @Transactional(readOnly = true)

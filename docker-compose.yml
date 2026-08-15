@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgres:16
     container_name: pim-postgres
     environment:
       POSTGRES_DB: pim_db
@@ -10,6 +10,11 @@ services:
       - "5432:5432"
     volumes:
       - pim-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pim -d pim_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -22,6 +27,11 @@ services:
       - "15672:15672"
     volumes:
       - pim-rmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   minio:
     image: minio/minio
@@ -35,6 +45,50 @@ services:
       - "9001:9001"
     volumes:
       - pim-minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pim-backend
+    ports:
+      - "8092:8092"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pim_db
+      SPRING_DATASOURCE_USERNAME: pim
+      SPRING_DATASOURCE_PASSWORD: pim_local
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: pim
+      SPRING_RABBITMQ_PASSWORD: pim_local
+      PIM_MINIO_ENDPOINT: http://minio:9000
+      PIM_MINIO_ACCESS_KEY: pim_minio
+      PIM_MINIO_SECRET_KEY: pim_minio_local
+      PIM_JWT_SECRET: changeme-dev-only-32-chars-minimum!!
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pim-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8092/api/v1
+    depends_on:
+      - backend
 
 volumes:
   pim-pgdata:

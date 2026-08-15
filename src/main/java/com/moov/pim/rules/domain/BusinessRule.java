@@ -45,7 +45,7 @@ public class BusinessRule {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    protected BusinessRule() {}
+    public BusinessRule() {}
 
     @PrePersist
     void onCreate() {
@@ -62,7 +62,10 @@ public class BusinessRule {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public UUID getSourceItemId() { return sourceItemId; }
+    public void setSourceItemId(UUID sourceItemId) { this.sourceItemId = sourceItemId; }
     public UUID getTargetItemId() { return targetItemId; }
+    public void setTargetItemId(UUID targetItemId) { this.targetItemId = targetItemId; }
     public UUID getCreatedById() { return createdById; }
+    public void setCreatedById(UUID createdById) { this.createdById = createdById; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

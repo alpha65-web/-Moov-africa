@@ -11,6 +11,9 @@ import com.moov.pim.lifecycle.domain.OfferStatusHistory;
 import com.moov.pim.lifecycle.domain.OfferVersion;
 import com.moov.pim.lifecycle.repository.OfferRepository;
 import com.moov.pim.permissions.security.CustomUserDetails;
+import com.moov.pim.shared.event.OfferCreatedEvent;
+import com.moov.pim.shared.event.OfferTransitionEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,9 +40,11 @@ public class OfferService {
     );
 
     private final OfferRepository offerRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public OfferService(OfferRepository offerRepository) {
+    public OfferService(OfferRepository offerRepository, ApplicationEventPublisher eventPublisher) {
         this.offerRepository = offerRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -61,6 +66,7 @@ public class OfferService {
         }
 
         offer = offerRepository.save(offer);
+        eventPublisher.publishEvent(new OfferCreatedEvent(offer.getId(), offer.getName(), currentUserId()));
         return OfferResponse.from(offer);
     }
 
@@ -112,6 +118,8 @@ public class OfferService {
 
         createVersion(offer);
         offer = offerRepository.save(offer);
+        eventPublisher.publishEvent(new OfferTransitionEvent(
+                offer.getId(), offer.getName(), currentUserId(), from.name(), to.name()));
         return OfferResponse.from(offer);
     }
 

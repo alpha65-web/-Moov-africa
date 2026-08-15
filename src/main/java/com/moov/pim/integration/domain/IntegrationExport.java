@@ -66,11 +66,15 @@ public class IntegrationExport {
 
     public UUID getId() { return id; }
     public TargetSystem getTargetSystem() { return targetSystem; }
+    public void setTargetSystem(TargetSystem targetSystem) { this.targetSystem = targetSystem; }
     public UUID getOfferId() { return offerId; }
+    public void setOfferId(UUID offerId) { this.offerId = offerId; }
     public ExportType getExportType() { return exportType; }
+    public void setExportType(ExportType exportType) { this.exportType = exportType; }
     public ExportStatus getStatus() { return status; }
     public void setStatus(ExportStatus status) { this.status = status; }
     public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
     public String getPayload() { return payload; }
     public void setPayload(String payload) { this.payload = payload; }
     public String getErrorMessage() { return errorMessage; }

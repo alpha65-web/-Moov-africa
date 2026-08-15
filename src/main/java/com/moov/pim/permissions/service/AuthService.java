@@ -11,6 +11,9 @@ import com.moov.pim.permissions.domain.User;
 import com.moov.pim.permissions.repository.RoleRepository;
 import com.moov.pim.permissions.repository.UserRepository;
 import com.moov.pim.permissions.security.JwtTokenProvider;
+import com.moov.pim.shared.event.UserLoginEvent;
+import com.moov.pim.shared.event.UserRegisteredEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,15 +30,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AuthService(UserRepository userRepository, RoleRepository roleRepository,
                        PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationManager = authenticationManager;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -54,6 +60,7 @@ public class AuthService {
         String refreshToken = jwtTokenProvider.generateRefreshToken(
                 user.getId(), user.getEmail(), user.getRole().getName().name());
 
+        eventPublisher.publishEvent(new UserLoginEvent(user.getId(), user.getEmail()));
         return new LoginResponse(accessToken, refreshToken, UserResponse.from(user));
     }
 
@@ -76,6 +83,7 @@ public class AuthService {
         );
 
         user = userRepository.save(user);
+        eventPublisher.publishEvent(new UserRegisteredEvent(user.getId(), user.getEmail()));
         return UserResponse.from(user);
     }
 

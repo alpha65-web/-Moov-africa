@@ -1,0 +1,8 @@
+target/
+frontend/
+.git/
+*.class
+*.cer
+*.jks
+uml/
+regles/

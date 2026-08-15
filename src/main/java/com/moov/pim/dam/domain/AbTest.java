@@ -35,7 +35,7 @@ public class AbTest {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AbTestStatus status = AbTestStatus.RUNNING;
+    private AbTestStatus status = AbTestStatus.DRAFT;
 
     private String winner;
 
@@ -45,7 +45,7 @@ public class AbTest {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    protected AbTest() {}
+    public AbTest() {}
 
     @PrePersist
     void onCreate() {
@@ -54,13 +54,18 @@ public class AbTest {
 
     public UUID getId() { return id; }
     public UUID getOfferId() { return offerId; }
+    public void setOfferId(UUID offerId) { this.offerId = offerId; }
     public String getVariantA() { return variantA; }
+    public void setVariantA(String variantA) { this.variantA = variantA; }
     public String getVariantB() { return variantB; }
+    public void setVariantB(String variantB) { this.variantB = variantB; }
     public String getMetric() { return metric; }
+    public void setMetric(String metric) { this.metric = metric; }
     public AbTestStatus getStatus() { return status; }
     public void setStatus(AbTestStatus status) { this.status = status; }
     public String getWinner() { return winner; }
     public void setWinner(String winner) { this.winner = winner; }
     public UUID getCreatedById() { return createdById; }
+    public void setCreatedById(UUID createdById) { this.createdById = createdById; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

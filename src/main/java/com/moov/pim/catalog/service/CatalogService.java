@@ -15,6 +15,9 @@ import com.moov.pim.catalog.repository.PackRepository;
 import com.moov.pim.catalog.repository.ProductRepository;
 import com.moov.pim.catalog.repository.ServiceRepository;
 import com.moov.pim.permissions.security.CustomUserDetails;
+import com.moov.pim.shared.event.CatalogItemCreatedEvent;
+import com.moov.pim.shared.event.CatalogItemArchivedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,15 +31,18 @@ public class CatalogService {
     private final ProductRepository productRepository;
     private final ServiceRepository serviceRepository;
     private final PackRepository packRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CatalogService(CatalogItemRepository catalogItemRepository,
                           ProductRepository productRepository,
                           ServiceRepository serviceRepository,
-                          PackRepository packRepository) {
+                          PackRepository packRepository,
+                          ApplicationEventPublisher eventPublisher) {
         this.catalogItemRepository = catalogItemRepository;
         this.productRepository = productRepository;
         this.serviceRepository = serviceRepository;
         this.packRepository = packRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -50,6 +56,7 @@ public class CatalogService {
         product.setPackOnly(request.packOnly());
         product.setCreatedById(currentUserId());
         product = productRepository.save(product);
+        eventPublisher.publishEvent(new CatalogItemCreatedEvent(product.getId(), product.getName(), "Product", currentUserId()));
         return CatalogItemResponse.from(product);
     }
 
@@ -66,6 +73,7 @@ public class CatalogService {
         service.setPackOnly(request.packOnly());
         service.setCreatedById(currentUserId());
         service = serviceRepository.save(service);
+        eventPublisher.publishEvent(new CatalogItemCreatedEvent(service.getId(), service.getName(), "Service", currentUserId()));
         return CatalogItemResponse.from(service);
     }
 
@@ -88,6 +96,7 @@ public class CatalogService {
         }
 
         pack = packRepository.save(pack);
+        eventPublisher.publishEvent(new CatalogItemCreatedEvent(pack.getId(), pack.getName(), "Pack", currentUserId()));
         return CatalogItemResponse.from(pack);
     }
 
@@ -111,6 +120,7 @@ public class CatalogService {
                 .orElseThrow(() -> new IllegalArgumentException("Élément du catalogue introuvable"));
         item.setStatus(CatalogItemStatus.ARCHIVED);
         catalogItemRepository.save(item);
+        eventPublisher.publishEvent(new CatalogItemArchivedEvent(item.getId(), currentUserId()));
     }
 
     private UUID currentUserId() {

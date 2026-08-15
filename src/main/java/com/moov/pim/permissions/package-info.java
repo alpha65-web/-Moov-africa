@@ -1,5 +1,5 @@
 @org.springframework.modulith.ApplicationModule(
     displayName = "Permissions",
-    allowedDependencies = {}
+    allowedDependencies = {"shared"}
 )
 package com.moov.pim.permissions;

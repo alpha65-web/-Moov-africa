@@ -7,9 +7,11 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,5 +51,24 @@ public class CampaignController {
     @PreAuthorize("hasAuthority('CAMPAIGN_MANAGE')")
     public ResponseEntity<CampaignResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(campaignService.getById(id));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('CAMPAIGN_MANAGE')")
+    public ResponseEntity<CampaignResponse> update(@PathVariable UUID id, @Valid @RequestBody CreateCampaignRequest request) {
+        return ResponseEntity.ok(campaignService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('CAMPAIGN_MANAGE')")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        campaignService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('CAMPAIGN_MANAGE')")
+    public ResponseEntity<CampaignResponse> cancel(@PathVariable UUID id) {
+        return ResponseEntity.ok(campaignService.cancel(id));
     }
 }

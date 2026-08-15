@@ -67,6 +67,7 @@ public class Campaign {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public UUID getOfferId() { return offerId; }
+    public void setOfferId(UUID offerId) { this.offerId = offerId; }
     public CampaignStatus getStatus() { return status; }
     public void setStatus(CampaignStatus status) { this.status = status; }
     public LocalDateTime getScheduledAt() { return scheduledAt; }
@@ -74,6 +75,7 @@ public class Campaign {
     public LocalDateTime getPublishedAt() { return publishedAt; }
     public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
     public UUID getCreatedById() { return createdById; }
+    public void setCreatedById(UUID createdById) { this.createdById = createdById; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public List<CampaignChannel> getChannels() { return channels; }
 }
