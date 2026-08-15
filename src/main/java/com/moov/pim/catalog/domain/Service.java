@@ -29,7 +29,7 @@ public class Service extends CatalogItem {
     @Column(name = "billing_cycle", nullable = false)
     private BillingCycle billingCycle;
 
-    protected Service() {}
+    public Service() {}
 
     public ServiceType getServiceType() { return serviceType; }
     public void setServiceType(ServiceType serviceType) { this.serviceType = serviceType; }

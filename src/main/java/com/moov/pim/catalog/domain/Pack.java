@@ -26,7 +26,7 @@ public class Pack extends CatalogItem {
     @OneToMany(mappedBy = "pack", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<PackItem> items = new ArrayList<>();
 
-    protected Pack() {}
+    public Pack() {}
 
     public BigDecimal getBundlePrice() { return bundlePrice; }
     public void setBundlePrice(BigDecimal bundlePrice) { this.bundlePrice = bundlePrice; }

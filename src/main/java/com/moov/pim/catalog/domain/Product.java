@@ -22,7 +22,7 @@ public class Product extends CatalogItem {
     @Column(name = "quality_score", nullable = false)
     private float qualityScore = 0f;
 
-    protected Product() {}
+    public Product() {}
 
     public String getCharacteristics() { return characteristics; }
     public void setCharacteristics(String characteristics) { this.characteristics = characteristics; }

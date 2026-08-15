@@ -44,7 +44,7 @@ public class OfferVersion {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    protected OfferVersion() {}
+    public OfferVersion() {}
 
     @PrePersist
     void onCreate() {

@@ -104,7 +104,7 @@ public class Offer {
     @OneToMany(mappedBy = "offer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<OfferStatusHistory> statusHistory = new ArrayList<>();
 
-    protected Offer() {}
+    public Offer() {}
 
     @PrePersist
     void onCreate() {
