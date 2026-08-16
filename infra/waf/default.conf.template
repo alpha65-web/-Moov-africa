@@ -1,0 +1,90 @@
+# WAF Nginx configuration — ModSecurity + OWASP CRS
+# This template is processed by envsubst in the owasp/modsecurity-crs image
+
+upstream backend {
+    server pim-backend:8092;
+    keepalive 32;
+}
+
+upstream frontend {
+    server pim-frontend:3000;
+    keepalive 16;
+}
+
+# Rate limiting zones
+limit_req_zone $binary_remote_addr zone=api:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=auth:10m rate=5r/m;
+
+# DDoS protection: connection limiting
+limit_conn_zone $binary_remote_addr zone=conn_per_ip:10m;
+limit_conn_zone $server_name zone=conn_per_server:10m;
+
+server {
+    listen 8080;
+    server_name _;
+
+    # Security headers
+    server_tokens off;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), camera=(), microphone=()" always;
+
+    # DDoS protection: max connections per IP / per server
+    limit_conn conn_per_ip 50;
+    limit_conn conn_per_server 1000;
+
+    # Request size limit
+    client_max_body_size 50M;
+    client_body_timeout 30s;
+    client_header_timeout 10s;
+
+    # Slow loris protection
+    keepalive_timeout 30s;
+    send_timeout 30s;
+
+    # ModSecurity is enabled globally by the image via MODSEC_RULE_ENGINE env var
+
+    # Auth endpoints — strictest rate limiting
+    location /api/v1/auth/ {
+        limit_req zone=auth burst=3 nodelay;
+        limit_conn conn_per_ip 10;
+
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
+    # API endpoints
+    location /api/ {
+        limit_req zone=api burst=20 nodelay;
+
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 10s;
+    }
+
+    # Health check (bypass WAF rules for monitoring)
+    location /api/v1/actuator/health {
+        modsecurity off;
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+    }
+
+    # Frontend
+    location / {
+        proxy_pass http://frontend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

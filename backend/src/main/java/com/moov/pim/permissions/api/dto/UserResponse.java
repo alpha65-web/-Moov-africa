@@ -12,6 +12,8 @@ public record UserResponse(
         String lastName,
         String role,
         String status,
+        boolean forcePasswordChange,
+        boolean totpEnabled,
         LocalDateTime lastLoginAt,
         LocalDateTime createdAt
 ) {
@@ -23,6 +25,8 @@ public record UserResponse(
                 user.getLastName(),
                 user.getRole().getName().name(),
                 user.getStatus().name(),
+                user.isForcePasswordChange(),
+                user.isTotpEnabled(),
                 user.getLastLoginAt(),
                 user.getCreatedAt()
         );

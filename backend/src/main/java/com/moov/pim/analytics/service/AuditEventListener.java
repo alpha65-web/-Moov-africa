@@ -3,6 +3,7 @@ package com.moov.pim.analytics.service;
 import com.moov.pim.analytics.domain.AuditAction;
 import com.moov.pim.shared.event.CatalogItemArchivedEvent;
 import com.moov.pim.shared.event.CatalogItemCreatedEvent;
+import com.moov.pim.shared.event.LoginFailedEvent;
 import com.moov.pim.shared.event.OfferCreatedEvent;
 import com.moov.pim.shared.event.OfferTransitionEvent;
 import com.moov.pim.shared.event.UserLoginEvent;
@@ -47,7 +48,14 @@ public class AuditEventListener {
     @ApplicationModuleListener
     public void on(UserLoginEvent event) {
         auditService.log(event.userId(), AuditAction.LOGIN, "User", event.userId(),
-                null, event.email(), null);
+                null, event.email(), event.ipAddress(), event.userAgent());
+    }
+
+    @ApplicationModuleListener
+    public void on(LoginFailedEvent event) {
+        auditService.log(event.userId(), AuditAction.LOGIN_FAILED, "User",
+                event.userId() != null ? event.userId() : new java.util.UUID(0, 0),
+                null, event.email(), event.ipAddress(), event.userAgent());
     }
 
     @ApplicationModuleListener

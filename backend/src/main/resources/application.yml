@@ -1,13 +1,23 @@
 spring:
   application:
     name: pim
+  config:
+    import: "optional:vault://"
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://vault:8200}
+      token: ${VAULT_TOKEN:}
+      kv:
+        enabled: ${PIM_VAULT_ENABLED:false}
+        backend: secret
+        default-context: pim
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/pim_db
-    username: pim
-    password: pim_local
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/pim_db}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -41,27 +51,55 @@ server:
 
 pim:
   jwt:
-    secret: ${JWT_SECRET:changeme-dev-only-32-chars-minimum!!}
+    secret: ${JWT_SECRET}
     access-token-expiration: 900000
     refresh-token-expiration: 604800000
   minio:
     endpoint: ${PIM_MINIO_ENDPOINT:http://localhost:9000}
-    access-key: ${MINIO_ACCESS_KEY:pim_minio}
-    secret-key: ${MINIO_SECRET_KEY:pim_minio_local}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
     bucket: pim-media
   cors:
     allowed-origins: ${PIM_CORS_ORIGINS:http://localhost:3000}
   swagger:
-    enabled: ${PIM_SWAGGER_ENABLED:true}
+    enabled: ${PIM_SWAGGER_ENABLED:false}
+  clamav:
+    host: ${PIM_CLAMAV_HOST:clamav}
+    port: ${PIM_CLAMAV_PORT:3310}
+    enabled: ${PIM_CLAMAV_ENABLED:false}
+  encryption:
+    key: ${PIM_ENCRYPTION_KEY:}
+  dlp:
+    enabled: ${PIM_DLP_ENABLED:true}
+    max-response-bytes: ${PIM_DLP_MAX_RESPONSE_BYTES:5242880}
+    max-requests-per-minute: ${PIM_DLP_MAX_REQUESTS_PER_MINUTE:200}
+  oauth2:
+    enabled: ${PIM_OAUTH2_ENABLED:false}
+    issuer-uri: ${PIM_OAUTH2_ISSUER_URI:}
+    client-id: ${PIM_OAUTH2_CLIENT_ID:pim-backend}
+  webauthn:
+    enabled: ${PIM_WEBAUTHN_ENABLED:false}
+    rp-id: ${PIM_WEBAUTHN_RP_ID:localhost}
+    rp-name: ${PIM_WEBAUTHN_RP_NAME:Moov Africa PIM}
+    origin: ${PIM_WEBAUTHN_ORIGIN:http://localhost:3000}
+  key-rotation:
+    session-key-max-age-days: ${PIM_KEY_ROTATION_SESSION_DAYS:90}
+    master-key-max-age-days: ${PIM_KEY_ROTATION_MASTER_DAYS:365}
+  certificate-monitor:
+    endpoints: ${PIM_CERT_MONITOR_ENDPOINTS:}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 springdoc:
   api-docs:

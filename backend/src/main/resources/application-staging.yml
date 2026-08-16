@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+pim:
+  jwt:
+    secret: ${JWT_SECRET}
+  minio:
+    endpoint: ${PIM_MINIO_ENDPOINT}
+    access-key: ${PIM_MINIO_ACCESS_KEY}
+    secret-key: ${PIM_MINIO_SECRET_KEY}
+  cors:
+    allowed-origins: ${PIM_CORS_ORIGINS}
+  swagger:
+    enabled: false
+
+logging:
+  level:
+    com.moov.pim: INFO

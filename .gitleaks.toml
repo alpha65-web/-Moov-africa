@@ -1,0 +1,28 @@
+title = "Gitleaks config for Moov-Africa PIM"
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+    '''.env\.example''',
+    '''backend/src/main/resources/application-dev\.yml''',
+    '''\.gitleaks\.toml''',
+]
+
+[[rules]]
+id = "pim-jwt-secret"
+description = "PIM JWT secret in source"
+regex = '''JWT_SECRET\s*[:=]\s*[A-Za-z0-9+/=]{20,}'''
+tags = ["secret", "jwt"]
+
+[[rules]]
+id = "pim-db-password"
+description = "Database password in source"
+regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*[^\s]{8,}'''
+tags = ["secret", "database"]
+[rules.allowlist]
+paths = [
+    '''application-dev\.yml''',
+    '''\.env\.example''',
+]

@@ -11,6 +11,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import com.moov.pim.permissions.service.AuthService;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -41,6 +42,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LockedException.class)
     public ResponseEntity<ApiError> handleLocked(LockedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of(403, "Compte verrouillé"));
+    }
+
+    @ExceptionHandler(AuthService.MfaRequiredException.class)
+    public ResponseEntity<ApiError> handleMfaRequired(AuthService.MfaRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of(403, "MFA_REQUIRED"));
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)

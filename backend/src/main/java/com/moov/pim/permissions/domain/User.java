@@ -44,6 +44,18 @@ public class User {
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts = 0;
 
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion = 0;
+
+    @Column(name = "force_password_change", nullable = false)
+    private boolean forcePasswordChange = false;
+
+    @Column(name = "totp_secret", length = 64)
+    private String totpSecret;
+
+    @Column(name = "totp_enabled", nullable = false)
+    private boolean totpEnabled = false;
+
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
@@ -56,6 +68,9 @@ public class User {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "anonymized_at")
+    private LocalDateTime anonymizedAt;
 
     protected User() {}
 
@@ -90,6 +105,20 @@ public class User {
     public Role getRole() { return role; }
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+    public int getTokenVersion() { return tokenVersion; }
+    public void incrementTokenVersion() { this.tokenVersion++; }
+    public boolean isForcePasswordChange() { return forcePasswordChange; }
+    public void setForcePasswordChange(boolean forcePasswordChange) { this.forcePasswordChange = forcePasswordChange; }
+    public void setEmail(String email) { this.email = email; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public String getTotpSecret() { return totpSecret; }
+    public void setTotpSecret(String totpSecret) { this.totpSecret = totpSecret; }
+    public boolean isTotpEnabled() { return totpEnabled; }
+    public void setTotpEnabled(boolean totpEnabled) { this.totpEnabled = totpEnabled; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public LocalDateTime getAnonymizedAt() { return anonymizedAt; }
+    public void setAnonymizedAt(LocalDateTime anonymizedAt) { this.anonymizedAt = anonymizedAt; }
 }

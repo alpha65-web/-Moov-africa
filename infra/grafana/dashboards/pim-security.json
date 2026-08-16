@@ -1,0 +1,121 @@
+{
+  "dashboard": {
+    "title": "PIM Security Dashboard",
+    "uid": "pim-security",
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Login Success Rate",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(security_auth_login_success_total[5m])",
+            "legendFormat": "Success/s"
+          }
+        ]
+      },
+      {
+        "title": "Login Failures",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(security_auth_login_failed_total[5m])",
+            "legendFormat": "Failures/s"
+          }
+        ]
+      },
+      {
+        "title": "MFA Challenges",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "increase(security_auth_mfa_challenges_total[1h])",
+            "legendFormat": "Last hour"
+          }
+        ]
+      },
+      {
+        "title": "Account Lockouts",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "increase(security_auth_lockouts_total[1h])",
+            "legendFormat": "Last hour"
+          }
+        ]
+      },
+      {
+        "title": "Auth Events Over Time",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "targets": [
+          {
+            "expr": "rate(security_auth_login_success_total[5m])",
+            "legendFormat": "Success"
+          },
+          {
+            "expr": "rate(security_auth_login_failed_total[5m])",
+            "legendFormat": "Failures"
+          },
+          {
+            "expr": "rate(security_auth_mfa_failures_total[5m])",
+            "legendFormat": "MFA Failures"
+          }
+        ]
+      },
+      {
+        "title": "Access Denied & Token Refreshes",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "targets": [
+          {
+            "expr": "rate(security_auth_access_denied_total[5m])",
+            "legendFormat": "Access Denied"
+          },
+          {
+            "expr": "rate(security_auth_token_refresh_total[5m])",
+            "legendFormat": "Token Refresh"
+          }
+        ]
+      },
+      {
+        "title": "HTTP Error Rate (5xx)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count[5m]))",
+            "legendFormat": "Error Rate"
+          }
+        ]
+      },
+      {
+        "title": "JVM Heap Usage",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 12 },
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{area=\"heap\"} / jvm_memory_max_bytes{area=\"heap\"}",
+            "legendFormat": "Heap %"
+          }
+        ]
+      },
+      {
+        "title": "DB Connection Pool",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 12 },
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active / hikaricp_connections_max",
+            "legendFormat": "Pool Usage %"
+          }
+        ]
+      }
+    ]
+  }
+}

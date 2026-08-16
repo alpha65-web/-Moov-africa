@@ -12,6 +12,7 @@ import com.moov.pim.dam.repository.MediaAssetRepository;
 import com.moov.pim.dam.repository.MediaValidationRepository;
 import com.moov.pim.dam.repository.OfferMediaRepository;
 import com.moov.pim.permissions.security.CustomUserDetails;
+import com.moov.pim.shared.security.ClamAvScanService;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
@@ -52,6 +53,7 @@ public class MediaAssetService {
     private final MediaValidationRepository mediaValidationRepository;
     private final OfferMediaRepository offerMediaRepository;
     private final MinioClient minioClient;
+    private final ClamAvScanService clamAvScanService;
 
     @Value("${pim.minio.bucket}")
     private String bucket;
@@ -59,11 +61,13 @@ public class MediaAssetService {
     public MediaAssetService(MediaAssetRepository mediaAssetRepository,
                              MediaValidationRepository mediaValidationRepository,
                              OfferMediaRepository offerMediaRepository,
-                             MinioClient minioClient) {
+                             MinioClient minioClient,
+                             ClamAvScanService clamAvScanService) {
         this.mediaAssetRepository = mediaAssetRepository;
         this.mediaValidationRepository = mediaValidationRepository;
         this.offerMediaRepository = offerMediaRepository;
         this.minioClient = minioClient;
+        this.clamAvScanService = clamAvScanService;
     }
 
     @Transactional
@@ -76,6 +80,19 @@ public class MediaAssetService {
         validateExtension(originalName);
         String detectedMime = detectMimeType(file);
         validateMimeType(detectedMime);
+
+        try (InputStream scanStream = file.getInputStream()) {
+            ClamAvScanService.ScanResult result = clamAvScanService.scan(scanStream);
+            if (!result.clean()) {
+                log.warn("ClamAV rejected file '{}': {}", originalName, result.message());
+                throw new IllegalArgumentException("Le fichier a été rejeté par l'antivirus : " + result.message());
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Antivirus scan error for '{}': {}", originalName, e.getMessage());
+            throw new IllegalStateException("Erreur lors du scan antivirus");
+        }
 
         String safeKey = "media/" + UUID.randomUUID() + "/" + originalName;
 
@@ -172,6 +189,16 @@ public class MediaAssetService {
     @Transactional
     public void delete(UUID id) {
         MediaAsset asset = findAsset(id);
+
+        UUID currentUser = currentUserId();
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("USER_MANAGE"));
+        if (!isAdmin && !currentUser.equals(asset.getUploadedById())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Vous n'êtes pas autorisé à supprimer ce média");
+        }
+
         try {
             minioClient.removeObject(RemoveObjectArgs.builder()
                     .bucket(bucket)

@@ -14,6 +14,7 @@ public record AuditLogResponse(
         String previousValue,
         String newValue,
         String ipAddress,
+        String userAgent,
         LocalDateTime createdAt
 ) {
     public static AuditLogResponse from(AuditLog log) {
@@ -21,7 +22,7 @@ public record AuditLogResponse(
                 log.getId(), log.getUserId(), log.getAction().name(),
                 log.getEntityType(), log.getEntityId(),
                 log.getPreviousValue(), log.getNewValue(),
-                log.getIpAddress(), log.getCreatedAt()
+                log.getIpAddress(), log.getUserAgent(), log.getCreatedAt()
         );
     }
 }

@@ -22,12 +22,19 @@ public class AuditService {
 
     @Transactional
     public AuditLog log(UUID userId, AuditAction action, String entityType, UUID entityId,
-                        String previousValue, String newValue, String ipAddress) {
+                        String previousValue, String newValue, String ipAddress, String userAgent) {
         AuditLog entry = new AuditLog(userId, action, entityType, entityId);
         entry.setPreviousValue(previousValue);
         entry.setNewValue(newValue);
         entry.setIpAddress(ipAddress);
+        entry.setUserAgent(userAgent);
         return auditLogRepository.save(entry);
+    }
+
+    @Transactional
+    public AuditLog log(UUID userId, AuditAction action, String entityType, UUID entityId,
+                        String previousValue, String newValue, String ipAddress) {
+        return log(userId, action, entityType, entityId, previousValue, newValue, ipAddress, null);
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,6 @@
 package com.moov.pim.permissions.service;
 
+import com.moov.pim.permissions.api.dto.ChangePasswordRequest;
 import com.moov.pim.permissions.api.dto.LoginRequest;
 import com.moov.pim.permissions.api.dto.LoginResponse;
 import com.moov.pim.permissions.api.dto.RegisterRequest;
@@ -8,6 +9,7 @@ import com.moov.pim.permissions.domain.Permission;
 import com.moov.pim.permissions.domain.Role;
 import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.domain.User;
+import com.moov.pim.permissions.repository.RefreshTokenRepository;
 import com.moov.pim.permissions.repository.RoleRepository;
 import com.moov.pim.permissions.repository.UserRepository;
 import com.moov.pim.permissions.security.JwtTokenProvider;
@@ -23,12 +25,17 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.moov.pim.permissions.domain.AccountStatus;
+import com.moov.pim.permissions.domain.RefreshToken;
+
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,6 +43,7 @@ class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private RoleRepository roleRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private AuthenticationManager authenticationManager;
@@ -64,8 +72,9 @@ class AuthServiceTest {
         when(authenticationManager.authenticate(any())).thenReturn(
                 new UsernamePasswordAuthenticationToken("admin@moov-africa.bf", "password"));
         when(userRepository.findByEmail("admin@moov-africa.bf")).thenReturn(Optional.of(testUser));
-        when(jwtTokenProvider.generateAccessToken(any(), any(), any())).thenReturn("access-token");
-        when(jwtTokenProvider.generateRefreshToken(any(), any(), any())).thenReturn("refresh-token");
+        when(jwtTokenProvider.generateAccessToken(any(), any(), any(), anyInt())).thenReturn("access-token");
+        when(jwtTokenProvider.generateRefreshToken(any(), any(), any(), anyInt())).thenReturn("refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpiration()).thenReturn(604800000L);
 
         LoginResponse response = authService.login(request);
 
@@ -74,6 +83,7 @@ class AuthServiceTest {
         assertEquals("admin@moov-africa.bf", response.user().email());
         assertEquals(0, testUser.getFailedLoginAttempts());
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
+        verify(refreshTokenRepository).save(any());
     }
 
     @Test
@@ -89,7 +99,7 @@ class AuthServiceTest {
     @Test
     void register_shouldCreateUser() {
         RegisterRequest request = new RegisterRequest(
-                "nouveau@moov.bf", "password123", "Nouveau", "Utilisateur", "CHEF_PRODUIT");
+                "nouveau@moov.bf", "password12345", "Nouveau", "Utilisateur", "CHEF_PRODUIT");
 
         Role chefRole;
         try {
@@ -98,7 +108,7 @@ class AuthServiceTest {
 
         when(userRepository.existsByEmail("nouveau@moov.bf")).thenReturn(false);
         when(roleRepository.findByName(RoleName.CHEF_PRODUIT)).thenReturn(Optional.of(chefRole));
-        when(passwordEncoder.encode("password123")).thenReturn("$2a$10$encoded");
+        when(passwordEncoder.encode("password12345")).thenReturn("$2a$10$encoded");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             Field idField = User.class.getDeclaredField("id");
@@ -111,13 +121,13 @@ class AuthServiceTest {
 
         assertNotNull(response);
         assertEquals("nouveau@moov.bf", response.email());
-        verify(passwordEncoder).encode("password123");
+        verify(passwordEncoder).encode("password12345");
     }
 
     @Test
     void register_shouldThrowIfEmailExists() {
         RegisterRequest request = new RegisterRequest(
-                "existant@moov.bf", "password123", "A", "B", "CHEF_PRODUIT");
+                "existant@moov.bf", "password12345", "A", "B", "CHEF_PRODUIT");
 
         when(userRepository.existsByEmail("existant@moov.bf")).thenReturn(true);
 
@@ -129,7 +139,7 @@ class AuthServiceTest {
     @Test
     void register_shouldThrowIfRoleNotFound() {
         RegisterRequest request = new RegisterRequest(
-                "new@moov.bf", "password123", "A", "B", "CHEF_PRODUIT");
+                "new@moov.bf", "password12345", "A", "B", "CHEF_PRODUIT");
 
         when(userRepository.existsByEmail("new@moov.bf")).thenReturn(false);
         when(roleRepository.findByName(RoleName.CHEF_PRODUIT)).thenReturn(Optional.empty());
@@ -138,24 +148,97 @@ class AuthServiceTest {
     }
 
     @Test
-    void refreshToken_shouldReturnNewTokens() {
-        when(jwtTokenProvider.validateToken("valid-refresh")).thenReturn(true);
-        when(jwtTokenProvider.getEmailFromToken("valid-refresh")).thenReturn("admin@moov-africa.bf");
-        when(userRepository.findByEmail("admin@moov-africa.bf")).thenReturn(Optional.of(testUser));
-        when(jwtTokenProvider.generateAccessToken(any(), any(), any())).thenReturn("new-access");
-        when(jwtTokenProvider.generateRefreshToken(any(), any(), any())).thenReturn("new-refresh");
+    void changePassword_shouldInvalidateOldTokens() {
+        UUID userId = testUser.getId();
+        ChangePasswordRequest request = new ChangePasswordRequest("oldPassword", "newPassword12");
 
-        LoginResponse response = authService.refreshToken("valid-refresh");
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("oldPassword", "$2a$10$hash")).thenReturn(true);
+        when(passwordEncoder.matches("newPassword12", "$2a$10$hash")).thenReturn(false);
+        when(passwordEncoder.encode("newPassword12")).thenReturn("$2a$10$newhash");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+        when(jwtTokenProvider.generateAccessToken(any(), any(), any(), anyInt())).thenReturn("new-access");
+        when(jwtTokenProvider.generateRefreshToken(any(), any(), any(), anyInt())).thenReturn("new-refresh");
+        when(jwtTokenProvider.getRefreshTokenExpiration()).thenReturn(604800000L);
 
-        assertEquals("new-access", response.accessToken());
-        assertEquals("new-refresh", response.refreshToken());
+        LoginResponse response = authService.changePassword(userId, request);
+
+        assertNotNull(response);
+        verify(refreshTokenRepository).revokeAllByUserId(userId);
+        assertEquals(1, testUser.getTokenVersion());
+        assertFalse(testUser.isForcePasswordChange());
     }
 
     @Test
-    void refreshToken_shouldThrowOnInvalidToken() {
-        when(jwtTokenProvider.validateToken("invalid")).thenReturn(false);
+    void changePassword_shouldThrowOnWrongCurrentPassword() {
+        UUID userId = testUser.getId();
+        ChangePasswordRequest request = new ChangePasswordRequest("wrong", "newPassword12");
 
-        assertThrows(IllegalArgumentException.class, () -> authService.refreshToken("invalid"));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("wrong", "$2a$10$hash")).thenReturn(false);
+
+        assertThrows(BadCredentialsException.class, () -> authService.changePassword(userId, request));
+    }
+
+    @Test
+    void refreshToken_shouldRotateTokens() {
+        String oldRefresh = "old-refresh-token";
+        String tokenHash = JwtTokenProvider.hashToken(oldRefresh);
+        RefreshToken stored = new RefreshToken(testUser.getId(), tokenHash, LocalDateTime.now().plusDays(7));
+
+        when(jwtTokenProvider.validateToken(oldRefresh)).thenReturn(true);
+        when(jwtTokenProvider.getTokenType(oldRefresh)).thenReturn("refresh");
+        when(jwtTokenProvider.getEmailFromToken(oldRefresh)).thenReturn("admin@moov-africa.bf");
+        when(jwtTokenProvider.getTokenVersionFromToken(oldRefresh)).thenReturn(0);
+        when(refreshTokenRepository.findByTokenHashAndRevokedFalse(tokenHash)).thenReturn(Optional.of(stored));
+        when(userRepository.findByEmail("admin@moov-africa.bf")).thenReturn(Optional.of(testUser));
+        when(jwtTokenProvider.generateAccessToken(any(), any(), any(), anyInt())).thenReturn("new-access");
+        when(jwtTokenProvider.generateRefreshToken(any(), any(), any(), anyInt())).thenReturn("new-refresh");
+        when(jwtTokenProvider.getRefreshTokenExpiration()).thenReturn(604800000L);
+        when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LoginResponse response = authService.refreshToken(oldRefresh);
+
+        assertEquals("new-access", response.accessToken());
+        assertEquals("new-refresh", response.refreshToken());
+        assertTrue(stored.isRevoked());
+    }
+
+    @Test
+    void refreshToken_shouldThrowOnRevokedToken() {
+        String refreshToken = "revoked-refresh";
+        String tokenHash = JwtTokenProvider.hashToken(refreshToken);
+
+        when(jwtTokenProvider.validateToken(refreshToken)).thenReturn(true);
+        when(jwtTokenProvider.getTokenType(refreshToken)).thenReturn("refresh");
+        when(refreshTokenRepository.findByTokenHashAndRevokedFalse(tokenHash)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> authService.refreshToken(refreshToken));
+    }
+
+    @Test
+    void refreshToken_shouldThrowOnAccessTokenType() {
+        String token = "access-token-as-refresh";
+
+        when(jwtTokenProvider.validateToken(token)).thenReturn(true);
+        when(jwtTokenProvider.getTokenType(token)).thenReturn("access");
+
+        assertThrows(IllegalArgumentException.class, () -> authService.refreshToken(token));
+    }
+
+    @Test
+    void logout_shouldRevokeRefreshToken() {
+        String refreshToken = "logout-refresh";
+        String tokenHash = JwtTokenProvider.hashToken(refreshToken);
+        RefreshToken stored = new RefreshToken(testUser.getId(), tokenHash, LocalDateTime.now().plusDays(7));
+
+        when(jwtTokenProvider.validateToken(refreshToken)).thenReturn(true);
+        when(refreshTokenRepository.findByTokenHashAndRevokedFalse(tokenHash)).thenReturn(Optional.of(stored));
+
+        authService.logout(testUser.getId(), refreshToken);
+
+        assertTrue(stored.isRevoked());
+        verify(refreshTokenRepository).save(stored);
     }
 
     private static Role createRole(RoleName roleName) throws Exception {

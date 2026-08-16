@@ -1,0 +1,104 @@
+groups:
+  - name: pim-security-alerts
+    rules:
+      - alert: HighLoginFailureRate
+        expr: rate(security_auth_login_failed_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High login failure rate detected"
+          description: "More than 5 failed logins per second over 5 minutes — possible brute-force attack."
+
+      - alert: AccountLockout
+        expr: increase(security_auth_lockouts_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Account lockout detected"
+          description: "An account has been locked due to repeated failed login attempts."
+
+      - alert: MfaFailureSpike
+        expr: rate(security_auth_mfa_failures_total[5m]) > 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MFA failure spike detected"
+          description: "Elevated MFA failures — possible credential stuffing with MFA bypass attempt."
+
+      - alert: HighAccessDeniedRate
+        expr: rate(security_auth_access_denied_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High access denied rate"
+          description: "Elevated authorization failures — possible privilege escalation attempt."
+
+  - name: pim-dlp-alerts
+    rules:
+      - alert: DlpViolationDetected
+        expr: increase(security_dlp_violations_total[5m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DLP violations detected"
+          description: "Multiple data loss prevention violations in 5 minutes — possible data exfiltration attempt."
+
+      - alert: AbnormalDataVolume
+        expr: rate(security_dlp_data_access_bytes_sum[10m]) > 52428800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Abnormal data access volume"
+          description: "Data access rate exceeds 50MB/10min — possible bulk data extraction."
+
+  - name: pim-availability-alerts
+    rules:
+      - alert: BackendDown
+        expr: up{job="pim-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PIM backend is down"
+          description: "The PIM backend service has been unreachable for more than 1 minute."
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job="pim-backend"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P95 response time"
+          description: "95th percentile response time exceeds 2 seconds."
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / sum(rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP error rate"
+          description: "More than 5% of requests are returning 5xx errors."
+
+      - alert: DatabaseConnectionPoolExhaussted
+        expr: hikaricp_connections_active / hikaricp_connections_max > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "HikariCP active connections exceed 80% of max pool size."
+
+      - alert: HighMemoryUsage
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM heap usage"
+          description: "JVM heap memory usage exceeds 85%."

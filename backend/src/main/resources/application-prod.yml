@@ -1,0 +1,46 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+server:
+  ssl:
+    enabled: ${SERVER_SSL_ENABLED:false}
+    key-store: ${SERVER_SSL_KEY_STORE:}
+    key-store-password: ${SERVER_SSL_KEY_STORE_PASSWORD:}
+    key-store-type: PKCS12
+    protocol: TLS
+    enabled-protocols: TLSv1.3,TLSv1.2
+    ciphers: TLS_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+
+pim:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: 900000
+    refresh-token-expiration: 86400000
+  minio:
+    endpoint: ${PIM_MINIO_ENDPOINT}
+    access-key: ${PIM_MINIO_ACCESS_KEY}
+    secret-key: ${PIM_MINIO_SECRET_KEY}
+  cors:
+    allowed-origins: ${PIM_CORS_ORIGINS}
+  swagger:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+logging:
+  level:
+    com.moov.pim: WARN
+    org.springframework.security: WARN

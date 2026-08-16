@@ -47,6 +47,9 @@ public class AuditLog {
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
+    @Column(name = "user_agent", length = 500)
+    private String userAgent;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -75,5 +78,7 @@ public class AuditLog {
     public void setNewValue(String newValue) { this.newValue = newValue; }
     public String getIpAddress() { return ipAddress; }
     public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+    public String getUserAgent() { return userAgent; }
+    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

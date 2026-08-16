@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <conversionRule conversionWord="piiMask" converterClass="com.moov.pim.shared.logging.PiiMaskConverter"/>
+
+    <!-- Structured JSON console appender -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>{"ts":"%date{ISO8601}","level":"%level","logger":"%logger{36}","thread":"%thread","msg":"%piiMask(%msg)","mdc":{%mdc}}%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Immutable file appender with rolling and integrity -->
+    <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/app/logs/audit.log</file>
+        <append>true</append>
+        <immediateFlush>true</immediateFlush>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/app/logs/audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>365</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>{"ts":"%date{ISO8601}","level":"%level","logger":"%logger{36}","msg":"%piiMask(%msg)"}%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Security-specific logger -->
+    <logger name="com.moov.pim.permissions.security" level="INFO" additivity="false">
+        <appender-ref ref="JSON_CONSOLE"/>
+        <appender-ref ref="AUDIT_FILE"/>
+    </logger>
+
+    <logger name="com.moov.pim.analytics.service.AuditEventListener" level="INFO" additivity="false">
+        <appender-ref ref="JSON_CONSOLE"/>
+        <appender-ref ref="AUDIT_FILE"/>
+    </logger>
+
+    <!-- Spring profile: dev -->
+    <springProfile name="dev">
+        <root level="DEBUG">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- Spring profile: docker, staging -->
+    <springProfile name="docker | staging">
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="AUDIT_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- Spring profile: prod -->
+    <springProfile name="prod">
+        <root level="WARN">
+            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="AUDIT_FILE"/>
+        </root>
+        <logger name="com.moov.pim" level="INFO"/>
+        <logger name="org.springframework.security" level="WARN"/>
+    </springProfile>
+
+</configuration>

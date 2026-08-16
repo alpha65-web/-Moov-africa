@@ -44,10 +44,19 @@ public class UserController {
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public ResponseEntity<UserResponse> updateStatus(@PathVariable UUID id, @RequestParam AccountStatus status) {
+    public ResponseEntity<UserResponse> updateStatus(@PathVariable UUID id,
+                                                     @RequestParam AccountStatus status,
+                                                     @AuthenticationPrincipal CustomUserDetails principal) {
+        if (principal.getUserId().equals(id)) {
+            throw new IllegalArgumentException("Impossible de modifier votre propre statut");
+        }
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
         user.setStatus(status);
+        if (status == AccountStatus.ACTIVE) {
+            user.setFailedLoginAttempts(0);
+        }
         user = userRepository.save(user);
         return ResponseEntity.ok(UserResponse.from(user));
     }
