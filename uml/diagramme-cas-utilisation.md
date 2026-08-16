@@ -11,13 +11,13 @@
 
 | Acteur | Abréviation | Rôle dans le PIM |
 |--------|-------------|-----------------|
-| **Administrateur système** | Admin | Configuration globale, gestion des comptes, audit complet, rollback, export catalogue |
+| **Administrateur système** | Admin | Configuration globale, gestion des comptes, audit complet, rollback, export catalogue, gestion des clés cryptographiques, monitoring sécurité, conformité RGPD |
 | **Chef de produit** | CdP | Création des offres, assemblage produits/packs, soumission pour validation |
 | **Analyste marketing** | AM | Enrichissement des fiches (descriptions, SEO, visuels), dépôt des médias |
 | **Chef de service** | CdS | Validation opérationnelle des offres, validation graphique des médias |
 | **Chef de département marketing et produits** | CdD | Validation stratégique, publication, suspension, planification, vue KPI globale |
 | **Community Manager** | CM | Campagnes de diffusion réseaux sociaux et partenaires, suivi statistiques |
-| **Système** | Sys | Transitions automatiques (publication planifiée, expiration), diffusion auto, vérification conformité |
+| **Système** | Sys | Transitions automatiques (publication planifiée, expiration), diffusion auto, vérification conformité, scan antivirus, rotation de clés, monitoring certificats, nettoyage des données expirées |
 
 ---
 
@@ -25,14 +25,25 @@
 
 | # | Cas d'utilisation | Acteur(s) | Description |
 |---|-------------------|-----------|-------------|
-| 1.1 | Se connecter | Tous | Authentification par email/mot de passe, retour JWT (access + refresh) |
-| 1.2 | Se déconnecter | Tous | Invalidation du token côté client |
-| 1.3 | Gérer son profil | Tous | Modifier ses informations personnelles et son mot de passe |
-| 1.4 | Gérer les comptes utilisateurs | Admin | Créer, désactiver, changer le rôle d'un utilisateur |
-| 1.5 | Consulter l'historique complet | Admin | Vue globale de toutes les modifications, avec rollback possible |
-| 1.6 | Consulter son historique | CdP, AM, CdS, CdD, CM | Historique de ses propres fiches, lecture seule, sans rollback |
-| 1.7 | Auditer les connexions | Admin | Journal des connexions et actions sensibles |
-| 1.8 | Configurer les canaux de notification | Admin | Activer/désactiver les types de notification, choisir les canaux |
+| 1.1 | Se connecter | Tous | Authentification par email/mot de passe avec fingerprint binding. Retour JWT (access + refresh) avec token versioning. Vérification MFA si activé. |
+| 1.2 | Se connecter via Passkey | Tous | Authentification sans mot de passe via WebAuthn/FIDO2 (Passkeys). Vérification du signatureCount contre le clonage. |
+| 1.3 | Se déconnecter | Tous | Révocation du refresh token en base (hash SHA-256). Invalidation côté serveur. |
+| 1.4 | Gérer son profil | Tous | Modifier ses informations personnelles et son mot de passe (avec validation de la politique de sécurité). |
+| 1.5 | Changer son mot de passe | Tous | Validation politique : min 12 caractères, majuscule, minuscule, chiffre, caractère spécial, vérification HIBP (k-anonymity). Incrémentation du tokenVersion (révocation de tous les tokens). |
+| 1.6 | Configurer le MFA TOTP | Tous | Génération du secret TOTP (RFC 6238), affichage du QR code, validation par saisie d'un code. Secret chiffré AES-256-GCM en base. |
+| 1.7 | Enregistrer une Passkey | Tous | Enregistrement d'une clé WebAuthn/FIDO2 (Yubico webauthn-server-core). Support multi-clés par utilisateur. |
+| 1.8 | Désactiver le MFA | Tous | Désactivation du TOTP après vérification d'un code valide. Suppression du secret chiffré. |
+| 1.9 | Gérer les comptes utilisateurs | Admin | Créer, désactiver, changer le rôle d'un utilisateur. Forcer le changement de mot de passe. |
+| 1.10 | Consulter l'historique complet | Admin | Vue globale de toutes les modifications, avec rollback possible |
+| 1.11 | Consulter son historique | CdP, AM, CdS, CdD, CM | Historique de ses propres fiches, lecture seule, sans rollback |
+| 1.12 | Auditer les connexions | Admin | Journal des connexions et actions sensibles (login, MFA, changement de mot de passe, révocation) |
+| 1.13 | Configurer les canaux de notification | Admin | Activer/désactiver les types de notification, choisir les canaux |
+
+**Relations include/extend :**
+- 1.1 *include* vérification MFA (si totpEnabled = true)
+- 1.5 *include* validation politique de mot de passe
+- 1.5 *include* vérification HIBP (k-anonymity SHA-1)
+- 1.6 *extend* 1.1 (MFA optionnel, obligatoire pour ADMIN_SYSTEME)
 
 ---
 
@@ -93,7 +104,7 @@
 
 | # | Cas d'utilisation | Acteur(s) | Description |
 |---|-------------------|-----------|-------------|
-| 5.1 | Déposer un visuel | AM | Upload image, vidéo ou PDF associé à une offre |
+| 5.1 | Déposer un visuel | AM | Upload image, vidéo ou PDF associé à une offre. Scan antivirus ClamAV automatique avant stockage. |
 | 5.2 | Vérifier la conformité | Sys | Contrôle automatique : résolution, format, signalement risque droits d'auteur |
 | 5.3 | Annoter un média | CdS | Annotation détaillée selon le type de média |
 | 5.4 | Comparer des versions | CdS | Comparaison côte à côte de deux versions d'un même visuel |
@@ -108,7 +119,7 @@
 
 | # | Cas d'utilisation | Acteur(s) | Description |
 |---|-------------------|-----------|-------------|
-| 6.1 | Stocker un média | AM, CdP | Upload vers MinIO, association à une fiche produit/offre |
+| 6.1 | Stocker un média | AM, CdP | Upload vers MinIO (S3), scan antivirus ClamAV, association à une fiche produit/offre |
 | 6.2 | Consulter la bibliothèque | AM, CdP | Bibliothèque de médias réutilisables |
 | 6.3 | Associer la charte graphique | Admin | Mise à disposition des logos Moov Africa (fond bleu / fond blanc) |
 
@@ -172,3 +183,32 @@
 | 10.8 | Diffuser vers les réseaux sociaux | CM | Facebook, Instagram, LinkedIn |
 | 10.9 | Diffuser vers les sites partenaires | CM | Sites partenaires de Moov |
 | 10.10 | Suivre les statistiques | CM | Vues, clics, engagement par canal |
+
+---
+
+## Module 11 — Administration de la Sécurité
+
+| # | Cas d'utilisation | Acteur(s) | Description |
+|---|-------------------|-----------|-------------|
+| 11.1 | Gérer les clés de session | Admin | Rotation des clés JWT de session (cycle 90 jours). Révocation d'urgence de toutes les sessions. |
+| 11.2 | Acquitter la rotation de la clé maître | Admin | Acquittement de la rotation de la clé maître Vault (cycle 365 jours). |
+| 11.3 | Consulter le statut des clés | Admin | Tableau de bord : dernière rotation, conformité des cycles, alertes de retard. |
+| 11.4 | Révoquer toutes les sessions (urgence) | Admin | Révocation immédiate de tous les refresh tokens + incrémentation de tous les tokenVersion. Utilisé en cas de compromission. |
+| 11.5 | Surveiller les certificats TLS | Sys | Vérification quotidienne (6h00) de l'expiration des certificats TLS des endpoints configurés. Alertes WARNING (30 jours) et CRITICAL (7 jours). |
+| 11.6 | Vérifier la conformité rotation | Sys | Vérification hebdomadaire (lundi 2h00) que la rotation des clés respecte les cycles configurés. Alerte si en retard. |
+
+**Relations include/extend :**
+- 11.1 *include* révocation des refresh tokens existants
+- 11.4 *include* incrémentation de tous les tokenVersion
+
+---
+
+## Module 12 — Conformité RGPD et Protection des Données
+
+| # | Cas d'utilisation | Acteur(s) | Description |
+|---|-------------------|-----------|-------------|
+| 12.1 | Exporter les données personnelles | Admin, Utilisateur | Export au format JSON de toutes les données personnelles d'un utilisateur (droit d'accès RGPD). Inclut : profil, audit logs, notifications. |
+| 12.2 | Anonymiser un compte | Admin | Anonymisation irréversible des PII (email, prénom, nom) d'un utilisateur. Le compte passe en status ANONYMIZED. Les données métier (offres, audits) sont conservées sans lien nominatif. |
+| 12.3 | Nettoyer les données expirées | Sys | Suppression automatique (scheduler quotidien) des refresh tokens expirés, clés d'idempotence expirées, et anciennes entrées d'audit selon la politique de rétention. |
+| 12.4 | Filtrer les données sensibles (DLP) | Sys | Filtre DLP sur les réponses HTTP : détection et blocage des fuites de données sensibles (numéros de carte, SSN, emails en masse). Limite de taille des réponses (5 Mo). |
+| 12.5 | Masquer les PII dans les logs | Sys | Masquage automatique des données personnelles identifiables (emails, téléphones, cartes de crédit) dans les logs applicatifs via PiiMaskConverter (Logback). |

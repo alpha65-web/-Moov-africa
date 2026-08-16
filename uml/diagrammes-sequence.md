@@ -15,9 +15,14 @@
 6. [Publication et diffusion automatique](#6-publication-et-diffusion-automatique)
 7. [Publication planifiée et expiration automatique](#7-publication-planifiée-et-expiration-automatique)
 8. [Rollback d'une offre par l'administrateur](#8-rollback-dune-offre-par-ladministrateur)
-9. [Authentification (login)](#9-authentification-login)
+9. [Authentification (login avec MFA et fingerprint)](#9-authentification-login-avec-mfa-et-fingerprint)
 10. [Création d'un produit avec détection de doublons](#10-création-dun-produit-avec-détection-de-doublons)
 11. [Campagne de diffusion réseaux sociaux (Community Manager)](#11-campagne-de-diffusion-réseaux-sociaux-community-manager)
+12. [Configuration MFA TOTP](#12-configuration-mfa-totp)
+13. [Enregistrement d'une Passkey WebAuthn](#13-enregistrement-dune-passkey-webauthn)
+14. [Changement de mot de passe (avec politique de sécurité)](#14-changement-de-mot-de-passe-avec-politique-de-sécurité)
+15. [Rotation des clés et révocation d'urgence](#15-rotation-des-clés-et-révocation-durgence)
+16. [Upload de fichier avec scan antivirus ClamAV](#16-upload-de-fichier-avec-scan-antivirus-clamav)
 
 ---
 
@@ -435,44 +440,79 @@ sequenceDiagram
 
 ---
 
-## 9. Authentification (login)
+## 9. Authentification (login avec MFA et fingerprint)
 
-Connexion sécurisée avec JWT (access + refresh token). Verrouillage du compte après N échecs.
+Connexion sécurisée avec JWT (access + refresh token), fingerprint binding, token versioning, et MFA TOTP. Verrouillage du compte après 5 échecs. Rotation du refresh token à chaque usage.
 
 ```mermaid
 sequenceDiagram
     actor User as Utilisateur
+    participant WAF as WAF ModSecurity
     participant API as API REST
+    participant RateLimit as RateLimitFilter
     participant AuthSvc as AuthService
     participant DB as PostgreSQL
+    participant Metrics as SecurityMetrics
 
-    User->>API: POST /api/v1/auth/login (email, password)
+    User->>WAF: POST /auth/login (email, password, totpCode?)
+    WAF->>API: Requete filtree (OWASP CRS)
+    API->>RateLimit: Verification rate limit
+    RateLimit-->>API: OK (sous le seuil)
     API->>AuthSvc: authenticate(email, password)
     AuthSvc->>DB: SELECT * FROM users WHERE email=?
     DB-->>AuthSvc: user (ou null)
 
     alt Utilisateur inexistant
+        AuthSvc->>Metrics: recordLoginFailed()
         AuthSvc-->>API: 401 Unauthorized
         API-->>User: Email ou mot de passe incorrect
     else Compte verrouille (status=LOCKED)
+        AuthSvc->>Metrics: recordLoginFailed() + recordAccountLockout()
         AuthSvc-->>API: 423 Locked
-        API-->>User: Compte verrouille, contactez l'administrateur
+        API-->>User: Compte verrouille, contactez l administrateur
     else Mot de passe incorrect
         AuthSvc->>DB: UPDATE user SET failedLoginAttempts += 1
-        opt failedLoginAttempts >= seuil
+        opt failedLoginAttempts >= 5
             AuthSvc->>DB: UPDATE user SET status=LOCKED
+            AuthSvc->>Metrics: recordAccountLockout()
         end
-        AuthSvc->>DB: INSERT audit_log (LOGIN failed)
+        AuthSvc->>Metrics: recordLoginFailed()
         AuthSvc-->>API: 401 Unauthorized
         API-->>User: Email ou mot de passe incorrect
     else Mot de passe correct
         AuthSvc->>DB: UPDATE user SET failedLoginAttempts=0, lastLoginAt=now()
-        AuthSvc->>DB: INSERT audit_log (LOGIN success)
-        AuthSvc-->>AuthSvc: generateJWT(userId, role, permissions)
-        AuthSvc-->>API: accessToken + refreshToken
-        API-->>User: 200 OK (tokens + user info)
+
+        alt MFA TOTP active (totpEnabled=true)
+            AuthSvc->>Metrics: recordMfaChallenge()
+            alt Code TOTP absent
+                AuthSvc-->>API: MFA_REQUIRED
+                API-->>User: 200 (mfaRequired=true)
+            else Code TOTP invalide
+                AuthSvc->>Metrics: recordMfaFailure()
+                AuthSvc-->>API: 401 Code MFA invalide
+                API-->>User: Code MFA invalide
+            else Code TOTP valide
+                Note over AuthSvc: MFA verifie, continuer
+            end
+        end
+
+        AuthSvc-->>AuthSvc: generateFingerprint()
+        AuthSvc-->>AuthSvc: generateAccessToken(userId, role, tokenVersion, fingerprintHash)
+        AuthSvc-->>AuthSvc: generateRefreshToken(userId, role, tokenVersion, fingerprintHash)
+        AuthSvc->>DB: INSERT refresh_token (tokenHash SHA-256, expiresAt)
+        AuthSvc->>Metrics: recordLoginSuccess()
+        AuthSvc-->>API: accessToken + refreshToken + fingerprint
+        API-->>User: 200 OK (tokens + fingerprint + user info)
     end
 ```
+
+**Points de sécurité :**
+- **WAF** : ModSecurity avec OWASP Core Rule Set v4 filtre les requêtes en amont (injection SQL, XSS, etc.)
+- **Rate limiting** : 5 tentatives par minute sur `/auth/login`
+- **Fingerprint binding** : un fingerprint aléatoire est généré côté serveur, hashé et inclus dans le JWT. Le client doit le renvoyer dans le header `X-Fingerprint` pour chaque requête authentifiée.
+- **Token versioning** : le tokenVersion de l'utilisateur est inclus dans le JWT. Si l'utilisateur change son mot de passe, le tokenVersion est incrémenté et tous les anciens tokens sont invalidés.
+- **Refresh token rotation** : à chaque usage du refresh token, l'ancien est révoqué et un nouveau est émis.
+- **MFA obligatoire** : pour les utilisateurs avec le rôle `ADMIN_SYSTEME`, le MfaPolicyFilter bloque l'accès aux ressources si le MFA n'est pas activé.
 
 ---
 
@@ -564,4 +604,263 @@ sequenceDiagram
     API->>DB: SELECT cs.* FROM campaign_stats cs JOIN campaign_channels ...
     DB-->>API: stats par canal
     API-->>CM: Vues, clics, engagement par canal
+```
+
+---
+
+## 12. Configuration MFA TOTP
+
+L'utilisateur configure l'authentification multi-facteur TOTP (RFC 6238). Le secret est chiffré en AES-256-GCM avant stockage. L'activation nécessite la vérification d'un code valide.
+
+```mermaid
+sequenceDiagram
+    actor User as Utilisateur
+    participant API as API REST
+    participant AuthSvc as AuthService
+    participant TotpSvc as TotpService
+    participant EncSvc as EncryptionService
+    participant DB as PostgreSQL
+
+    Note over User,DB: Phase 1 : Generation du secret TOTP
+
+    User->>API: POST /api/v1/auth/totp/setup
+    API->>AuthSvc: setupTotp(userId)
+    AuthSvc->>DB: SELECT * FROM users WHERE id=userId
+    DB-->>AuthSvc: user
+
+    alt MFA deja active
+        AuthSvc-->>API: 409 Conflict (MFA deja active)
+        API-->>User: MFA deja active
+    else MFA non active
+        AuthSvc->>TotpSvc: generateSecret()
+        TotpSvc-->>AuthSvc: secret (base32, 20 octets)
+        AuthSvc->>EncSvc: encrypt(secret)
+        EncSvc-->>AuthSvc: secretChiffre (AES-256-GCM)
+        AuthSvc->>DB: UPDATE user SET totpSecret=secretChiffre
+        AuthSvc->>TotpSvc: buildOtpAuthUri(secret, email)
+        TotpSvc-->>AuthSvc: otpauth://totp/MoovPIM:email?secret=...
+        AuthSvc-->>API: secret + otpauthUri
+        API-->>User: QR code + secret (a scanner dans l app TOTP)
+    end
+
+    Note over User,DB: Phase 2 : Verification et activation
+
+    User->>API: POST /api/v1/auth/totp/enable (code a 6 chiffres)
+    API->>AuthSvc: enableTotp(userId, code)
+    AuthSvc->>DB: SELECT totpSecret FROM users WHERE id=userId
+    DB-->>AuthSvc: secretChiffre
+    AuthSvc->>EncSvc: decrypt(secretChiffre)
+    EncSvc-->>AuthSvc: secret
+    AuthSvc->>TotpSvc: verifyCode(secret, code)
+
+    alt Code invalide
+        TotpSvc-->>AuthSvc: false
+        AuthSvc-->>API: 401 Code MFA invalide
+        API-->>User: Code invalide, reessayez
+    else Code valide
+        TotpSvc-->>AuthSvc: true
+        AuthSvc->>DB: UPDATE user SET totpEnabled=true
+        AuthSvc->>DB: INSERT audit_log (MFA_SETUP, user)
+        AuthSvc-->>API: 200 OK
+        API-->>User: MFA active avec succes
+    end
+```
+
+---
+
+## 13. Enregistrement d'une Passkey WebAuthn
+
+L'utilisateur enregistre une clé de sécurité FIDO2/WebAuthn (Passkey) comme second facteur d'authentification. Le protocole WebAuthn suit le flux challenge-response du standard W3C.
+
+```mermaid
+sequenceDiagram
+    actor User as Utilisateur
+    participant Browser as Navigateur
+    participant API as API REST
+    participant WebAuthnSvc as WebAuthnService
+    participant DB as PostgreSQL
+
+    Note over User,DB: Phase 1 : Demande des options d enregistrement
+
+    User->>Browser: Clic "Ajouter une Passkey"
+    Browser->>API: POST /api/v1/auth/webauthn/register/options
+    API->>WebAuthnSvc: startRegistration(userId)
+    WebAuthnSvc->>DB: SELECT credentialId FROM webauthn_credentials WHERE userId=?
+    DB-->>WebAuthnSvc: credentials existants (pour exclusion)
+    WebAuthnSvc-->>API: PublicKeyCredentialCreationOptions (challenge, rpId, userId, excludeCredentials)
+    API-->>Browser: options JSON
+
+    Note over User,DB: Phase 2 : Creation de la credential par l authenticator
+
+    Browser->>Browser: navigator.credentials.create(options)
+    Browser->>User: Verification biometrique / PIN
+    User-->>Browser: Validation
+    Browser-->>Browser: Keypair generee, attestation signee
+
+    Note over User,DB: Phase 3 : Verification et stockage
+
+    Browser->>API: POST /api/v1/auth/webauthn/register/verify (attestationResponse)
+    API->>WebAuthnSvc: finishRegistration(userId, attestation)
+    WebAuthnSvc-->>WebAuthnSvc: Verification attestation (rpId, challenge, origin)
+    WebAuthnSvc->>DB: INSERT webauthn_credential (credentialId, publicKeyCose, signatureCount, userHandle)
+    WebAuthnSvc->>DB: INSERT audit_log (MFA_SETUP, webauthn)
+    WebAuthnSvc-->>API: 201 Created
+    API-->>Browser: Passkey enregistree
+    Browser-->>User: Confirmation
+```
+
+---
+
+## 14. Changement de mot de passe (avec politique de sécurité)
+
+Le changement de mot de passe applique une politique stricte : longueur minimale, complexité, et vérification HIBP (Have I Been Pwned) via k-anonymity. Tous les tokens existants sont invalidés.
+
+```mermaid
+sequenceDiagram
+    actor User as Utilisateur
+    participant API as API REST
+    participant AuthSvc as AuthService
+    participant PwdPolicy as PasswordPolicyService
+    participant HIBP as API HIBP (k-anonymity)
+    participant DB as PostgreSQL
+
+    User->>API: POST /api/v1/auth/change-password (currentPassword, newPassword)
+    API->>AuthSvc: changePassword(userId, request)
+    AuthSvc->>DB: SELECT * FROM users WHERE id=userId
+    DB-->>AuthSvc: user
+
+    AuthSvc->>AuthSvc: passwordEncoder.matches(currentPassword, user.passwordHash)
+
+    alt Mot de passe actuel incorrect
+        AuthSvc-->>API: 401 Mot de passe actuel incorrect
+        API-->>User: Mot de passe actuel incorrect
+    else Nouveau = ancien
+        AuthSvc-->>API: 400 Le nouveau mot de passe doit etre different
+        API-->>User: Mot de passe identique a l ancien
+    else Mot de passe actuel correct
+        AuthSvc->>PwdPolicy: validate(newPassword)
+
+        PwdPolicy->>PwdPolicy: Verification longueur >= 12
+        PwdPolicy->>PwdPolicy: Verification majuscule, minuscule, chiffre, special
+        PwdPolicy->>PwdPolicy: SHA-1(newPassword) -> prefix (5 chars) + suffix
+
+        PwdPolicy->>HIBP: GET /range/{prefix}
+        HIBP-->>PwdPolicy: liste de suffixes compromis
+
+        alt Politique non respectee
+            PwdPolicy-->>AuthSvc: PasswordPolicyViolationException (details)
+            AuthSvc-->>API: 400 Politique de mot de passe non respectee
+            API-->>User: Details des violations
+        else Mot de passe compromis (HIBP)
+            PwdPolicy-->>AuthSvc: PasswordPolicyViolationException (compromis)
+            AuthSvc-->>API: 400 Mot de passe compromis
+            API-->>User: Ce mot de passe a ete compromis
+        else Politique respectee
+            PwdPolicy-->>AuthSvc: OK
+
+            AuthSvc->>DB: UPDATE user SET passwordHash=bcrypt(new), tokenVersion++
+            AuthSvc->>DB: UPDATE refresh_tokens SET revoked=true WHERE userId=? AND revoked=false
+            AuthSvc->>DB: INSERT audit_log (CHANGE_PASSWORD, user)
+
+            AuthSvc-->>AuthSvc: generateFingerprint() + generateTokens(new tokenVersion)
+            AuthSvc->>DB: INSERT refresh_token (new tokenHash)
+            AuthSvc-->>API: 200 OK (newAccessToken + newRefreshToken + fingerprint)
+            API-->>User: Mot de passe change, nouveaux tokens emis
+        end
+    end
+```
+
+---
+
+## 15. Rotation des clés et révocation d'urgence
+
+L'administrateur système gère la rotation des clés cryptographiques et peut déclencher une révocation d'urgence de toutes les sessions en cas de compromission.
+
+```mermaid
+sequenceDiagram
+    actor Admin as Administrateur
+    participant API as API REST
+    participant KeyMgmt as KeyManagementService
+    participant DB as PostgreSQL
+    participant Metrics as SecurityMetrics
+
+    Note over Admin,Metrics: Scenario A : Rotation planifiee des cles de session
+
+    Admin->>API: POST /api/v1/admin/keys/rotate-session
+    API->>KeyMgmt: rotateSessionKeys()
+    KeyMgmt->>DB: UPDATE refresh_tokens SET revoked=true WHERE revoked=false
+    KeyMgmt->>DB: INSERT audit_log (KEY_ROTATE, session-keys)
+    KeyMgmt->>Metrics: recordKeyRotation("session")
+    KeyMgmt-->>API: 200 OK (tokensRevoked: N)
+    API-->>Admin: Cles de session rotees, N tokens revoques
+
+    Note over Admin,Metrics: Scenario B : Revocation d urgence
+
+    Admin->>API: POST /api/v1/admin/keys/emergency-revoke
+    API->>KeyMgmt: emergencyRevokeAllSessions()
+    KeyMgmt->>DB: UPDATE refresh_tokens SET revoked=true WHERE revoked=false
+    DB-->>KeyMgmt: tokensRevoked = N
+    KeyMgmt->>DB: UPDATE users SET token_version = token_version + 1
+    DB-->>KeyMgmt: usersAffected = M
+    KeyMgmt->>DB: INSERT audit_log (EMERGENCY_REVOKE)
+    KeyMgmt->>Metrics: recordEmergencyRevocation()
+    KeyMgmt-->>API: 200 OK (tokensRevoked: N, usersAffected: M)
+    API-->>Admin: Revocation d urgence : N tokens revoques, M utilisateurs
+
+    Note over Admin,Metrics: Scenario C : Verification automatique (scheduler)
+
+    Note right of KeyMgmt: @Scheduled(cron = lundi 2h00)
+    KeyMgmt->>KeyMgmt: checkKeyRotationCompliance()
+    KeyMgmt->>KeyMgmt: Verifier age des cles (session 90j, master 365j)
+    alt Rotation en retard
+        KeyMgmt->>Metrics: Alerte : rotation en retard
+    else Conforme
+        KeyMgmt->>Metrics: Statut OK
+    end
+```
+
+---
+
+## 16. Upload de fichier avec scan antivirus ClamAV
+
+Chaque fichier uploadé est scanné par ClamAV avant d'être stocké dans MinIO. Les fichiers infectés sont rejetés avec un log d'audit.
+
+```mermaid
+sequenceDiagram
+    actor User as Utilisateur
+    participant API as API REST
+    participant DLP as DlpFilter
+    participant MediaSvc as MediaService
+    participant ClamAV as ClamAV (clamd)
+    participant DAM as MinIO (S3)
+    participant DB as PostgreSQL
+    participant Metrics as SecurityMetrics
+
+    User->>API: POST /api/v1/offers/{id}/media (multipart/form-data)
+    API->>DLP: Verification DLP (taille, type MIME)
+
+    alt Fichier trop volumineux ou type interdit
+        DLP-->>API: 413 / 415
+        API-->>User: Fichier rejete (taille ou type)
+    else DLP OK
+        DLP-->>API: OK
+        API->>MediaSvc: uploadMedia(offerId, file, userId)
+        MediaSvc->>ClamAV: INSTREAM (flux binaire via socket TCP :3310)
+        ClamAV-->>MediaSvc: scan result
+
+        alt Virus detecte
+            MediaSvc->>DB: INSERT audit_log (DELETE, malware detected, filename)
+            MediaSvc->>Metrics: recordMalwareDetected()
+            MediaSvc-->>API: 422 Fichier infecte
+            API-->>User: Fichier rejete : virus detecte
+        else Fichier sain
+            MediaSvc->>DAM: putObject(bucket, storageKey, file)
+            DAM-->>MediaSvc: OK
+            MediaSvc->>DB: INSERT media_asset (conformityStatus=PENDING)
+            MediaSvc->>DB: INSERT offer_media (offerId, mediaAssetId)
+            MediaSvc->>DB: INSERT audit_log (CREATE, media_asset)
+            MediaSvc-->>API: 201 Created (mediaAssetDto)
+            API-->>User: Media uploade avec succes
+        end
+    end
 ```
