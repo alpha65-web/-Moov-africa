@@ -1,92 +1,207 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import toast from "react-hot-toast";
+
+/* Icône loader — spinner custom */
+function LoaderIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2.12 2.12M10.48 10.48l2.12 2.12M3.4 12.6l2.12-2.12M10.48 5.52l2.12-2.12"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  /* Refs pour les animations lottie */
+  const lottieRef = useRef<HTMLDivElement>(null);
+
+  /* Charger et jouer une animation lottie */
+  const playLottie = async (path: string) => {
+    if (!lottieRef.current) return;
+    try {
+      const lottieModule = await import("lottie-web");
+      const lottie = lottieModule.default;
+      lottieRef.current.innerHTML = "";
+      lottie.loadAnimation({
+        container: lottieRef.current,
+        renderer: "svg",
+        loop: false,
+        autoplay: true,
+        path,
+      });
+    } catch {
+      /* lottie-web pas installé — silencieux */
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
+
     try {
       await login(email, password);
-      toast.success("Connexion reussie");
+      setSuccess(true);
+      playLottie("/lottie/success.json");
     } catch {
-      toast.error("Email ou mot de passe incorrect");
+      setError("Adresse email ou mot de passe incorrect.");
+      playLottie("/lottie/error.json");
     } finally {
       setLoading(false);
     }
   };
 
+  /* Auto-focus sur l'input email au montage */
+  const emailRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-xl font-bold text-white">
-            M
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            PIM Moov Africa
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Plateforme de gestion des produits et offres
+    <form
+      onSubmit={handleSubmit}
+      className="relative z-30 inline-flex flex-col items-start justify-start w-full overflow-hidden bg-white dark:bg-neutral-900 border shadow-xl max-w-[400px] lg:max-w-[350px] rounded-2xl border-border dark:border-neutral-700"
+    >
+      {/* ===== PARTIE HAUTE — Titre + inputs ===== */}
+      <div className="relative flex flex-col items-center self-stretch justify-start w-full gap-6 p-6 overflow-hidden border-b border-neutral-200 dark:border-neutral-700">
+        {/* Zone animation lottie (success/error) */}
+        <div className="w-full h-16" />
+        <div
+          ref={lottieRef}
+          className="absolute left-0 flex items-center justify-center w-full h-12 top-16"
+        />
+
+        {/* Titre et sous-titre */}
+        <div className="flex flex-col items-center self-stretch justify-center gap-1.5">
+          <h4 className="text-2xl font-bold leading-tight text-center text-black dark:text-white">
+            {success ? "Connexion réussie" : "Connexion"}
+          </h4>
+          <p className="text-sm font-normal leading-tight text-center text-stone-500 dark:text-neutral-400">
+            {success
+              ? "Redirection en cours..."
+              : "Entrez vos identifiants professionnels"}
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-900"
-        >
-          <div className="mb-5">
-            <label
-              htmlFor="email"
-              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@moov-africa.bf"
-              className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-            />
-          </div>
+        {/* Champs de formulaire */}
+        {!success && (
+          <div className="flex flex-col items-start self-stretch justify-start w-full gap-4">
+            {/* Email */}
+            <div className="flex flex-col w-full gap-2 h-fit">
+              <input
+                ref={emailRef}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="prenom.nom@moov-africa.bf"
+                required
+                className="input w-full"
+              />
+            </div>
 
-          <div className="mb-6">
-            <label
-              htmlFor="password"
-              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Mot de passe
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Entrez votre mot de passe"
-              className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-            />
-          </div>
+            {/* Mot de passe */}
+            <div className="flex flex-col w-full gap-2 h-fit">
+              <div className="relative password-toggle">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mot de passe"
+                  required
+                  className="input w-full pr-10"
+                />
+                {/* Toggle visibilité mot de passe */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                >
+                  {showPassword ? (
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                    >
+                      <path
+                        d="M2 2l12 12M6.5 6.5a2 2 0 002.83 2.83M3.5 5.5C2.5 6.5 2 8 2 8s2 4 6 4c.8 0 1.5-.2 2.1-.5M14 8s-2-4-6-4c-.4 0-.8.05-1.1.13"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                    >
+                      <path
+                        d="M2 8s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="2"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
 
+            {/* Message d'erreur */}
+            {error && (
+              <p className="text-xs text-red-500 font-medium">{error}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ===== PARTIE BASSE — Bouton submit ===== */}
+      {!success && (
+        <div className="self-stretch p-6 flex flex-col justify-start items-start gap-2.5 overflow-hidden">
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500/20 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="primary-icon w-full active-scale disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? "Connexion..." : "Se connecter"}
+            <span className="flex items-center justify-center gap-2 w-full">
+              {loading && (
+                <LoaderIcon className="w-4 h-4 text-white animate-spin" />
+              )}
+              <p className="whitespace-nowrap text-sm">
+                {loading ? "Connexion..." : "Se connecter"}
+              </p>
+            </span>
           </button>
-        </form>
-      </div>
-    </div>
+        </div>
+      )}
+    </form>
   );
 }
