@@ -2,21 +2,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { type ReactNode } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
+import ChannelCarousel from "@/components/ChannelCarousel";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex w-full h-dvh overflow-hidden">
-      {/* ===== PANNEAU GAUCHE — Image (desktop uniquement) ===== */}
-      <div className="items-center hidden w-1/2 overflow-hidden bg-white dark:bg-neutral-950 border-r h-full lg:flex border-r-border dark:border-r-neutral-800">
-        {/* Remplacer par le visuel Moov Africa */}
-        <Image
-          src="/img/img2.png"
-          alt="Moov Africa"
-          width={960}
-          height={1080}
-          className="object-cover w-full h-full"
-          priority
-        />
+      {/* ===== PANNEAU GAUCHE — Bannière slides (desktop uniquement) ===== */}
+      <div className="hidden w-1/2 overflow-hidden bg-neutral-900 h-full lg:flex">
+        <ChannelCarousel />
       </div>
 
       {/* ===== PANNEAU DROIT — Formulaire ===== */}
@@ -27,44 +20,18 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Contenu centré verticalement */}
-        <div className="flex flex-col items-center justify-center flex-1 px-4 gap-4">
-          {/* Image mobile (visible uniquement en dessous de lg) */}
-          <div className="w-full max-w-[350px] h-auto rounded-md overflow-hidden lg:hidden">
-            <Image
-              src="/img/img2.png"
-              alt="Moov Africa"
-              width={400}
-              height={200}
-              className="object-cover object-top w-full h-auto max-h-[25vh]"
-              style={{
-                maskImage:
-                  "linear-gradient(to bottom, black 50%, transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, black 50%, transparent 100%)",
-              }}
-            />
-          </div>
-
-          {/* Logo — swap automatique selon le thème système */}
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/img/logo-light.jpeg"
-              alt="Moov Africa"
-              width={160}
-              height={48}
-              className="object-contain h-12 w-auto dark:hidden"
-            />
-            <Image
-              src="/img/logo-dark.jpeg"
-              alt="Moov Africa"
-              width={160}
-              height={48}
-              className="object-contain h-12 w-auto hidden dark:block"
-            />
-          </Link>
-
-          {/* Contenu du formulaire (slot) */}
+        <div className="flex flex-col items-center justify-center flex-1 px-4">
           {children}
+        </div>
+
+        {/* Mentions en bas */}
+        <div className="shrink-0 pb-5 pt-2 text-center space-y-1">
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">
+            Accès réservé aux collaborateurs Moov Africa
+          </p>
+          <p className="text-[11px] text-neutral-300 dark:text-neutral-600">
+            &copy; 2026 Moov Africa Burkina Faso &mdash; Tous droits réservés.
+          </p>
         </div>
       </div>
     </div>

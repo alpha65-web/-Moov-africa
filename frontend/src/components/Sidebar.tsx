@@ -98,7 +98,7 @@ export default function Sidebar() {
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-dvh w-[260px] flex-col border-r border-border dark:border-neutral-800 bg-white dark:bg-neutral-900">
-      {/* ===== EN-TÊTE — Logo + nom ===== */}
+      {/* ===== EN-TÊTE — Logo ===== */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border dark:border-neutral-800">
         <Image
           src="/img/logo-light.jpeg"
@@ -130,7 +130,7 @@ export default function Sidebar() {
                   href={item.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
                     active
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light"
                       : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                   }`}
                 >
