@@ -37,6 +37,9 @@ public class User {
     @Column(name = "last_name", nullable = false)
     private String lastName;
 
+    @Column(length = 20)
+    private String sex;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountStatus status = AccountStatus.ACTIVE;
@@ -82,6 +85,11 @@ public class User {
         this.role = role;
     }
 
+    public User(String email, String passwordHash, String firstName, String lastName, String sex, Role role) {
+        this(email, passwordHash, firstName, lastName, role);
+        this.sex = sex;
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();
@@ -98,11 +106,14 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
+    public String getSex() { return sex; }
+    public void setSex(String sex) { this.sex = sex; }
     public AccountStatus getStatus() { return status; }
     public void setStatus(AccountStatus status) { this.status = status; }
     public int getFailedLoginAttempts() { return failedLoginAttempts; }
     public void setFailedLoginAttempts(int failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
     public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
     public int getTokenVersion() { return tokenVersion; }

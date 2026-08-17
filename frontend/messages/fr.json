@@ -1,0 +1,513 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "saving": "Enregistrement...",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "deleting": "Suppression...",
+    "edit": "Modifier",
+    "create": "Créer",
+    "back": "Retour",
+    "search": "Rechercher...",
+    "searchPlaceholder": "Rechercher...",
+    "noResults": "Aucun résultat",
+    "loading": "Chargement...",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "actions": "Actions",
+    "status": "Statut",
+    "name": "Nom",
+    "description": "Description",
+    "type": "Type",
+    "date": "Date",
+    "all": "Toutes",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "yes": "Oui",
+    "no": "Non",
+    "result": "résultat",
+    "results": "résultats"
+  },
+  "sidebar": {
+    "dashboard": "Tableau de bord",
+    "catalog": "Catalogue",
+    "offers": "Offres",
+    "campaigns": "Campagnes",
+    "media": "Médias",
+    "rules": "Règles métier",
+    "users": "Utilisateurs",
+    "notifications": "Notifications",
+    "audit": "Audit",
+    "settings": "Paramètres",
+    "theme": "Thème",
+    "logout": "Déconnexion"
+  },
+  "dashboard": {
+    "greeting_morning": "Bonjour",
+    "greeting_afternoon": "Bon après-midi",
+    "greeting_evening": "Bonsoir",
+    "subtitle": "Voici un aperçu de votre plateforme PIM",
+    "totalOffers": "Total offres",
+    "published": "Publiées",
+    "products": "Produits",
+    "users": "Utilisateurs",
+    "drafts": "Brouillons",
+    "activeCampaigns": "Campagnes actives",
+    "recentOffers": "Offres récentes",
+    "noOffers": "Aucune offre pour le moment"
+  },
+  "catalog": {
+    "title": "Catalogue",
+    "subtitle": "Gérez vos produits, services et packs",
+    "newItem": "Nouveau",
+    "tabs": {
+      "products": "Produits",
+      "services": "Services",
+      "packs": "Packs"
+    },
+    "columns": {
+      "name": "Nom",
+      "description": "Description",
+      "price": "Prix",
+      "category": "Catégorie",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Nom",
+      "description": "Description",
+      "price": "Prix de base",
+      "currency": "Devise",
+      "category": "Catégorie",
+      "characteristics": "Caractéristiques (JSON)"
+    },
+    "categories": {
+      "Voix": "Voix",
+      "Data": "Data",
+      "SMS": "SMS",
+      "Transfert": "Transfert",
+      "Divertissement": "Divertissement",
+      "Finance": "Finance",
+      "Entreprise": "Entreprise",
+      "Roaming": "Roaming"
+    },
+    "status": {
+      "ACTIVE": "Actif",
+      "DRAFT": "Brouillon",
+      "ARCHIVED": "Archivé",
+      "DISCONTINUED": "Discontinué"
+    },
+    "messages": {
+      "created": "Élément créé avec succès",
+      "updated": "Élément modifié avec succès",
+      "deleted": "Élément supprimé",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer",
+      "deleteWarning": "Cette action est irréversible.",
+      "saved": "Élément enregistré"
+    },
+    "empty": "Aucun élément dans cette catégorie",
+    "createTitle": "Nouveau {type}",
+    "editTitle": "Modifier l'élément"
+  },
+  "offers": {
+    "title": "Offres",
+    "subtitle": "Gérez le cycle de vie de vos offres commerciales",
+    "newOffer": "Nouvelle offre",
+    "columns": {
+      "name": "Nom",
+      "description": "Description",
+      "price": "Prix promo",
+      "status": "Statut",
+      "quality": "Qualité",
+      "created": "Créée le",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Nom de l'offre",
+      "shortDescription": "Description courte",
+      "longDescription": "Description longue",
+      "promotionalPrice": "Prix promotionnel",
+      "currency": "Devise",
+      "targetSegment": "Segment cible",
+      "customerType": "Type de client",
+      "legalMentions": "Mentions légales"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "IN_ENRICHMENT": "En enrichissement",
+      "IN_VALIDATION": "En validation",
+      "VALIDATED": "Validée",
+      "PLANNED": "Planifiée",
+      "PUBLISHED": "Publiée",
+      "SUSPENDED": "Suspendue",
+      "OBSOLETE": "Obsolète",
+      "WITHDRAWN": "Retirée",
+      "ARCHIVED": "Archivée"
+    },
+    "transition": {
+      "title": "Transition de statut",
+      "comment": "Commentaire",
+      "commentPlaceholder": "Raison de la transition...",
+      "confirm": "Confirmer la transition"
+    },
+    "messages": {
+      "created": "Offre créée avec succès",
+      "updated": "Offre modifiée avec succès",
+      "deleted": "Offre supprimée",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette offre ?",
+      "deleteWarning": "Cette action est irréversible.",
+      "transitionSuccess": "Transition effectuée",
+      "saved": "Offre enregistrée"
+    },
+    "empty": "Aucune offre trouvée",
+    "createTitle": "Nouvelle offre",
+    "editTitle": "Modifier l'offre",
+    "filterAll": "Toutes"
+  },
+  "campaigns": {
+    "title": "Campagnes",
+    "subtitle": "Planifiez et gérez vos campagnes de diffusion",
+    "newCampaign": "Nouvelle campagne",
+    "columns": {
+      "name": "Nom",
+      "channel": "Canal",
+      "status": "Statut",
+      "scheduled": "Planifiée",
+      "created": "Créée le",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Nom de la campagne",
+      "offer": "Offre associée",
+      "selectOffer": "Sélectionner une offre",
+      "channel": "Canal de diffusion",
+      "message": "Message",
+      "scheduledAt": "Date de planification"
+    },
+    "channels": {
+      "SMS": "SMS",
+      "EMAIL": "Email",
+      "PUSH_NOTIFICATION": "Push",
+      "SOCIAL_MEDIA": "Réseaux sociaux",
+      "USSD": "USSD"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "SCHEDULED": "Planifiée",
+      "PUBLISHED": "Publiée",
+      "CANCELLED": "Annulée"
+    },
+    "messages": {
+      "created": "Campagne créée avec succès",
+      "updated": "Campagne modifiée avec succès",
+      "deleted": "Campagne supprimée",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette campagne ?",
+      "deleteWarning": "Cette action est irréversible.",
+      "saved": "Campagne enregistrée"
+    },
+    "empty": "Aucune campagne trouvée",
+    "createTitle": "Nouvelle campagne",
+    "editTitle": "Modifier la campagne"
+  },
+  "media": {
+    "title": "Médias",
+    "subtitle": "Gérez vos fichiers et assets numériques",
+    "upload": "Uploader",
+    "columns": {
+      "file": "Fichier",
+      "type": "Type",
+      "size": "Taille",
+      "version": "V.",
+      "status": "Statut",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "uploadForm": {
+      "selectFile": "Sélectionner un fichier",
+      "maxSize": "Taille max : 10 Mo",
+      "uploading": "Upload en cours..."
+    },
+    "status": {
+      "PENDING": "En attente",
+      "APPROVED": "Approuvé",
+      "REJECTED": "Rejeté"
+    },
+    "actions": {
+      "approve": "Approuver",
+      "reject": "Rejeter"
+    },
+    "messages": {
+      "uploaded": "Fichier uploadé avec succès",
+      "approved": "Média approuvé",
+      "rejected": "Média rejeté",
+      "deleted": "Média supprimé",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce média ?",
+      "fileTooLarge": "Le fichier ne doit pas dépasser 10 Mo",
+      "saved": "Média enregistré"
+    },
+    "empty": "Aucun média trouvé",
+    "pending": "en attente de validation"
+  },
+  "users": {
+    "title": "Utilisateurs",
+    "subtitle": "Gérez les comptes et les rôles des utilisateurs",
+    "newUser": "Nouvel utilisateur",
+    "columns": {
+      "profile": "Profil",
+      "name": "Nom",
+      "firstName": "Prénom",
+      "sex": "Sexe",
+      "email": "Email",
+      "role": "Rôle",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "form": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "sex": "Sexe",
+      "email": "Adresse email",
+      "emailAuto": "(auto)",
+      "role": "Rôle",
+      "password": "Mot de passe temporaire",
+      "phone": "Téléphone",
+      "selectRole": "Sélectionner un rôle"
+    },
+    "sex": {
+      "Masculin": "Masculin",
+      "Féminin": "Féminin"
+    },
+    "roles": {
+      "SUPER_ADMIN": "Super Administrateur",
+      "ADMIN_SYSTEME": "Administrateur Système",
+      "CHEF_PRODUIT": "Chef de Produit",
+      "ANALYSTE_MARKETING": "Analyste Marketing",
+      "CHEF_SERVICE": "Chef de Service",
+      "CHEF_DEPARTEMENT": "Chef de Département",
+      "COMMUNITY_MANAGER": "Community Manager"
+    },
+    "status": {
+      "ACTIVE": "Actif",
+      "LOCKED": "Verrouillé",
+      "DISABLED": "Désactivé",
+      "DEACTIVATED": "Désactivé"
+    },
+    "messages": {
+      "created": "Utilisateur créé avec succès",
+      "updated": "Utilisateur modifié avec succès",
+      "deleted": "Utilisateur supprimé",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+      "deleteWarning": "Cette action est irréversible.",
+      "statusUpdated": "Statut mis à jour",
+      "saved": "Utilisateur enregistré"
+    },
+    "empty": "Aucun utilisateur trouvé",
+    "createTitle": "Nouvel utilisateur",
+    "editTitle": "Modifier l'utilisateur"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "allRead": "Toutes les notifications sont lues",
+    "unread": "{count} non lue",
+    "unreads": "{count} non lues",
+    "markAllRead": "Tout marquer comme lu",
+    "markAsRead": "Marquer comme lu",
+    "filter": {
+      "all": "Toutes",
+      "unread": "Non lues",
+      "read": "Lues"
+    },
+    "empty": "Aucune notification",
+    "emptyUnread": "Aucune notification non lue",
+    "allMarkedRead": "Toutes les notifications marquées comme lues",
+    "timeAgo": {
+      "now": "A l'instant",
+      "minutes": "Il y a {count} min",
+      "hours": "Il y a {count}h",
+      "days": "Il y a {count}j"
+    }
+  },
+  "audit": {
+    "title": "Audit",
+    "subtitle": "Historique des actions sur la plateforme",
+    "columns": {
+      "date": "Date",
+      "user": "Utilisateur",
+      "action": "Action",
+      "entity": "Entité",
+      "ip": "IP",
+      "details": "Détails"
+    },
+    "actions": {
+      "CREATE": "Création",
+      "UPDATE": "Modification",
+      "DELETE": "Suppression",
+      "VALIDATE": "Validation",
+      "REJECT": "Rejet",
+      "PUBLISH": "Publication",
+      "ROLLBACK": "Rollback",
+      "LOGIN": "Connexion",
+      "LOGIN_FAILED": "Échec connexion",
+      "EXPORT": "Export",
+      "DATA_ANONYMIZED": "Anonymisation",
+      "DATA_EXPORT_REQUESTED": "Export RGPD"
+    },
+    "filterByAction": "Filtrer par action",
+    "filterByEntity": "Filtrer par entité",
+    "detail": "Détail de l'action",
+    "previousValue": "Valeur précédente",
+    "newValue": "Nouvelle valeur",
+    "empty": "Aucun log d'audit trouvé"
+  },
+  "rules": {
+    "title": "Règles métier",
+    "subtitle": "Gérez les règles de compatibilité et composition",
+    "newRule": "Nouvelle règle",
+    "columns": {
+      "name": "Nom",
+      "type": "Type",
+      "source": "Source",
+      "target": "Cible",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Nom de la règle",
+      "description": "Description",
+      "ruleType": "Type de règle",
+      "sourceItemId": "ID élément source",
+      "targetItemId": "ID élément cible",
+      "selectType": "Sélectionner un type"
+    },
+    "types": {
+      "COMPATIBILITY": "Compatibilité",
+      "INCOMPATIBILITY": "Incompatibilité",
+      "MANDATORY_COMPOSITION": "Composition obligatoire",
+      "PACK_ONLY": "Pack uniquement"
+    },
+    "statusLabels": {
+      "active": "Actif",
+      "inactive": "Inactif"
+    },
+    "messages": {
+      "created": "Règle créée avec succès",
+      "updated": "Règle modifiée avec succès",
+      "deleted": "Règle supprimée",
+      "activated": "Règle activée",
+      "deactivated": "Règle désactivée",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette règle ?",
+      "deleteWarning": "Cette action est irréversible.",
+      "saved": "Règle enregistrée"
+    },
+    "empty": "Aucune règle métier trouvée",
+    "createTitle": "Nouvelle règle",
+    "editTitle": "Modifier la règle"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Configuration du système",
+    "tabs": {
+      "notifications": "Notifications",
+      "kpi": "Indicateurs KPI"
+    },
+    "notifications": {
+      "type": "Type",
+      "channel": "Canal",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "updated": "Configuration mise à jour",
+      "empty": "Aucune configuration de notification"
+    },
+    "kpi": {
+      "code": "Code",
+      "label": "Libellé",
+      "threshold": "Seuil",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "edit": "Modifier",
+      "save": "Sauvegarder",
+      "updated": "Configuration KPI mise à jour",
+      "empty": "Aucune configuration KPI"
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "tabs": {
+      "info": "Informations",
+      "password": "Mot de passe",
+      "mfa": "Sécurité MFA"
+    },
+    "info": {
+      "title": "Informations personnelles",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "role": "Rôle",
+      "status": "Statut",
+      "mfa": "MFA",
+      "mfaEnabled": "Activé",
+      "mfaDisabled": "Désactivé",
+      "statusActive": "Actif"
+    },
+    "password": {
+      "title": "Changer le mot de passe",
+      "current": "Mot de passe actuel",
+      "new": "Nouveau mot de passe",
+      "confirm": "Confirmer le mot de passe",
+      "minLength": "Minimum 12 caractères",
+      "submit": "Modifier le mot de passe",
+      "submitting": "Modification...",
+      "success": "Mot de passe modifié avec succès",
+      "error": "Erreur lors du changement de mot de passe",
+      "mismatch": "Les mots de passe ne correspondent pas",
+      "tooShort": "Le mot de passe doit contenir au moins 12 caractères"
+    },
+    "mfa": {
+      "title": "Authentification à deux facteurs (MFA)",
+      "description": "Protégez votre compte avec une application d'authentification (Google Authenticator, Authy, etc.)",
+      "enabled": "MFA est activé sur votre compte",
+      "secretKey": "Clé secrète",
+      "addToApp": "Ajoutez cette clé dans votre application d'authentification",
+      "verificationCode": "Code de vérification",
+      "setup": "Configurer MFA",
+      "enable": "Activer MFA",
+      "enabling": "Activation...",
+      "disable": "Désactiver MFA",
+      "disabling": "Désactivation...",
+      "disableCode": "Code TOTP pour désactiver",
+      "setupError": "Erreur lors de la configuration MFA",
+      "enableSuccess": "MFA activé avec succès",
+      "disableSuccess": "MFA désactivé",
+      "invalidCode": "Code invalide"
+    }
+  },
+  "login": {
+    "title": "Connexion",
+    "heading": "PIM Moov Africa",
+    "subtitle": "Connectez-vous pour accéder à votre espace professionnel.",
+    "successTitle": "Connexion réussie",
+    "successSubtitle": "Redirection vers votre espace...",
+    "email": "Adresse email",
+    "emailRequired": "L'adresse email est requise.",
+    "password": "Mot de passe",
+    "passwordRequired": "Le mot de passe est requis.",
+    "submit": "Se connecter",
+    "submitting": "Connexion en cours...",
+    "forgotPassword": "Mot de passe oublié ?",
+    "error": "Email ou mot de passe incorrect",
+    "errorAuth": "Adresse email ou mot de passe incorrect.",
+    "errorLocked": "Compte verrouillé. Contactez votre administrateur.",
+    "errorForbidden": "Accès refusé. Vérifiez vos autorisations.",
+    "errorServer": "Impossible de contacter le serveur. Vérifiez que le backend est démarré."
+  },
+  "notFound": {
+    "title": "404",
+    "message": "Cette page n'existe pas ou a été déplacée.",
+    "dashboard": "Tableau de bord",
+    "login": "Se connecter"
+  },
+  "language": {
+    "title": "Langue",
+    "select": "Sélectionner la langue"
+  }
+}

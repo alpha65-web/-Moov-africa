@@ -30,7 +30,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             Accès réservé aux collaborateurs Moov Africa
           </p>
           <p className="text-[11px] text-neutral-300 dark:text-neutral-600">
-            &copy; 2026 Moov Africa Burkina Faso &mdash; Tous droits réservés.
+            &copy; 2026 Moov Africa Burkina Faso. Tous droits réservés.
           </p>
         </div>
       </div>

@@ -32,7 +32,8 @@ public class MfaPolicyFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
             String roleName = userDetails.getUser().getRole().getName().name();
-            boolean isAdmin = RoleName.ADMIN_SYSTEME.name().equals(roleName);
+            boolean isAdmin = RoleName.ADMIN_SYSTEME.name().equals(roleName)
+                    || RoleName.SUPER_ADMIN.name().equals(roleName);
             boolean hasMfa = userDetails.getUser().isTotpEnabled();
 
             if (isAdmin && !hasMfa) {

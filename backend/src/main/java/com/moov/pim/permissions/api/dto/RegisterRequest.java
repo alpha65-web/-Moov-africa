@@ -10,5 +10,6 @@ public record RegisterRequest(
         @NotBlank @Size(min = 12, message = "Le mot de passe doit contenir au moins 12 caractères") String password,
         @NotBlank String firstName,
         @NotBlank String lastName,
+        String sex,
         @NotNull String roleName
 ) {}

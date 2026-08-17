@@ -99,7 +99,8 @@
   }
 
   .input {
-    @apply rounded-xl bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-orange-500 transition-all duration-100 ease-in-out;
+    @apply bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-orange-500 transition-all duration-100 ease-in-out;
+    border-radius: 7px;
   }
 
   .dark .input {
@@ -123,4 +124,15 @@
 @keyframes fadeScale {
   from { opacity: 0; transform: scale(0.5); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer base {
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
 }

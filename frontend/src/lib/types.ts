@@ -3,8 +3,14 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  gender: string | null;
+  phone: string | null;
+  pseudo: string | null;
+  avatarUrl: string | null;
   role: string;
   status: string;
+  forcePasswordChange: boolean;
+  totpEnabled: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 }
@@ -12,6 +18,7 @@ export interface User {
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
+  fingerprint: string;
   user: User;
 }
 
@@ -128,7 +135,52 @@ export const OFFER_STATUS_COLORS: Record<OfferStatus, string> = {
   ARCHIVED: "bg-gray-100 text-gray-500",
 };
 
+export interface AuditLog {
+  id: string;
+  userId: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  previousValue: string | null;
+  newValue: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+export interface BusinessRule {
+  id: string;
+  name: string;
+  description: string;
+  ruleType: string;
+  active: boolean;
+  sourceItemId: string;
+  targetItemId: string;
+  createdById: string;
+  createdAt: string;
+}
+
+export interface NotificationConfig {
+  id: string;
+  type: string;
+  channel: string;
+  enabled: boolean;
+  updatedById: string;
+  updatedAt: string;
+}
+
+export interface KpiConfig {
+  id: string;
+  kpiCode: string;
+  label: string;
+  enabled: boolean;
+  thresholdExpression: string | null;
+  updatedById: string;
+  updatedAt: string;
+}
+
 export const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Super Administrateur",
   ADMIN_SYSTEME: "Administrateur Systeme",
   CHEF_PRODUIT: "Chef de Produit",
   ANALYSTE_MARKETING: "Analyste Marketing",

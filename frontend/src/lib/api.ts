@@ -5,15 +5,20 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+const PUBLIC_PATHS = ["/auth/login", "/auth/refresh"];
+
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    const fingerprint = localStorage.getItem("fingerprint");
-    if (fingerprint) {
-      config.headers["X-Fingerprint"] = fingerprint;
+    const isPublic = PUBLIC_PATHS.some((p) => config.url?.endsWith(p));
+    if (!isPublic) {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      const fingerprint = localStorage.getItem("fingerprint");
+      if (fingerprint) {
+        config.headers["X-Fingerprint"] = fingerprint;
+      }
     }
   }
   return config;

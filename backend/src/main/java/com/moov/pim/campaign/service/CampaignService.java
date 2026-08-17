@@ -167,7 +167,8 @@ public class CampaignService {
     private boolean isAdmin() {
         CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal();
-        return principal.getUser().getRole().getName() == RoleName.ADMIN_SYSTEME;
+        RoleName role = principal.getUser().getRole().getName();
+        return role == RoleName.ADMIN_SYSTEME || role == RoleName.SUPER_ADMIN;
     }
 
     private UUID currentUserId() {

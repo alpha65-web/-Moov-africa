@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 function LoaderIcon({ className }: { className?: string }) {
   return (
@@ -35,6 +36,7 @@ function CheckIcon({ className }: { className?: string }) {
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const t = useTranslations("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -85,15 +87,15 @@ export default function LoginPage() {
       const axiosErr = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
       const status = axiosErr.response?.status;
       if (status === 401) {
-        setError("Adresse email ou mot de passe incorrect.");
+        setError(t("errorAuth"));
       } else if (status === 423) {
-        setError("Compte verrouillé. Contactez votre administrateur.");
+        setError(t("errorLocked"));
       } else if (status === 403) {
-        setError("Accès refusé. Vérifiez vos autorisations.");
+        setError(t("errorForbidden"));
       } else if (axiosErr.response?.data?.message) {
         setError(axiosErr.response.data.message);
       } else {
-        setError("Impossible de contacter le serveur. Vérifiez que le backend est démarré.");
+        setError(t("errorServer"));
       }
       playLottie("/lottie/error.json");
       setLoading(false);
@@ -111,8 +113,8 @@ export default function LoginPage() {
       noValidate
       className="relative z-30 flex flex-col w-full mx-4 sm:mx-0 my-auto max-w-[420px] lg:max-w-[380px] overflow-hidden bg-white dark:bg-neutral-900 border rounded-2xl border-border dark:border-neutral-700 shadow-lg"
     >
-      {/* ===== EN-TÊTE — Logo + nom + description ===== */}
-      <div className="flex flex-col items-center gap-4 px-6 sm:px-8 pt-6 sm:pt-8 pb-5 sm:pb-6">
+      {/* ===== EN-TÊTE ===== */}
+      <div className="flex flex-col items-center gap-4 px-6 sm:px-8 pt-6 sm:pt-8 pb-2">
         <div className="flex items-center justify-center">
           <Image
             src="/img/logo-light.jpeg"
@@ -132,26 +134,22 @@ export default function LoginPage() {
 
         <div className="flex flex-col items-center gap-1">
           <h1 className="text-lg sm:text-xl font-bold text-secondary dark:text-white tracking-tight">
-            {success ? "Connexion réussie" : "PIM Moov Africa"}
+            {success ? t("successTitle") : t("heading")}
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary dark:text-neutral-400 text-center leading-relaxed">
-            {success
-              ? "Redirection vers votre espace..."
-              : "Connectez-vous pour accéder à votre espace professionnel."}
+            {success ? t("successSubtitle") : t("subtitle")}
           </p>
         </div>
 
-        {/* Zone lottie / icône succès */}
-        {success ? (
+        {success && (
           <div className="flex flex-col items-center gap-2 py-2">
             <CheckIcon className="w-12 h-12 text-emerald-500 animate-[fadeScale_0.4s_ease-out]" />
           </div>
-        ) : (
-          <div
-            ref={lottieRef}
-            className="w-full h-8 flex items-center justify-center"
-          />
         )}
+        <div
+          ref={lottieRef}
+          className="w-full flex items-center justify-center h-0"
+        />
       </div>
 
       {/* ===== FORMULAIRE ===== */}
@@ -160,21 +158,21 @@ export default function LoginPage() {
           {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-text-secondary dark:text-neutral-400">
-              Adresse email <span className="text-danger">*</span>
+              {t("email")}
             </label>
             <input
               ref={emailRef}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+              onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
               placeholder="prenom.nom@moov-africa.bf"
               autoComplete="email"
               className={`input w-full h-10 ${emailEmpty ? "!border-danger" : ""}`}
             />
             {emailEmpty && (
               <p className="text-[11px] text-danger font-medium">
-                L&apos;adresse email est requise.
+                {t("emailRequired")}
               </p>
             )}
           </div>
@@ -182,15 +180,15 @@ export default function LoginPage() {
           {/* Mot de passe */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-text-secondary dark:text-neutral-400">
-              Mot de passe <span className="text-danger">*</span>
+              {t("password")}
             </label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onBlur={() => setTouched((t) => ({ ...t, password: true }))}
-                placeholder="Mot de passe"
+                onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
+                placeholder={t("password")}
                 autoComplete="current-password"
                 className={`input w-full h-10 pr-10 ${passwordEmpty ? "!border-danger" : ""}`}
               />
@@ -225,7 +223,7 @@ export default function LoginPage() {
             </div>
             {passwordEmpty && (
               <p className="text-[11px] text-danger font-medium">
-                Le mot de passe est requis.
+                {t("passwordRequired")}
               </p>
             )}
           </div>
@@ -252,7 +250,7 @@ export default function LoginPage() {
                 <LoaderIcon className="w-4 h-4 text-white animate-spin" />
               )}
               <p className="whitespace-nowrap text-sm font-medium">
-                {loading ? "Connexion en cours..." : "Se connecter"}
+                {loading ? t("submitting") : t("submit")}
               </p>
             </span>
           </button>

@@ -67,8 +67,10 @@ public class OfferService {
         offer.setLegalMentions(request.legalMentions());
         offer.setCreatedById(currentUserId());
 
-        for (UUID catalogItemId : request.catalogItemIds()) {
-            offer.addItem(new OfferItem(catalogItemId));
+        if (request.catalogItemIds() != null) {
+            for (UUID catalogItemId : request.catalogItemIds()) {
+                offer.addItem(new OfferItem(catalogItemId));
+            }
         }
 
         offer = offerRepository.save(offer);
@@ -167,6 +169,13 @@ public class OfferService {
                 .toList();
     }
 
+    @Transactional
+    public void delete(UUID offerId) {
+        Offer offer = findOffer(offerId);
+        checkOwnership(offer);
+        offerRepository.delete(offer);
+    }
+
     @Transactional(readOnly = true)
     public List<OfferResponse> listAll() {
         if (isAdmin()) {
@@ -225,7 +234,8 @@ public class OfferService {
     private boolean isAdmin() {
         CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal();
-        return principal.getUser().getRole().getName() == RoleName.ADMIN_SYSTEME;
+        RoleName role = principal.getUser().getRole().getName();
+        return role == RoleName.ADMIN_SYSTEME || role == RoleName.SUPER_ADMIN;
     }
 
     private UUID currentUserId() {

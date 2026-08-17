@@ -4,8 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { ROLE_LABELS } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useTranslations } from "next-intl";
 
 /* ===== ICÔNES SVG CUSTOM ===== */
 
@@ -74,6 +75,35 @@ function BellIcon({ className }: { className?: string }) {
   );
 }
 
+function RulesIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M10 2v16M6 6l8 0M6 10h8M6 14h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M3 2h14M3 18h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AuditIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 6h6M7 9.5h6M7 13h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="14" cy="14" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M16.1 16.1L18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.93 4.93l1.41 1.41M13.66 13.66l1.41 1.41M4.93 15.07l1.41-1.41M13.66 6.34l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none">
@@ -83,18 +113,23 @@ function LogoutIcon({ className }: { className?: string }) {
 }
 
 const NAV_ITEMS = [
-  { href: "/", label: "Tableau de bord", icon: DashboardIcon },
-  { href: "/catalog", label: "Catalogue", icon: CatalogIcon },
-  { href: "/offers", label: "Offres", icon: OffersIcon },
-  { href: "/campaigns", label: "Campagnes", icon: CampaignIcon },
-  { href: "/media", label: "Médias", icon: MediaIcon },
-  { href: "/users", label: "Utilisateurs", icon: UsersIcon },
-  { href: "/notifications", label: "Notifications", icon: BellIcon },
+  { href: "/", key: "dashboard", icon: DashboardIcon },
+  { href: "/catalog", key: "catalog", icon: CatalogIcon },
+  { href: "/offers", key: "offers", icon: OffersIcon },
+  { href: "/campaigns", key: "campaigns", icon: CampaignIcon },
+  { href: "/media", key: "media", icon: MediaIcon },
+  { href: "/rules", key: "rules", icon: RulesIcon },
+  { href: "/users", key: "users", icon: UsersIcon },
+  { href: "/notifications", key: "notifications", icon: BellIcon },
+  { href: "/audit", key: "audit", icon: AuditIcon },
+  { href: "/settings", key: "settings", icon: SettingsIcon },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const t = useTranslations("sidebar");
+  const tu = useTranslations("users.roles");
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-dvh w-[260px] flex-col border-r border-border dark:border-neutral-800 bg-white dark:bg-neutral-900">
@@ -135,7 +170,7 @@ export default function Sidebar() {
                   }`}
                 >
                   <item.icon className="size-[18px] shrink-0" />
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               </li>
             );
@@ -146,14 +181,20 @@ export default function Sidebar() {
       {/* ===== BAS — Profil + actions ===== */}
       {user && (
         <div className="border-t border-border dark:border-neutral-800 px-3 py-3 flex flex-col gap-2">
+          {/* Langue */}
+          <LanguageSwitcher />
+
           {/* Toggle thème */}
           <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-xs text-neutral-500 dark:text-neutral-400">Thème</span>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">{t("theme")}</span>
             <ThemeToggle />
           </div>
 
           {/* Infos utilisateur */}
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800">
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          >
             <div className="flex items-center justify-center size-8 rounded-full bg-primary text-white text-xs font-bold shrink-0">
               {user.firstName?.[0]}{user.lastName?.[0]}
             </div>
@@ -162,10 +203,10 @@ export default function Sidebar() {
                 {user.firstName} {user.lastName}
               </p>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                {ROLE_LABELS[user.role] || user.role}
+                {tu.has(user.role) ? tu(user.role) : user.role}
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Bouton déconnexion */}
           <button
@@ -173,7 +214,7 @@ export default function Sidebar() {
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
             <LogoutIcon className="size-4" />
-            Déconnexion
+            {t("logout")}
           </button>
         </div>
       )}

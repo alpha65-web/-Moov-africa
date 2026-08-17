@@ -1,0 +1,513 @@
+{
+  "common": {
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "search": "Search...",
+    "searchPlaceholder": "Search...",
+    "noResults": "No results",
+    "loading": "Loading...",
+    "confirm": "Confirm",
+    "close": "Close",
+    "actions": "Actions",
+    "status": "Status",
+    "name": "Name",
+    "description": "Description",
+    "type": "Type",
+    "date": "Date",
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive",
+    "yes": "Yes",
+    "no": "No",
+    "result": "result",
+    "results": "results"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "catalog": "Catalog",
+    "offers": "Offers",
+    "campaigns": "Campaigns",
+    "media": "Media",
+    "rules": "Business Rules",
+    "users": "Users",
+    "notifications": "Notifications",
+    "audit": "Audit",
+    "settings": "Settings",
+    "theme": "Theme",
+    "logout": "Log out"
+  },
+  "dashboard": {
+    "greeting_morning": "Good morning",
+    "greeting_afternoon": "Good afternoon",
+    "greeting_evening": "Good evening",
+    "subtitle": "Here is an overview of your PIM platform",
+    "totalOffers": "Total offers",
+    "published": "Published",
+    "products": "Products",
+    "users": "Users",
+    "drafts": "Drafts",
+    "activeCampaigns": "Active campaigns",
+    "recentOffers": "Recent offers",
+    "noOffers": "No offers yet"
+  },
+  "catalog": {
+    "title": "Catalog",
+    "subtitle": "Manage your products, services, and packs",
+    "newItem": "New",
+    "tabs": {
+      "products": "Products",
+      "services": "Services",
+      "packs": "Packs"
+    },
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "price": "Price",
+      "category": "Category",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Name",
+      "description": "Description",
+      "price": "Base price",
+      "currency": "Currency",
+      "category": "Category",
+      "characteristics": "Characteristics (JSON)"
+    },
+    "categories": {
+      "Voix": "Voice",
+      "Data": "Data",
+      "SMS": "SMS",
+      "Transfert": "Transfer",
+      "Divertissement": "Entertainment",
+      "Finance": "Finance",
+      "Entreprise": "Enterprise",
+      "Roaming": "Roaming"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "DRAFT": "Draft",
+      "ARCHIVED": "Archived",
+      "DISCONTINUED": "Discontinued"
+    },
+    "messages": {
+      "created": "Item created successfully",
+      "updated": "Item updated successfully",
+      "deleted": "Item deleted",
+      "deleteConfirm": "Are you sure you want to delete",
+      "deleteWarning": "This action cannot be undone.",
+      "saved": "Item saved"
+    },
+    "empty": "No items in this category",
+    "createTitle": "New {type}",
+    "editTitle": "Edit item"
+  },
+  "offers": {
+    "title": "Offers",
+    "subtitle": "Manage the lifecycle of your commercial offers",
+    "newOffer": "New offer",
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "price": "Promo price",
+      "status": "Status",
+      "quality": "Quality",
+      "created": "Created on",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Offer name",
+      "shortDescription": "Short description",
+      "longDescription": "Long description",
+      "promotionalPrice": "Promotional price",
+      "currency": "Currency",
+      "targetSegment": "Target segment",
+      "customerType": "Customer type",
+      "legalMentions": "Legal mentions"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "IN_ENRICHMENT": "In enrichment",
+      "IN_VALIDATION": "In validation",
+      "VALIDATED": "Validated",
+      "PLANNED": "Planned",
+      "PUBLISHED": "Published",
+      "SUSPENDED": "Suspended",
+      "OBSOLETE": "Obsolete",
+      "WITHDRAWN": "Withdrawn",
+      "ARCHIVED": "Archived"
+    },
+    "transition": {
+      "title": "Status transition",
+      "comment": "Comment",
+      "commentPlaceholder": "Reason for the transition...",
+      "confirm": "Confirm transition"
+    },
+    "messages": {
+      "created": "Offer created successfully",
+      "updated": "Offer updated successfully",
+      "deleted": "Offer deleted",
+      "deleteConfirm": "Are you sure you want to delete this offer?",
+      "deleteWarning": "This action cannot be undone.",
+      "transitionSuccess": "Transition completed",
+      "saved": "Offer saved"
+    },
+    "empty": "No offers found",
+    "createTitle": "New offer",
+    "editTitle": "Edit offer",
+    "filterAll": "All"
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "subtitle": "Plan and manage your distribution campaigns",
+    "newCampaign": "New campaign",
+    "columns": {
+      "name": "Name",
+      "channel": "Channel",
+      "status": "Status",
+      "scheduled": "Scheduled",
+      "created": "Created on",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Campaign name",
+      "offer": "Associated offer",
+      "selectOffer": "Select an offer",
+      "channel": "Distribution channel",
+      "message": "Message",
+      "scheduledAt": "Scheduled date"
+    },
+    "channels": {
+      "SMS": "SMS",
+      "EMAIL": "Email",
+      "PUSH_NOTIFICATION": "Push",
+      "SOCIAL_MEDIA": "Social media",
+      "USSD": "USSD"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "SCHEDULED": "Scheduled",
+      "PUBLISHED": "Published",
+      "CANCELLED": "Cancelled"
+    },
+    "messages": {
+      "created": "Campaign created successfully",
+      "updated": "Campaign updated successfully",
+      "deleted": "Campaign deleted",
+      "deleteConfirm": "Are you sure you want to delete this campaign?",
+      "deleteWarning": "This action cannot be undone.",
+      "saved": "Campaign saved"
+    },
+    "empty": "No campaigns found",
+    "createTitle": "New campaign",
+    "editTitle": "Edit campaign"
+  },
+  "media": {
+    "title": "Media",
+    "subtitle": "Manage your files and digital assets",
+    "upload": "Upload",
+    "columns": {
+      "file": "File",
+      "type": "Type",
+      "size": "Size",
+      "version": "V.",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "uploadForm": {
+      "selectFile": "Select a file",
+      "maxSize": "Max size: 10 MB",
+      "uploading": "Uploading..."
+    },
+    "status": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "messages": {
+      "uploaded": "File uploaded successfully",
+      "approved": "Media approved",
+      "rejected": "Media rejected",
+      "deleted": "Media deleted",
+      "deleteConfirm": "Are you sure you want to delete this media?",
+      "fileTooLarge": "File must not exceed 10 MB",
+      "saved": "Media saved"
+    },
+    "empty": "No media found",
+    "pending": "pending validation"
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "Manage user accounts and roles",
+    "newUser": "New user",
+    "columns": {
+      "profile": "Profile",
+      "name": "Last name",
+      "firstName": "First name",
+      "sex": "Gender",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "form": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "sex": "Gender",
+      "email": "Email address",
+      "emailAuto": "(auto)",
+      "role": "Role",
+      "password": "Temporary password",
+      "phone": "Phone",
+      "selectRole": "Select a role"
+    },
+    "sex": {
+      "Masculin": "Male",
+      "Féminin": "Female"
+    },
+    "roles": {
+      "SUPER_ADMIN": "Super Administrator",
+      "ADMIN_SYSTEME": "System Administrator",
+      "CHEF_PRODUIT": "Product Manager",
+      "ANALYSTE_MARKETING": "Marketing Analyst",
+      "CHEF_SERVICE": "Service Manager",
+      "CHEF_DEPARTEMENT": "Department Manager",
+      "COMMUNITY_MANAGER": "Community Manager"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "LOCKED": "Locked",
+      "DISABLED": "Disabled",
+      "DEACTIVATED": "Deactivated"
+    },
+    "messages": {
+      "created": "User created successfully",
+      "updated": "User updated successfully",
+      "deleted": "User deleted",
+      "deleteConfirm": "Are you sure you want to delete this user?",
+      "deleteWarning": "This action cannot be undone.",
+      "statusUpdated": "Status updated",
+      "saved": "User saved"
+    },
+    "empty": "No users found",
+    "createTitle": "New user",
+    "editTitle": "Edit user"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "allRead": "All notifications have been read",
+    "unread": "{count} unread",
+    "unreads": "{count} unread",
+    "markAllRead": "Mark all as read",
+    "markAsRead": "Mark as read",
+    "filter": {
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read"
+    },
+    "empty": "No notifications",
+    "emptyUnread": "No unread notifications",
+    "allMarkedRead": "All notifications marked as read",
+    "timeAgo": {
+      "now": "Just now",
+      "minutes": "{count} min ago",
+      "hours": "{count}h ago",
+      "days": "{count}d ago"
+    }
+  },
+  "audit": {
+    "title": "Audit",
+    "subtitle": "Platform action history",
+    "columns": {
+      "date": "Date",
+      "user": "User",
+      "action": "Action",
+      "entity": "Entity",
+      "ip": "IP",
+      "details": "Details"
+    },
+    "actions": {
+      "CREATE": "Creation",
+      "UPDATE": "Update",
+      "DELETE": "Deletion",
+      "VALIDATE": "Validation",
+      "REJECT": "Rejection",
+      "PUBLISH": "Publication",
+      "ROLLBACK": "Rollback",
+      "LOGIN": "Login",
+      "LOGIN_FAILED": "Login failed",
+      "EXPORT": "Export",
+      "DATA_ANONYMIZED": "Anonymization",
+      "DATA_EXPORT_REQUESTED": "GDPR export"
+    },
+    "filterByAction": "Filter by action",
+    "filterByEntity": "Filter by entity",
+    "detail": "Action detail",
+    "previousValue": "Previous value",
+    "newValue": "New value",
+    "empty": "No audit logs found"
+  },
+  "rules": {
+    "title": "Business Rules",
+    "subtitle": "Manage compatibility and composition rules",
+    "newRule": "New rule",
+    "columns": {
+      "name": "Name",
+      "type": "Type",
+      "source": "Source",
+      "target": "Target",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Rule name",
+      "description": "Description",
+      "ruleType": "Rule type",
+      "sourceItemId": "Source item ID",
+      "targetItemId": "Target item ID",
+      "selectType": "Select a type"
+    },
+    "types": {
+      "COMPATIBILITY": "Compatibility",
+      "INCOMPATIBILITY": "Incompatibility",
+      "MANDATORY_COMPOSITION": "Mandatory composition",
+      "PACK_ONLY": "Pack only"
+    },
+    "statusLabels": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "messages": {
+      "created": "Rule created successfully",
+      "updated": "Rule updated successfully",
+      "deleted": "Rule deleted",
+      "activated": "Rule activated",
+      "deactivated": "Rule deactivated",
+      "deleteConfirm": "Are you sure you want to delete this rule?",
+      "deleteWarning": "This action cannot be undone.",
+      "saved": "Rule saved"
+    },
+    "empty": "No business rules found",
+    "createTitle": "New rule",
+    "editTitle": "Edit rule"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "System configuration",
+    "tabs": {
+      "notifications": "Notifications",
+      "kpi": "KPI Indicators"
+    },
+    "notifications": {
+      "type": "Type",
+      "channel": "Channel",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "updated": "Configuration updated",
+      "empty": "No notification configuration"
+    },
+    "kpi": {
+      "code": "Code",
+      "label": "Label",
+      "threshold": "Threshold",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "edit": "Edit",
+      "save": "Save",
+      "updated": "KPI configuration updated",
+      "empty": "No KPI configuration"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "tabs": {
+      "info": "Information",
+      "password": "Password",
+      "mfa": "MFA Security"
+    },
+    "info": {
+      "title": "Personal information",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "mfa": "MFA",
+      "mfaEnabled": "Enabled",
+      "mfaDisabled": "Disabled",
+      "statusActive": "Active"
+    },
+    "password": {
+      "title": "Change password",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm password",
+      "minLength": "Minimum 12 characters",
+      "submit": "Change password",
+      "submitting": "Changing...",
+      "success": "Password changed successfully",
+      "error": "Error changing password",
+      "mismatch": "Passwords do not match",
+      "tooShort": "Password must be at least 12 characters"
+    },
+    "mfa": {
+      "title": "Two-factor authentication (MFA)",
+      "description": "Protect your account with an authenticator app (Google Authenticator, Authy, etc.)",
+      "enabled": "MFA is enabled on your account",
+      "secretKey": "Secret key",
+      "addToApp": "Add this key to your authenticator app",
+      "verificationCode": "Verification code",
+      "setup": "Set up MFA",
+      "enable": "Enable MFA",
+      "enabling": "Enabling...",
+      "disable": "Disable MFA",
+      "disabling": "Disabling...",
+      "disableCode": "TOTP code to disable",
+      "setupError": "Error setting up MFA",
+      "enableSuccess": "MFA enabled successfully",
+      "disableSuccess": "MFA disabled",
+      "invalidCode": "Invalid code"
+    }
+  },
+  "login": {
+    "title": "Login",
+    "heading": "PIM Moov Africa",
+    "subtitle": "Log in to access your professional workspace.",
+    "successTitle": "Login successful",
+    "successSubtitle": "Redirecting to your workspace...",
+    "email": "Email address",
+    "emailRequired": "Email address is required.",
+    "password": "Password",
+    "passwordRequired": "Password is required.",
+    "submit": "Log in",
+    "submitting": "Logging in...",
+    "forgotPassword": "Forgot password?",
+    "error": "Incorrect email or password",
+    "errorAuth": "Incorrect email address or password.",
+    "errorLocked": "Account locked. Contact your administrator.",
+    "errorForbidden": "Access denied. Check your permissions.",
+    "errorServer": "Unable to reach the server. Make sure the backend is running."
+  },
+  "notFound": {
+    "title": "404",
+    "message": "This page does not exist or has been moved.",
+    "dashboard": "Dashboard",
+    "login": "Log in"
+  },
+  "language": {
+    "title": "Language",
+    "select": "Select language"
+  }
+}

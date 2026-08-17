@@ -3,7 +3,6 @@ package com.moov.pim.lifecycle.api.dto;
 import com.moov.pim.lifecycle.domain.CustomerType;
 import com.moov.pim.lifecycle.domain.TargetSegment;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,5 +19,5 @@ public record CreateOfferRequest(
         TargetSegment targetSegment,
         CustomerType customerType,
         String legalMentions,
-        @NotEmpty List<UUID> catalogItemIds
+        List<UUID> catalogItemIds
 ) {}

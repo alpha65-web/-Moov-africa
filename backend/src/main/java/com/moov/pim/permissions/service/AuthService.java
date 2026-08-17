@@ -211,6 +211,7 @@ public class AuthService {
                 passwordEncoder.encode(request.password()),
                 request.firstName(),
                 request.lastName(),
+                request.sex(),
                 role
         );
 
