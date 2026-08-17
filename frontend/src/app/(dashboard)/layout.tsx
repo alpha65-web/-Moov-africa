@@ -32,7 +32,7 @@ export default function DashboardLayout({
   return (
     <div className="h-dvh bg-bg dark:bg-neutral-950 overflow-hidden">
       <Sidebar />
-      <main className="ml-[260px] h-dvh overflow-y-auto hide-scrollbar p-6">
+      <main className="ml-65 h-dvh overflow-y-auto hide-scrollbar p-6">
         {children}
       </main>
     </div>

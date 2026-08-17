@@ -1,0 +1,234 @@
+@import "tailwindcss";
+@import "../../vendor/livewire/flux/dist/flux.css";
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
+@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans:
+        "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+        "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+    --text-h4: clamp(1.5rem, 2vw + 1rem, 1.875rem);
+
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f5f5f5;
+    --color-zinc-200: #e5e5e5;
+    --color-zinc-300: #d4d4d4;
+    --color-zinc-400: #a3a3a3;
+    --color-zinc-500: #737373;
+    --color-zinc-600: #525252;
+    --color-zinc-700: #404040;
+    --color-zinc-800: #262626;
+    --color-zinc-900: #171717;
+    --color-zinc-950: #0a0a0a;
+
+    --color-accent: var(--color-neutral-800);
+    --color-accent-content: var(--color-neutral-800);
+    --color-accent-foreground: var(--color-white);
+
+    --shadow-card:
+        inset 1px 1px 0 rgba(255, 255, 255, 1),
+        inset -1px -1px 0 rgba(0, 0, 0, 0.15);
+    --shadow-danger-normal:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8),
+        inset 0 0.5px 0 0.4px rgba(255, 255, 255, 0.5),
+        inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.3);
+    --shadow-danger-clicked:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8),
+        inset 0 -0.5px 0 0.4px rgba(255, 255, 255, 0.5),
+        inset 0 1px 4px rgba(0, 0, 0, 0.5);
+    --shadow-primary-normal:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8),
+        inset 0 0.5px 0 0.4px rgba(255, 255, 255, 0.5),
+        inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.3);
+    --shadow-primary-clicked:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8),
+        inset 0 -0.5px 0 0.4px rgba(255, 255, 255, 0.5),
+        inset 0 1px 4px rgba(0, 0, 0, 0.5);
+    --shadow-secondary-normal:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8),
+        inset 0 0.5px 0 0.4px rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 0 rgba(0, 0, 0, 1);
+    --shadow-secondary-clicked:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8), inset 0 1px 0 0 rgba(0, 0, 0, 1),
+        inset 0 -0.5px 0 0 rgba(255, 255, 255, 0.3);
+    --shadow-tertiary-normal:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8), inset 0 -1px 0 0 #aaa;
+    --shadow-tertiary-clicked:
+        0 0 0 0.8px rgba(0, 0, 0, 0.8),
+        inset 0 -0.5px 0 0.2px rgba(255, 255, 255, 1),
+        inset 0 1px 4px rgba(0, 0, 0, 0.4);
+
+    --color-danger: #ff0000;
+    --color-danger-light: #ff4245;
+    --color-primary: #ff6500;
+    --color-primary-light: #ff8c42;
+    --color-tertiary: #dddddd;
+    --color-secondary: #333;
+    --color-secondary-light: #444;
+    --color-border: #e5e5e5;
+    --color-bg: #f5f5f5;
+    --color-text-secondary: #777;
+
+    --breakpoint-mid: 520px;
+}
+
+@layer theme {
+    .dark {
+        --color-accent: var(--color-white);
+        --color-accent-content: var(--color-white);
+        --color-accent-foreground: var(--color-neutral-800);
+    }
+}
+
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+    *::selection {
+        background-color: oklch(95.719% 0.02524 55.933);
+        color: oklch(69.577% 0.20423 43.479);
+    }
+}
+
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    @apply grid gap-2;
+}
+
+[data-flux-label] {
+    @apply !mb-0 !leading-tight;
+}
+
+input:focus[data-flux-control],
+textarea:focus[data-flux-control],
+select:focus[data-flux-control] {
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+/* \[:where(&)\]:size-4 {
+    @apply size-4;
+} */
+
+@layer base {
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* For Firefox */
+    .hide-scrollbar {
+        scrollbar-width: none;
+    }
+
+    /* For IE and Edge (older versions) */
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+    }
+    body {
+        background-color: #f5f5f5;
+    }
+
+    .effect {
+        background-image: radial-gradient(circle, #e5e5e5 1px, transparent 1px);
+        background-size: 10px 10px;
+    }
+
+    .dark-effect {
+        background-image: radial-gradient(circle, #333 1px, transparent 1px);
+        background-size: 10px 10px;
+    }
+
+    .input {
+        @apply rounded-lg bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-orange-500 transition-all duration-100 ease-in-out;
+    }
+
+    .danger {
+        @apply cursor-pointer items-center h-9 justify-center *:text-white bg-linear-to-t from-danger overflow-hidden from-0% to-danger-light to-100% py-2 px-8 rounded-lg shadow-danger-normal transition-all duration-200 ease-out active:shadow-danger-clicked active:from-60%;
+
+        & p {
+            @apply text-xs text-white;
+        }
+    }
+
+    .danger-icon {
+        @apply cursor-pointer flex gap-2 *:text-xs items-center justify-center *:text-red-100 bg-linear-to-t from-danger overflow-hidden from-0% to-danger-light to-100% p-2 rounded-lg shadow-danger-normal transition-all duration-200 ease-out active:shadow-danger-clicked active:from-60%;
+    }
+
+    .primary {
+        @apply cursor-pointer *:text-xs *:text-white items-center h-9 justify-center *:text-center bg-linear-to-t from-primary overflow-hidden from-0% to-primary-light to-100% py-2 px-8 rounded-lg shadow-primary-normal transition-all duration-200 ease-out active:shadow-primary-clicked active:from-60%;
+    }
+
+    .primary-icon {
+        @apply cursor-pointer flex gap-2 *:text-sm *:text-white items-center justify-center bg-linear-to-t from-primary overflow-hidden from-0% to-primary-light to-100% p-2 rounded-lg shadow-primary-normal transition-all duration-200 ease-out active:shadow-primary-clicked active:from-60%;
+    }
+
+    .secondary {
+        @apply cursor-pointer *:text-xs items-center *:text-neutral-200 h-9 bg-linear-to-t justify-center *:text-center from-secondary overflow-hidden from-0% to-secondary-light to-100% py-2 px-8 rounded-lg shadow-secondary-normal transition-all duration-200 ease-out active:shadow-secondary-clicked active:from-60%;
+    }
+
+    .secondary-icon {
+        @apply cursor-pointer flex w-fit gap-2 items-center-safe *:text-sm *:text-neutral-200 bg-linear-to-t justify-center-safe from-secondary overflow-hidden from-0% to-secondary-light to-100% p-2 rounded-lg shadow-secondary-normal transition-all duration-200 ease-out active:shadow-secondary-clicked active:from-60%;
+    }
+
+    .tertiary {
+        @apply cursor-pointer *:text-xs *:text-black items-center h-9 bg-linear-to-t justify-center *:text-center from-tertiary overflow-hidden from-0% to-white to-100% py-2 px-8 rounded-lg shadow-tertiary-normal transition-all duration-200 ease-out active:shadow-tertiary-clicked active:from-60%;
+    }
+
+    .tertiary-icon {
+        @apply cursor-pointer items-center h-9 size-fit bg-linear-to-t justify-center *:text-black from-tertiary overflow-hidden from-0% to-white to-100% p-2 rounded-lg shadow-tertiary-normal transition-all duration-200 ease-out active:shadow-tertiary-clicked active:from-60%;
+    }
+
+    .linear-second {
+        @apply bg-linear-to-t from-secondary to-secondary-light from-0% to-100%;
+    }
+
+    .card {
+        @apply border rounded-2xl bg-bg border-border shadow-card;
+    }
+
+    .nav-primary {
+        @apply cursor-pointer relative z-30 bg-linear-to-t active:*:scale-95 active:*:transition-all flex items-center h-10 from-secondary from-0% to-secondary-light to-100% py-2 px-2.5 gap-2 rounded-lg shadow-secondary-normal transition-all duration-200 ease-out active:shadow-secondary-clicked active:from-60%;
+
+        & p {
+            @apply text-sm leading-[18px];
+        }
+    }
+
+    .nav-secondary {
+        @apply cursor-pointer relative *:text-neutral-600 z-10 bg-linear-to-t hover:bg-neutral-200 active:*:scale-95 active:*:transition-all flex items-center h-10 py-2 px-2.5 gap-2 rounded-lg transition-all duration-200 ease-out;
+
+        & p {
+            @apply text-sm leading-[18px];
+        }
+    }
+
+    .svg {
+        @apply text-secondary group-hover:text-primary group-active:text-primary transition-all duration-200;
+    }
+
+    .text-clipped-dots {
+        color: transparent;
+        background-clip: text;
+        -webkit-background-clip: text;
+        background-image: radial-gradient(
+            circle,
+            #333333 1px,
+            transparent 1px
+        ); /* Assurez-vous d'avoir le bon chemin */
+        background-size: 3px 3px; /* Ajustez la taille des points si besoin */
+        background-repeat: repeat;
+        background-position: center;
+    }
+
+    .active-scale {
+        @apply active:*:scale-95 active:*:transition-all active:*:duration-200 *:transition-all *:duration-200;
+    }
+}
