@@ -104,7 +104,7 @@ export default function LoginPage() {
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="relative z-30 flex flex-col w-full mx-4 sm:mx-0 max-w-[420px] lg:max-w-[380px] overflow-hidden bg-white dark:bg-neutral-900 border rounded-2xl border-border dark:border-neutral-700 shadow-lg"
+      className="relative z-30 flex flex-col w-full mx-4 sm:mx-0 my-auto max-w-[420px] lg:max-w-[380px] overflow-hidden bg-white dark:bg-neutral-900 border rounded-2xl border-border dark:border-neutral-700 shadow-lg"
     >
       {/* ===== EN-TÊTE — Logo + nom + description ===== */}
       <div className="flex flex-col items-center gap-4 px-6 sm:px-8 pt-6 sm:pt-8 pb-5 sm:pb-6">
@@ -152,8 +152,6 @@ export default function LoginPage() {
       {/* ===== FORMULAIRE ===== */}
       {!success && (
         <div className="flex flex-col gap-3.5 px-6 sm:px-8 pb-6 sm:pb-8">
-          <div className="w-full h-px bg-border dark:bg-neutral-700" />
-
           {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-text-secondary dark:text-neutral-400">

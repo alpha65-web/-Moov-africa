@@ -99,7 +99,7 @@
   }
 
   .input {
-    @apply rounded-lg bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-orange-500 transition-all duration-100 ease-in-out;
+    @apply rounded-xl bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-orange-500 transition-all duration-100 ease-in-out;
   }
 
   .dark .input {

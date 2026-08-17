@@ -8,7 +8,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex w-full h-dvh overflow-hidden">
       {/* ===== PANNEAU GAUCHE — Bannière slides (desktop uniquement) ===== */}
-      <div className="hidden w-1/2 overflow-hidden bg-neutral-900 h-full lg:flex">
+      <div className="hidden w-1/2 overflow-hidden rounded-r-3xl bg-neutral-900 h-full lg:flex">
         <ChannelCarousel />
       </div>
 
@@ -20,7 +20,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Contenu centré verticalement */}
-        <div className="flex flex-col items-center justify-center flex-1 px-4">
+        <div className="flex flex-col items-center flex-1 px-4 overflow-y-auto">
           {children}
         </div>
 
