@@ -13,9 +13,21 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Set<String> PUBLIC_PATHS = Set.of(
+            "/auth/login", "/auth/refresh",
+            "/auth/webauthn/login/options", "/auth/webauthn/login/verify",
+            "/actuator/health", "/actuator/info", "/actuator/prometheus"
+    );
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return PUBLIC_PATHS.contains(request.getServletPath());
+    }
 
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;

@@ -1,11 +1,11 @@
 package com.moov.pim.shared.logging;
 
-import ch.qos.logback.classic.pattern.ClassicConverter;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.pattern.CompositeConverter;
 
 import java.util.regex.Pattern;
 
-public class PiiMaskConverter extends ClassicConverter {
+public class PiiMaskConverter extends CompositeConverter<ILoggingEvent> {
 
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})");
@@ -26,8 +26,7 @@ public class PiiMaskConverter extends ClassicConverter {
             Pattern.compile("(?i)(password|passwd|pwd|secret|token)\"?\\s*[:=]\\s*\"?([^\"\\s,}]+)");
 
     @Override
-    public String convert(ILoggingEvent event) {
-        String msg = event.getFormattedMessage();
+    protected String transform(ILoggingEvent event, String msg) {
         if (msg == null) return null;
 
         msg = EMAIL_PATTERN.matcher(msg).replaceAll(m -> {

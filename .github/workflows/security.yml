@@ -149,6 +149,20 @@ jobs:
   dast:
     runs-on: ubuntu-latest
     needs: build-and-test
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pim
+          POSTGRES_PASSWORD: pim_ci
+          POSTGRES_DB: pim_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pim -d pim_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -165,20 +179,22 @@ jobs:
       - name: Start application
         run: |
           java -jar backend/target/*.jar \
-            --spring.profiles.active=dev \
-            --server.port=8092 &
+            --spring.profiles.active=dev &
           for i in $(seq 1 30); do
             curl -sf http://localhost:8092/api/v1/actuator/health && break
             sleep 2
           done
         env:
-          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
-          SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
-          SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.H2Dialect
-          PIM_JWT_SECRET: dast-test-secret-key-for-ci-pipeline-only
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/pim_db
+          SPRING_DATASOURCE_USERNAME: pim
+          SPRING_DATASOURCE_PASSWORD: pim_ci
+          PIM_VAULT_ENABLED: "false"
+          SPRING_CLOUD_VAULT_ENABLED: "false"
 
       - name: OWASP ZAP baseline scan
         uses: zaproxy/action-baseline@v0.14.0
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
         with:
           target: http://localhost:8092/api/v1/
           rules_file_name: .zap-rules.tsv

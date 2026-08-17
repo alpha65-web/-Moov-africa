@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* Dark mode basé sur la classe .dark (toggle manuel) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: var(--font-geist-mono);
+
+  --color-primary: #ff6500;
+  --color-primary-light: #ff8c42;
+  --color-secondary: #333;
+  --color-secondary-light: #444;
+  --color-tertiary: #dddddd;
+  --color-danger: #ff0000;
+  --color-danger-light: #ff4245;
+  --color-border: #e5e5e5;
+  --color-bg: #f5f5f5;
+  --color-text-secondary: #777;
+
+  --shadow-primary-normal:
+    0 0 0 0.8px rgba(0, 0, 0, 0.8),
+    inset 0 0.5px 0 0.4px rgba(255, 255, 255, 0.5),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.3);
+  --shadow-primary-clicked:
+    0 0 0 0.8px rgba(0, 0, 0, 0.8),
+    inset 0 -0.5px 0 0.4px rgba(255, 255, 255, 0.5),
+    inset 0 1px 4px rgba(0, 0, 0, 0.5);
+  --shadow-secondary-normal:
+    0 0 0 0.8px rgba(0, 0, 0, 0.8),
+    inset 0 0.5px 0 0.4px rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 1);
+  --shadow-secondary-clicked:
+    0 0 0 0.8px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 0 rgba(0, 0, 0, 1),
+    inset 0 -0.5px 0 0 rgba(255, 255, 255, 0.3);
+  --shadow-tertiary-normal:
+    0 0 0 0.8px rgba(0, 0, 0, 0.8),
+    inset 0 -1px 0 0 #aaa;
+  --shadow-tertiary-clicked:
+    0 0 0 0.8px rgba(0, 0, 0, 0.8),
+    inset 0 -0.5px 0 0.2px rgba(255, 255, 255, 1),
+    inset 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-card:
+    inset 1px 1px 0 rgba(255, 255, 255, 1),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.15);
+}
+
+@layer base {
+  *::selection {
+    background-color: oklch(95.719% 0.02524 55.933);
+    color: oklch(69.577% 0.20423 43.479);
+  }
+
+  body {
+    background-color: #f5f5f5;
+    color: #171717;
+    font-family: var(--font-sans);
+  }
+
+  .dark body,
+  .dark {
+    background-color: #0a0a0a;
+    color: #ededed;
+  }
+
+  .effect {
+    background-image: radial-gradient(circle, #e5e5e5 1px, transparent 1px);
+    background-size: 10px 10px;
+  }
+
+  .dark .effect {
+    background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
+  }
+
+  .primary-icon {
+    @apply cursor-pointer flex gap-2 *:text-sm *:text-white items-center justify-center bg-linear-to-t from-primary overflow-hidden from-0% to-primary-light to-100% p-2 rounded-lg shadow-primary-normal transition-all duration-200 ease-out active:shadow-primary-clicked active:from-60%;
+  }
+
+  .secondary-icon {
+    @apply cursor-pointer flex w-fit gap-2 items-center *:text-sm *:text-neutral-200 bg-linear-to-t justify-center from-secondary overflow-hidden from-0% to-secondary-light to-100% p-2 rounded-lg shadow-secondary-normal transition-all duration-200 ease-out active:shadow-secondary-clicked active:from-60%;
+  }
+
+  .tertiary-icon {
+    @apply cursor-pointer items-center h-9 w-fit bg-linear-to-t justify-center *:text-black from-tertiary overflow-hidden from-0% to-white to-100% p-2 rounded-lg shadow-tertiary-normal transition-all duration-200 ease-out active:shadow-tertiary-clicked active:from-60%;
+  }
+
+  .dark .tertiary-icon {
+    @apply from-neutral-700 to-neutral-600 *:text-white;
+  }
+
+  .active-scale {
+    @apply active:*:scale-95 active:*:transition-all active:*:duration-200 *:transition-all *:duration-200;
+  }
+
+  .card {
+    @apply border rounded-2xl bg-bg border-border shadow-card;
+  }
+
+  .input {
+    @apply rounded-lg bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-orange-500 transition-all duration-100 ease-in-out;
+  }
+
+  .dark .input {
+    @apply bg-neutral-800 text-white border-white/10;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+}

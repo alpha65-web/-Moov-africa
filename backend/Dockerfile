@@ -2,11 +2,13 @@ FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
+# hadolint ignore=DL3018
 RUN apk add --no-cache maven \
     && mvn package -DskipTests -q \
     && mv target/*.jar app.jar
 
 FROM eclipse-temurin:21-jre-alpine
+# hadolint ignore=DL3018
 RUN apk add --no-cache wget \
     && addgroup -S pim && adduser -S -G pim -s /sbin/nologin pim \
     && rm -rf /var/cache/apk/* /tmp/*

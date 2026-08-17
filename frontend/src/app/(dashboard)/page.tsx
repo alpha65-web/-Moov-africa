@@ -5,7 +5,45 @@ import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import type { Offer, OfferStatus } from "@/lib/types";
-import { Package, Tag, Megaphone, Users } from "lucide-react";
+
+/* ===== ICÔNES STAT CARDS ===== */
+
+function TagIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M10 2l2.5 5 5.5.8-4 3.9.9 5.3L10 14.5 5.1 17l.9-5.3-4-3.9 5.5-.8L10 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PublishIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 10l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DraftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 7h6M7 10.5h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CatalogIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
 
 interface Stats {
   totalOffers: number;
@@ -36,14 +74,13 @@ export default function DashboardPage() {
         const offers: Offer[] = offersRes.data;
         setStats({
           totalOffers: offers.length,
-          publishedOffers: offers.filter((o) => o.status === "PUBLISHED")
-            .length,
+          publishedOffers: offers.filter((o) => o.status === "PUBLISHED").length,
           draftOffers: offers.filter((o) => o.status === "DRAFT").length,
           catalogItems: catalogRes.data.length,
         });
         setRecentOffers(offers.slice(0, 5));
       } catch {
-        // API pas encore disponible
+        /* API pas encore disponible */
       } finally {
         setLoading(false);
       }
@@ -51,95 +88,120 @@ export default function DashboardPage() {
     load();
   }, []);
 
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+
   const statCards = [
     {
       label: "Total offres",
       value: stats.totalOffers,
-      icon: Tag,
-      color: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+      icon: TagIcon,
+      accent: "text-primary bg-primary/10",
     },
     {
-      label: "Offres publiees",
+      label: "Publiées",
       value: stats.publishedOffers,
-      icon: Megaphone,
-      color:
-        "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+      icon: PublishIcon,
+      accent: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
     },
     {
       label: "Brouillons",
       value: stats.draftOffers,
-      icon: Package,
-      color:
-        "bg-yellow-50 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400",
+      icon: DraftIcon,
+      accent: "text-amber-600 dark:text-amber-400 bg-amber-500/10",
     },
     {
-      label: "Produits catalogue",
+      label: "Produits",
       value: stats.catalogItems,
-      icon: Users,
-      color:
-        "bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+      icon: CatalogIcon,
+      accent: "text-blue-600 dark:text-blue-400 bg-blue-500/10",
     },
   ];
 
   return (
-    <div>
+    <div className="max-w-5xl">
+      {/* ===== EN-TÊTE ===== */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Bonjour, {user?.firstName}
+        <h1 className="text-2xl font-bold tracking-tight text-secondary dark:text-white">
+          {greeting}, {user?.firstName}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Bienvenue sur la plateforme PIM Moov Africa
+        <p className="mt-1 text-sm text-text-secondary dark:text-neutral-400">
+          Voici un aperçu de votre plateforme PIM
         </p>
       </div>
 
+      {/* ===== STAT CARDS ===== */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card transition-all duration-200 hover:shadow-lg"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-gray-500">{card.label}</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading ? "..." : card.value}
+                <p className="text-xs font-medium uppercase tracking-wider text-text-secondary dark:text-neutral-500">
+                  {card.label}
+                </p>
+                <p className="mt-2 text-3xl font-bold tracking-tight text-secondary dark:text-white">
+                  {loading ? (
+                    <span className="inline-block w-8 h-8 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+                  ) : (
+                    card.value
+                  )}
                 </p>
               </div>
-              <div className={`rounded-lg p-2.5 ${card.color}`}>
-                <card.icon className="h-5 w-5" />
+              <div className={`rounded-xl p-2.5 ${card.accent}`}>
+                <card.icon className="size-5" />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Offres recentes
+      {/* ===== OFFRES RÉCENTES ===== */}
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border dark:border-neutral-800 px-6 py-4">
+          <h2 className="text-base font-semibold text-secondary dark:text-white">
+            Offres récentes
           </h2>
+          <span className="text-xs text-text-secondary dark:text-neutral-500">
+            {recentOffers.length} résultats
+          </span>
         </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="divide-y divide-border dark:divide-neutral-800">
           {loading ? (
-            <div className="px-6 py-8 text-center text-sm text-gray-500">
-              Chargement...
+            <div className="px-6 py-4 flex flex-col gap-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="w-40 h-4 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+                    <div className="w-24 h-3 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+                  </div>
+                  <div className="w-16 h-5 rounded-full bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+                </div>
+              ))}
             </div>
           ) : recentOffers.length === 0 ? (
-            <div className="px-6 py-8 text-center text-sm text-gray-500">
-              Aucune offre pour le moment. L&apos;API backend doit etre
-              demarree.
+            <div className="px-6 py-12 text-center">
+              <p className="text-sm text-text-secondary dark:text-neutral-500">
+                Aucune offre pour le moment
+              </p>
+              <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-600">
+                Les offres apparaîtront ici une fois le backend démarré
+              </p>
             </div>
           ) : (
             recentOffers.map((offer) => (
               <div
                 key={offer.id}
-                className="flex items-center justify-between px-6 py-4"
+                className="flex items-center justify-between px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
               >
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                <div className="min-w-0 flex-1 mr-4">
+                  <p className="text-sm font-medium text-secondary dark:text-white truncate">
                     {offer.name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-text-secondary dark:text-neutral-500 truncate">
                     {offer.shortDescription}
                   </p>
                 </div>
