@@ -95,15 +95,9 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ===== IMAGE HERO — positionnée en bas, responsive ===== */}
-        <div className="absolute bottom-0 left-0 w-full">
-          <Image
-            src="/img/bureau_des_etudiants.png"
-            alt="Moov Africa Plateforme"
-            width={1024}
-            height={600}
-            className="object-cover object-bottom w-full max-w-5xl drop-shadow-2xl h-auto mx-auto"
-          />
+        {/* ===== Décor bas — gradient Moov Africa ===== */}
+        <div className="absolute bottom-0 left-0 w-full h-1/3 pointer-events-none">
+          <div className="w-full h-full max-w-5xl mx-auto rounded-t-3xl bg-gradient-to-t from-primary/20 via-primary/5 to-transparent" />
         </div>
       </div>
     </div>

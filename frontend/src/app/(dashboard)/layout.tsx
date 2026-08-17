@@ -30,7 +30,7 @@ export default function DashboardLayout({
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-bg dark:bg-neutral-950">
       <Sidebar />
       <main className="ml-64 min-h-screen p-6">{children}</main>
     </div>

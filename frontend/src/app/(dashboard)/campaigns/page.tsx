@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import type { Campaign } from "@/lib/types";
+import type { Campaign, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { Plus, Send } from "lucide-react";
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({
@@ -19,6 +20,7 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     loadCampaigns();
+    loadOffers();
   }, []);
 
   async function loadCampaigns() {
@@ -29,6 +31,15 @@ export default function CampaignsPage() {
       // API not available
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadOffers() {
+    try {
+      const { data } = await api.get("/offers");
+      setOffers(data);
+    } catch {
+      // API not available
     }
   }
 
@@ -103,15 +114,21 @@ export default function CampaignsPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                ID de l&apos;offre
+                Offre
               </label>
-              <input
+              <select
                 required
                 value={form.offerId}
                 onChange={(e) => setForm({ ...form, offerId: e.target.value })}
-                placeholder="UUID de l'offre"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              />
+              >
+                <option value="">Sélectionner une offre</option>
+                {offers.map((offer) => (
+                  <option key={offer.id} value={offer.id}>
+                    {offer.name} — {offer.status}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">

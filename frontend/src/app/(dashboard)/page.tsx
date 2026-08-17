@@ -84,10 +84,10 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-secondary dark:text-white">
           Bonjour, {user?.firstName}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-text-secondary">
           Bienvenue sur la plateforme PIM Moov Africa
         </p>
       </div>
@@ -96,12 +96,12 @@ export default function DashboardPage() {
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-xl border border-border bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">{card.label}</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm text-text-secondary">{card.label}</p>
+                <p className="mt-1 text-2xl font-bold text-secondary dark:text-white">
                   {loading ? "..." : card.value}
                 </p>
               </div>
@@ -113,19 +113,19 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+      <div className="rounded-xl border border-border bg-white dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="border-b border-border px-6 py-4 dark:border-neutral-700">
+          <h2 className="text-lg font-semibold text-secondary dark:text-white">
             Offres recentes
           </h2>
         </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="divide-y divide-border dark:divide-neutral-700">
           {loading ? (
-            <div className="px-6 py-8 text-center text-sm text-gray-500">
+            <div className="px-6 py-8 text-center text-sm text-text-secondary">
               Chargement...
             </div>
           ) : recentOffers.length === 0 ? (
-            <div className="px-6 py-8 text-center text-sm text-gray-500">
+            <div className="px-6 py-8 text-center text-sm text-text-secondary">
               Aucune offre pour le moment. L&apos;API backend doit etre
               demarree.
             </div>
@@ -136,10 +136,10 @@ export default function DashboardPage() {
                 className="flex items-center justify-between px-6 py-4"
               >
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  <p className="text-sm font-medium text-secondary dark:text-white">
                     {offer.name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-text-secondary">
                     {offer.shortDescription}
                   </p>
                 </div>

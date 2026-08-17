@@ -30,9 +30,9 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex h-16 items-center gap-3 border-b border-gray-200 px-6 dark:border-gray-700">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 font-bold text-white text-sm">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-white dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="flex h-16 items-center gap-3 border-b border-border px-6 dark:border-neutral-700">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary font-bold text-white text-sm">
           M
         </div>
         <div>
@@ -56,8 +56,8 @@ export default function Sidebar() {
                   href={item.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     active
-                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                      ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light"
+                      : "text-secondary dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                   }`}
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
@@ -70,7 +70,7 @@ export default function Sidebar() {
       </nav>
 
       {user && (
-        <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+        <div className="border-t border-border p-4 dark:border-neutral-700">
           <div className="mb-3">
             <p className="text-sm font-medium text-gray-900 dark:text-white">
               {user.firstName} {user.lastName}
