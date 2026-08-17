@@ -8,6 +8,7 @@ import com.yubico.webauthn.RegisteredCredential;
 import com.yubico.webauthn.data.ByteArray;
 import com.yubico.webauthn.data.PublicKeyCredentialDescriptor;
 import com.yubico.webauthn.data.PublicKeyCredentialType;
+import com.yubico.webauthn.data.exception.Base64UrlException;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
@@ -32,7 +33,7 @@ public class WebAuthnCredentialStore implements CredentialRepository {
         return userRepository.findByEmail(username)
                 .map(user -> credentialRepo.findByUserId(user.getId()).stream()
                         .map(c -> PublicKeyCredentialDescriptor.builder()
-                                .id(ByteArray.fromBase64Url(c.getCredentialId()))
+                                .id(parseBase64Url(c.getCredentialId()))
                                 .type(PublicKeyCredentialType.PUBLIC_KEY)
                                 .build())
                         .collect(Collectors.toSet()))
@@ -43,7 +44,7 @@ public class WebAuthnCredentialStore implements CredentialRepository {
     public Optional<ByteArray> getUserHandleForUsername(String username) {
         return userRepository.findByEmail(username)
                 .flatMap(user -> credentialRepo.findByUserId(user.getId()).stream().findFirst())
-                .map(c -> ByteArray.fromBase64Url(c.getUserHandle()));
+                .map(c -> parseBase64Url(c.getUserHandle()));
     }
 
     @Override
@@ -72,10 +73,18 @@ public class WebAuthnCredentialStore implements CredentialRepository {
 
     private RegisteredCredential toRegisteredCredential(WebAuthnCredential c) {
         return RegisteredCredential.builder()
-                .credentialId(ByteArray.fromBase64Url(c.getCredentialId()))
-                .userHandle(ByteArray.fromBase64Url(c.getUserHandle()))
-                .publicKeyCose(ByteArray.fromBase64Url(c.getPublicKeyCose()))
+                .credentialId(parseBase64Url(c.getCredentialId()))
+                .userHandle(parseBase64Url(c.getUserHandle()))
+                .publicKeyCose(parseBase64Url(c.getPublicKeyCose()))
                 .signatureCount(c.getSignatureCount())
                 .build();
+    }
+
+    private static ByteArray parseBase64Url(String value) {
+        try {
+            return ByteArray.fromBase64Url(value);
+        } catch (Base64UrlException e) {
+            throw new IllegalStateException("Donnée WebAuthn corrompue en base", e);
+        }
     }
 }

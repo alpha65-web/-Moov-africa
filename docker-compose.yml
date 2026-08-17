@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: pim-postgres
     env_file: .env
     environment:
@@ -112,7 +112,7 @@ services:
           cpus: "0.5"
 
   pg-backup:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: pim-pg-backup
     env_file: .env
     environment:

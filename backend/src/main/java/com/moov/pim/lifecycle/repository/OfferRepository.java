@@ -19,12 +19,19 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
 
     List<Offer> findByStatus(OfferStatus status);
 
+    List<Offer> findByStatusAndCreatedById(OfferStatus status, UUID createdById);
+
     Page<Offer> findByStatus(OfferStatus status, Pageable pageable);
 
     @Query("SELECT o FROM Offer o WHERE" +
             " (:status IS NULL OR o.status = :status)" +
             " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Offer> search(OfferStatus status, String search, Pageable pageable);
+
+    @Query("SELECT o FROM Offer o WHERE o.createdById = :ownerId" +
+            " AND (:status IS NULL OR o.status = :status)" +
+            " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Offer> searchByOwner(OfferStatus status, String search, UUID ownerId, Pageable pageable);
 
     @Query("SELECT o FROM Offer o WHERE o.status = 'PLANNED' AND o.validFrom <= :now")
     List<Offer> findPlannedReadyToPublish(LocalDateTime now);

@@ -12,12 +12,14 @@ import com.moov.pim.lifecycle.domain.OfferStatus;
 import com.moov.pim.lifecycle.domain.OfferStatusHistory;
 import com.moov.pim.lifecycle.domain.OfferVersion;
 import com.moov.pim.lifecycle.repository.OfferRepository;
+import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.shared.event.OfferCreatedEvent;
 import com.moov.pim.shared.event.OfferTransitionEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,6 +79,7 @@ public class OfferService {
     @Transactional
     public OfferResponse enrich(UUID offerId, EnrichOfferRequest request) {
         Offer offer = findOffer(offerId);
+        checkOwnership(offer);
 
         if (offer.getStatus() != OfferStatus.IN_ENRICHMENT && offer.getStatus() != OfferStatus.DRAFT) {
             throw new IllegalStateException("L'offre doit être en brouillon ou en enrichissement pour être enrichie");
@@ -96,6 +99,7 @@ public class OfferService {
     @Transactional
     public OfferResponse transition(UUID offerId, StatusTransitionRequest request) {
         Offer offer = findOffer(offerId);
+        checkOwnership(offer);
         OfferStatus from = offer.getStatus();
         OfferStatus to = request.targetStatus();
 
@@ -133,7 +137,9 @@ public class OfferService {
 
     @Transactional(readOnly = true)
     public OfferResponse getById(UUID id) {
-        return OfferResponse.from(findOffer(id));
+        Offer offer = findOffer(id);
+        checkOwnership(offer);
+        return OfferResponse.from(offer);
     }
 
     @Transactional(readOnly = true)
@@ -143,19 +149,32 @@ public class OfferService {
 
     @Transactional(readOnly = true)
     public Page<OfferResponse> search(OfferStatus status, String search, Pageable pageable) {
-        return offerRepository.search(status, search, pageable).map(OfferResponse::from);
+        if (isAdmin()) {
+            return offerRepository.search(status, search, pageable).map(OfferResponse::from);
+        }
+        return offerRepository.searchByOwner(status, search, currentUserId(), pageable).map(OfferResponse::from);
     }
 
     @Transactional(readOnly = true)
     public List<OfferResponse> listByStatus(OfferStatus status) {
-        return offerRepository.findByStatus(status).stream()
+        if (isAdmin()) {
+            return offerRepository.findByStatus(status).stream()
+                    .map(OfferResponse::from)
+                    .toList();
+        }
+        return offerRepository.findByStatusAndCreatedById(status, currentUserId()).stream()
                 .map(OfferResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<OfferResponse> listAll() {
-        return offerRepository.findAll().stream()
+        if (isAdmin()) {
+            return offerRepository.findAll().stream()
+                    .map(OfferResponse::from)
+                    .toList();
+        }
+        return offerRepository.findByCreatedById(currentUserId()).stream()
                 .map(OfferResponse::from)
                 .toList();
     }
@@ -195,6 +214,18 @@ public class OfferService {
         } catch (Exception e) {
             return "{}";
         }
+    }
+
+    private void checkOwnership(Offer offer) {
+        if (!isAdmin() && !offer.getCreatedById().equals(currentUserId())) {
+            throw new AccessDeniedException("Accès interdit : cette offre ne vous appartient pas");
+        }
+    }
+
+    private boolean isAdmin() {
+        CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal();
+        return principal.getUser().getRole().getName() == RoleName.ADMIN_SYSTEME;
     }
 
     private UUID currentUserId() {

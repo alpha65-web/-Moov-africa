@@ -14,6 +14,8 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, UUID>,
 
     List<CatalogItem> findByStatus(CatalogItemStatus status);
 
+    List<CatalogItem> findByStatusAndCreatedById(CatalogItemStatus status, UUID createdById);
+
     List<CatalogItem> findByCategoryId(UUID categoryId);
 
     boolean existsByNameAndCategoryId(String name, UUID categoryId);

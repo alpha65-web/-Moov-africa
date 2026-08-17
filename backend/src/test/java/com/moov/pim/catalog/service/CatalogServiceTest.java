@@ -160,9 +160,10 @@ class CatalogServiceTest {
     void listAll_shouldReturnActiveItems() {
         Product product = new Product();
         product.setName("Produit A");
+        product.setCreatedById(userId);
         setId(product, UUID.randomUUID());
 
-        when(catalogItemRepository.findByStatus(CatalogItemStatus.ACTIVE))
+        when(catalogItemRepository.findByStatusAndCreatedById(CatalogItemStatus.ACTIVE, userId))
                 .thenReturn(List.of(product));
 
         List<CatalogItemResponse> results = catalogService.listAll();
@@ -183,6 +184,7 @@ class CatalogServiceTest {
     void archive_shouldSetStatusToArchived() {
         Product product = new Product();
         product.setName("Old Product");
+        product.setCreatedById(userId);
         UUID productId = UUID.randomUUID();
         setId(product, productId);
 

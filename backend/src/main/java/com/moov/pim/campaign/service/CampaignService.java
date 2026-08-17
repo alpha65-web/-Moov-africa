@@ -6,10 +6,12 @@ import com.moov.pim.campaign.domain.Campaign;
 import com.moov.pim.campaign.domain.CampaignChannel;
 import com.moov.pim.campaign.domain.CampaignStatus;
 import com.moov.pim.campaign.repository.CampaignRepository;
+import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,7 +56,14 @@ public class CampaignService {
 
     @Transactional(readOnly = true)
     public List<CampaignResponse> listByOffer(UUID offerId) {
-        return campaignRepository.findByOfferId(offerId).stream()
+        List<Campaign> campaigns = campaignRepository.findByOfferId(offerId);
+        if (!isAdmin()) {
+            UUID userId = currentUserId();
+            campaigns = campaigns.stream()
+                    .filter(c -> c.getCreatedById().equals(userId))
+                    .toList();
+        }
+        return campaigns.stream()
                 .map(CampaignResponse::from)
                 .toList();
     }
@@ -70,6 +79,7 @@ public class CampaignService {
     public CampaignResponse getById(UUID id) {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+        checkOwnership(campaign);
         return CampaignResponse.from(campaign);
     }
 
@@ -77,6 +87,7 @@ public class CampaignService {
     public CampaignResponse update(UUID id, CreateCampaignRequest request) {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+        checkOwnership(campaign);
 
         if (campaign.getStatus() != CampaignStatus.DRAFT && campaign.getStatus() != CampaignStatus.SCHEDULED) {
             throw new IllegalStateException("Seule une campagne en DRAFT ou SCHEDULED peut être modifiée");
@@ -108,6 +119,7 @@ public class CampaignService {
     public void delete(UUID id) {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+        checkOwnership(campaign);
 
         if (campaign.getStatus() == CampaignStatus.PUBLISHED || campaign.getStatus() == CampaignStatus.COMPLETED) {
             throw new IllegalStateException("Impossible de supprimer une campagne publiée ou terminée");
@@ -120,6 +132,7 @@ public class CampaignService {
     public CampaignResponse cancel(UUID id) {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+        checkOwnership(campaign);
 
         if (campaign.getStatus() == CampaignStatus.COMPLETED || campaign.getStatus() == CampaignStatus.CANCELLED) {
             throw new IllegalStateException("Impossible d'annuler une campagne terminée ou déjà annulée");
@@ -143,6 +156,18 @@ public class CampaignService {
             campaignRepository.save(campaign);
             log.info("Publication automatique de la campagne {} ({})", campaign.getName(), campaign.getId());
         }
+    }
+
+    private void checkOwnership(Campaign campaign) {
+        if (!isAdmin() && !campaign.getCreatedById().equals(currentUserId())) {
+            throw new AccessDeniedException("Accès interdit : cette campagne ne vous appartient pas");
+        }
+    }
+
+    private boolean isAdmin() {
+        CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal();
+        return principal.getUser().getRole().getName() == RoleName.ADMIN_SYSTEME;
     }
 
     private UUID currentUserId() {

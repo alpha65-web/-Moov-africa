@@ -28,7 +28,7 @@ graph TB
     end
 
     subgraph data["Couche donnees"]
-        PG[("PostgreSQL 16<br/>port 5432<br/>Base : pim_db")]
+        PG[("PostgreSQL 18<br/>port 5432<br/>Base : pim_db")]
         RABBIT["RabbitMQ<br/>port 5672<br/>Management : 15672"]
         MINIO["MinIO<br/>port 9000<br/>Console : 9001<br/>Bucket : pim-media"]
     end
@@ -141,7 +141,7 @@ graph LR
             NX["next dev<br/>port 3000"]
         end
         subgraph containers["docker compose up"]
-            PG_C["postgres:16-alpine<br/>port 5432"]
+            PG_C["postgres:18-alpine<br/>port 5432"]
             RMQ_C["rabbitmq:3-management<br/>port 5672 / 15672"]
             MIN_C["minio/minio<br/>port 9000 / 9001"]
         end
@@ -162,7 +162,7 @@ graph LR
 
 | Composant | Image / Version | Port | Données persistantes | Profil |
 |-----------|----------------|------|---------------------|--------|
-| PostgreSQL | `postgres:16-alpine` | 5432 | Volume `pim-pgdata` | (default) |
+| PostgreSQL | `postgres:18-alpine` | 5432 | Volume `pim-pgdata` | (default) |
 | RabbitMQ | `rabbitmq:3-management` | 5672 / 15672 | — | (default) |
 | MinIO | `minio/minio` | 9000 / 9001 | Volume `pim-minio` | (default) |
 | Spring Boot | Dev local (`mvn spring-boot:run`) | 8092 | — | — |
@@ -175,7 +175,7 @@ graph LR
 | Grafana | `grafana/grafana:11.1.0` | 3001 | Volume `pim-grafana-data` | `monitoring` |
 | Loki | `grafana/loki:3.1.0` | 3100 | Volume `pim-loki-data` | `monitoring` |
 | Promtail | `grafana/promtail:3.1.0` | — | — | `monitoring` |
-| PG Backup | `postgres:16-alpine` | — | Volume `pim-backups` | `backup` |
+| PG Backup | `postgres:18-alpine` | — | Volume `pim-backups` | `backup` |
 
 ---
 

@@ -230,7 +230,11 @@ public class WebAuthnService {
     private ByteArray generateUserHandle(User user) {
         var existing = credentialRepo.findByUserId(user.getId());
         if (!existing.isEmpty()) {
-            return ByteArray.fromBase64Url(existing.getFirst().getUserHandle());
+            try {
+                return ByteArray.fromBase64Url(existing.getFirst().getUserHandle());
+            } catch (com.yubico.webauthn.data.exception.Base64UrlException e) {
+                throw new IllegalStateException("Handle WebAuthn corrompu en base", e);
+            }
         }
         byte[] handle = new byte[32];
         RANDOM.nextBytes(handle);

@@ -22,7 +22,7 @@ class JwtTokenProviderTest {
     @Test
     void generateAccessToken_shouldReturnValidToken() {
         UUID userId = UUID.randomUUID();
-        String token = jwtTokenProvider.generateAccessToken(userId, "test@moov-africa.bf", "CHEF_PRODUIT", 0);
+        String token = jwtTokenProvider.generateAccessToken(userId, "test@moov-africa.bf", "CHEF_PRODUIT", 0, null);
 
         assertNotNull(token);
         assertTrue(jwtTokenProvider.validateToken(token));
@@ -33,7 +33,7 @@ class JwtTokenProviderTest {
     void getEmailFromToken_shouldReturnCorrectEmail() {
         UUID userId = UUID.randomUUID();
         String email = "chef@moov-africa.bf";
-        String token = jwtTokenProvider.generateAccessToken(userId, email, "ADMIN_SYSTEME", 0);
+        String token = jwtTokenProvider.generateAccessToken(userId, email, "ADMIN_SYSTEME", 0, null);
 
         assertEquals(email, jwtTokenProvider.getEmailFromToken(token));
     }
@@ -41,7 +41,7 @@ class JwtTokenProviderTest {
     @Test
     void getUserIdFromToken_shouldReturnCorrectId() {
         UUID userId = UUID.randomUUID();
-        String token = jwtTokenProvider.generateAccessToken(userId, "user@moov.bf", "CHEF_PRODUIT", 0);
+        String token = jwtTokenProvider.generateAccessToken(userId, "user@moov.bf", "CHEF_PRODUIT", 0, null);
 
         assertEquals(userId, jwtTokenProvider.getUserIdFromToken(token));
     }
@@ -49,14 +49,14 @@ class JwtTokenProviderTest {
     @Test
     void getRoleFromToken_shouldReturnCorrectRole() {
         String role = "COMMUNITY_MANAGER";
-        String token = jwtTokenProvider.generateAccessToken(UUID.randomUUID(), "cm@moov.bf", role, 0);
+        String token = jwtTokenProvider.generateAccessToken(UUID.randomUUID(), "cm@moov.bf", role, 0, null);
 
         assertEquals(role, jwtTokenProvider.getRoleFromToken(token));
     }
 
     @Test
     void getTokenVersionFromToken_shouldReturnCorrectVersion() {
-        String token = jwtTokenProvider.generateAccessToken(UUID.randomUUID(), "u@moov.bf", "ADMIN_SYSTEME", 5);
+        String token = jwtTokenProvider.generateAccessToken(UUID.randomUUID(), "u@moov.bf", "ADMIN_SYSTEME", 5, null);
 
         assertEquals(5, jwtTokenProvider.getTokenVersionFromToken(token));
     }
@@ -76,7 +76,7 @@ class JwtTokenProviderTest {
         UUID userId = UUID.randomUUID();
         String email = "refresh@moov.bf";
         String role = "ANALYSTE_MARKETING";
-        String token = jwtTokenProvider.generateRefreshToken(userId, email, role, 0);
+        String token = jwtTokenProvider.generateRefreshToken(userId, email, role, 0, null);
 
         assertTrue(jwtTokenProvider.validateToken(token));
         assertEquals(email, jwtTokenProvider.getEmailFromToken(token));
@@ -91,7 +91,7 @@ class JwtTokenProviderTest {
                 "AutreCleSecreteDifferenteAvecAuMoins64CaracteresRemplissagePour512!",
                 ACCESS_EXP, REFRESH_EXP);
 
-        String token = otherProvider.generateAccessToken(UUID.randomUUID(), "a@b.com", "ADMIN_SYSTEME", 0);
+        String token = otherProvider.generateAccessToken(UUID.randomUUID(), "a@b.com", "ADMIN_SYSTEME", 0, null);
 
         assertFalse(jwtTokenProvider.validateToken(token));
     }

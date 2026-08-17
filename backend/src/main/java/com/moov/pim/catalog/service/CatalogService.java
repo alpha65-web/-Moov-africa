@@ -14,6 +14,7 @@ import com.moov.pim.catalog.repository.CatalogItemRepository;
 import com.moov.pim.catalog.repository.PackRepository;
 import com.moov.pim.catalog.repository.ProductRepository;
 import com.moov.pim.catalog.repository.ServiceRepository;
+import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.shared.event.CatalogItemCreatedEvent;
 import com.moov.pim.shared.event.CatalogItemArchivedEvent;
@@ -22,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,6 +111,7 @@ public class CatalogService {
     public CatalogItemResponse updateProduct(UUID id, ProductRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produit introuvable"));
+        checkOwnership(product);
         product.setName(request.name());
         product.setDescription(request.description());
         product.setBasePrice(request.basePrice());
@@ -123,6 +126,7 @@ public class CatalogService {
     public CatalogItemResponse updateService(UUID id, ServiceRequest request) {
         Service service = serviceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Service introuvable"));
+        checkOwnership(service);
         service.setName(request.name());
         service.setDescription(request.description());
         service.setBasePrice(request.basePrice());
@@ -139,6 +143,7 @@ public class CatalogService {
     public CatalogItemResponse updatePack(UUID id, PackRequest request) {
         Pack pack = packRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pack introuvable"));
+        checkOwnership(pack);
         pack.setName(request.name());
         pack.setDescription(request.description());
         pack.setBasePrice(request.basePrice());
@@ -164,6 +169,10 @@ public class CatalogService {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("status"), CatalogItemStatus.ACTIVE));
 
+            if (!isAdmin()) {
+                predicates.add(cb.equal(root.get("createdById"), currentUserId()));
+            }
+
             if (search != null && !search.isBlank()) {
                 String pattern = "%" + search.toLowerCase() + "%";
                 predicates.add(cb.or(
@@ -187,7 +196,12 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public List<CatalogItemResponse> listAll() {
-        return catalogItemRepository.findByStatus(CatalogItemStatus.ACTIVE).stream()
+        if (isAdmin()) {
+            return catalogItemRepository.findByStatus(CatalogItemStatus.ACTIVE).stream()
+                    .map(CatalogItemResponse::from)
+                    .toList();
+        }
+        return catalogItemRepository.findByStatusAndCreatedById(CatalogItemStatus.ACTIVE, currentUserId()).stream()
                 .map(CatalogItemResponse::from)
                 .toList();
     }
@@ -196,6 +210,7 @@ public class CatalogService {
     public CatalogItemResponse getById(UUID id) {
         CatalogItem item = catalogItemRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Élément du catalogue introuvable"));
+        checkOwnership(item);
         return CatalogItemResponse.from(item);
     }
 
@@ -203,6 +218,7 @@ public class CatalogService {
     public void archive(UUID id) {
         CatalogItem item = catalogItemRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Élément du catalogue introuvable"));
+        checkOwnership(item);
         item.setStatus(CatalogItemStatus.ARCHIVED);
         catalogItemRepository.save(item);
         eventPublisher.publishEvent(new CatalogItemArchivedEvent(item.getId(), currentUserId()));
@@ -216,6 +232,18 @@ public class CatalogService {
             case "PACK" -> Pack.class;
             default -> null;
         };
+    }
+
+    private void checkOwnership(CatalogItem item) {
+        if (!isAdmin() && !item.getCreatedById().equals(currentUserId())) {
+            throw new AccessDeniedException("Accès interdit : cet élément ne vous appartient pas");
+        }
+    }
+
+    private boolean isAdmin() {
+        CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal();
+        return principal.getUser().getRole().getName() == RoleName.ADMIN_SYSTEME;
     }
 
     private UUID currentUserId() {
