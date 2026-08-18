@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import type { Offer, OfferStatus } from "@/lib/types";
-import { OFFER_STATUS_LABELS } from "@/lib/types";
 import toast from "react-hot-toast";
+import { useTranslations } from "next-intl";
 
 const ALLOWED_TRANSITIONS: Record<string, OfferStatus[]> = {
   DRAFT: ["IN_ENRICHMENT"],
@@ -30,6 +30,9 @@ const EMPTY_FORM = {
 };
 
 export default function OffersPage() {
+  const t = useTranslations("offers");
+  const tc = useTranslations("common");
+  const ts = useTranslations("offers.status");
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -211,13 +214,13 @@ export default function OffersPage() {
         targetStatus,
         comment: transitionComment || null,
       });
-      toast.success(`Statut mis à jour : ${OFFER_STATUS_LABELS[targetStatus]}`);
+      toast.success(`Statut mis à jour : ${ts(targetStatus)}`);
       setTransitionOffer(null);
       setTransitionComment("");
       loadOffers();
     } catch {
       setOffers((prev) => prev.map((o) => o.id === offerId ? { ...o, status: targetStatus, updatedAt: new Date().toISOString() } : o));
-      toast.success(`Statut mis à jour : ${OFFER_STATUS_LABELS[targetStatus]}`);
+      toast.success(`Statut mis à jour : ${ts(targetStatus)}`);
       setTransitionOffer(null);
       setTransitionComment("");
     }
@@ -240,9 +243,10 @@ export default function OffersPage() {
     return true;
   });
 
+  const allStatuses: OfferStatus[] = ["DRAFT", "IN_ENRICHMENT", "IN_VALIDATION", "VALIDATED", "PLANNED", "PUBLISHED", "SUSPENDED", "OBSOLETE", "WITHDRAWN", "ARCHIVED"];
   const statusFilters = [
-    { key: "ALL", label: "Toutes" },
-    ...Object.entries(OFFER_STATUS_LABELS).map(([key, label]) => ({ key, label })),
+    { key: "ALL", label: tc("all") },
+    ...allStatuses.map(key => ({ key, label: ts.has(key) ? ts(key) : key })),
   ];
 
   return (
@@ -322,7 +326,7 @@ export default function OffersPage() {
               <div className="flex items-center gap-2">
                 <p className="text-[11px] text-text-secondary dark:text-neutral-500">Statut actuel :</p>
                 <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                  {OFFER_STATUS_LABELS[transitionOffer.status]}
+                  {ts(transitionOffer.status)}
                 </span>
               </div>
               <div className="flex flex-col gap-1">
@@ -347,7 +351,7 @@ export default function OffersPage() {
                       <svg className="size-3" viewBox="0 0 16 16" fill="none">
                         <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      {OFFER_STATUS_LABELS[target]}
+                      {ts(target)}
                     </button>
                   ))}
                 </div>
@@ -422,7 +426,7 @@ export default function OffersPage() {
 
                 {/* Statut */}
                 <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                  {OFFER_STATUS_LABELS[offer.status]}
+                  {ts(offer.status)}
                 </span>
 
                 {/* Score qualité */}
@@ -697,7 +701,7 @@ export default function OffersPage() {
                 <div className="flex flex-col gap-0.5">
                   <p className="text-[11px] text-text-secondary dark:text-neutral-500">Statut</p>
                   <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                    {OFFER_STATUS_LABELS[detailOffer.status]}
+                    {ts(detailOffer.status)}
                   </span>
                 </div>
                 <div className="flex flex-col gap-0.5">

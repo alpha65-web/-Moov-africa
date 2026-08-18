@@ -4,20 +4,14 @@ import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import type { CatalogItem } from "@/lib/types";
 import toast from "react-hot-toast";
+import { useTranslations } from "next-intl";
 
 type TabType = "PRODUCT" | "SERVICE" | "PACK";
 
-const TAB_LABELS: Record<TabType, string> = {
-  PRODUCT: "Produits",
-  SERVICE: "Services",
-  PACK: "Packs",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: "Actif",
-  DRAFT: "Brouillon",
-  ARCHIVED: "Archivé",
-  DISCONTINUED: "Discontinué",
+const TAB_KEYS: Record<TabType, string> = {
+  PRODUCT: "products",
+  SERVICE: "services",
+  PACK: "packs",
 };
 
 const CATEGORY_LIST = [
@@ -41,6 +35,8 @@ const EMPTY_FORM = {
 };
 
 export default function CatalogPage() {
+  const t = useTranslations("catalog");
+  const tc = useTranslations("common");
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabType>("PRODUCT");
@@ -155,13 +151,13 @@ export default function CatalogPage() {
           : editingItem!.type === "SERVICE" ? "services"
           : "packs";
         await api.put(`/catalog/${typeEndpoint}/${editingItem!.id}`, payload);
-        toast.success("Élément modifié avec succès");
+        toast.success(t("messages.updated"));
         setShowModal(false);
         resetForm();
         loadItems();
       } else {
         await api.post(endpoint, payload);
-        toast.success("Élément créé avec succès");
+        toast.success(t("messages.created"));
         setShowModal(false);
         resetForm();
         loadItems();
@@ -182,10 +178,10 @@ export default function CatalogPage() {
 
       if (isEditing) {
         setItems((prev) => prev.map((i) => i.id === editingItem!.id ? { ...i, ...newItem, id: i.id, type: i.type, createdAt: i.createdAt } : i));
-        toast.success("Élément modifié");
+        toast.success(t("messages.updated"));
       } else {
         setItems((prev) => [newItem, ...prev]);
-        toast.success("Élément enregistré");
+        toast.success(t("messages.saved"));
       }
       setShowModal(false);
       resetForm();
@@ -199,11 +195,11 @@ export default function CatalogPage() {
     setDeleting(true);
     try {
       await api.delete(`/catalog/${deleteTarget.id}`);
-      toast.success("Élément supprimé");
+      toast.success(t("messages.deleted"));
       loadItems();
     } catch {
       setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
-      toast.success("Élément supprimé");
+      toast.success(t("messages.deleted"));
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
@@ -243,9 +239,9 @@ export default function CatalogPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">Catalogue</h1>
+          <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
-            {items.length} élément{items.length > 1 ? "s" : ""} au total
+            {t("subtitle")}
           </p>
         </div>
         <button
@@ -256,33 +252,33 @@ export default function CatalogPage() {
             <svg className="size-4" viewBox="0 0 16 16" fill="none">
               <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
-            <p className="text-sm font-medium">Ajouter</p>
+            <p className="text-sm font-medium">{t("newItem")}</p>
           </span>
         </button>
       </div>
 
-      {/* Onglets */}
+      {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit">
-        {(["PRODUCT", "SERVICE", "PACK"] as TabType[]).map((t) => (
+        {(["PRODUCT", "SERVICE", "PACK"] as TabType[]).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={`px-4 py-2 text-sm font-medium transition-all cursor-pointer ${
-              tab === t
+              tab === tabKey
                 ? "bg-white dark:bg-neutral-700 text-black dark:text-white shadow-sm"
                 : "text-text-secondary dark:text-neutral-400 hover:text-black dark:hover:text-white"
             }`}
             style={{ borderRadius: 8 }}
           >
-            {TAB_LABELS[t]}
-            <span className={`ml-1.5 text-[11px] ${tab === t ? "text-primary" : "text-neutral-400"}`}>
-              {tabCounts[t]}
+            {t(`tabs.${TAB_KEYS[tabKey]}`)}
+            <span className={`ml-1.5 text-[11px] ${tab === tabKey ? "text-primary" : "text-neutral-400"}`}>
+              {tabCounts[tabKey]}
             </span>
           </button>
         ))}
       </div>
 
-      {/* Barre recherche + filtre */}
+      {/* Search + filter */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" viewBox="0 0 16 16" fill="none">
@@ -292,7 +288,7 @@ export default function CatalogPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher par nom..."
+            placeholder={tc("searchPlaceholder")}
             className="input w-full h-9 pl-9"
           />
         </div>
@@ -301,22 +297,22 @@ export default function CatalogPage() {
           onChange={(e) => setFilterCategory(e.target.value)}
           className="input h-9"
         >
-          <option value="">Toutes les catégories</option>
+          <option value="">{tc("all")}</option>
           {CATEGORY_LIST.map((c) => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c} value={c}>{t.has(`categories.${c}`) ? t(`categories.${c}`) : c}</option>
           ))}
         </select>
       </div>
 
-      {/* Tableau */}
+      {/* Table */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
         <div className="grid grid-cols-[1fr_1.5fr_120px_120px_100px_80px] gap-3 px-6 py-3 border-b border-blue-600 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Nom</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Description</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Prix</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Catégorie</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Statut</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white text-right">Actions</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-white">{t("columns.name")}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-white">{t("columns.description")}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-white">{t("columns.price")}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-white">{t("columns.category")}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-white">{t("columns.status")}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-white text-right">{t("columns.actions")}</span>
         </div>
 
         {loading ? (
@@ -341,13 +337,11 @@ export default function CatalogPage() {
                 </svg>
               </div>
               <p className="text-sm text-text-secondary dark:text-neutral-500">
-                {items.filter((i) => i.type === tab).length === 0
-                  ? `Aucun ${tab === "PRODUCT" ? "produit" : tab === "SERVICE" ? "service" : "pack"} pour le moment`
-                  : "Aucun résultat pour ces filtres"}
+                {t("empty")}
               </p>
               {items.filter((i) => i.type === tab).length === 0 && (
                 <button onClick={openCreateModal} className="primary-icon px-3 py-1.5 active-scale text-xs font-medium mt-1">
-                  Créer le premier
+                  {tc("create")}
                 </button>
               )}
             </div>
@@ -359,32 +353,22 @@ export default function CatalogPage() {
                 key={item.id}
                 className="grid grid-cols-[1fr_1.5fr_120px_120px_100px_80px] gap-3 items-center px-6 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
               >
-                {/* Nom */}
                 <p className="text-sm font-bold text-black dark:text-white truncate">
                   {item.name}
                 </p>
-
-                {/* Description */}
                 <p className="text-xs font-bold text-black dark:text-white truncate">
                   {item.description || ""}
                 </p>
-
-                {/* Prix */}
                 <p className="text-sm font-bold text-black dark:text-white tabular-nums">
                   {formatPrice(item.basePrice, item.currency)}
                 </p>
-
-                {/* Catégorie */}
                 <span className="text-xs font-bold text-black dark:text-white truncate">
                   {item.categoryId || ""}
                 </span>
-
-                {/* Statut */}
                 <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                  {STATUS_LABELS[item.status] || item.status}
+                  {t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status}
                 </span>
 
-                {/* Actions */}
                 <div className="flex justify-end relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}
@@ -405,7 +389,6 @@ export default function CatalogPage() {
                     >
                       <button
                         onClick={() => { setDetailItem(item); setOpenMenuId(null); }}
-                        title="Voir les détails"
                         className="flex items-center justify-center size-8 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
                       >
                         <svg className="size-4 text-black dark:text-white" viewBox="0 0 16 16" fill="none">
@@ -415,7 +398,6 @@ export default function CatalogPage() {
                       </button>
                       <button
                         onClick={() => openEditModal(item)}
-                        title="Modifier"
                         className="flex items-center justify-center size-8 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
                       >
                         <svg className="size-4 text-black dark:text-white" viewBox="0 0 16 16" fill="none">
@@ -424,7 +406,6 @@ export default function CatalogPage() {
                       </button>
                       <button
                         onClick={() => { setDeleteTarget(item); setOpenMenuId(null); }}
-                        title="Supprimer"
                         className="flex items-center justify-center size-8 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                       >
                         <svg className="size-4 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
@@ -440,22 +421,18 @@ export default function CatalogPage() {
         )}
       </div>
 
-      {/* ===== MODAL CRÉATION / ÉDITION ===== */}
+      {/* Modal create/edit */}
       {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
           onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}
         >
           <div ref={modalRef} className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
               <div>
                 <h2 className="text-base font-bold text-black dark:text-white">
-                  {isEditing ? "Modifier l'élément" : `Nouveau ${tab === "PRODUCT" ? "produit" : tab === "SERVICE" ? "service" : "pack"}`}
+                  {isEditing ? t("editTitle") : t("createTitle", { type: t(`tabs.${TAB_KEYS[tab]}`) })}
                 </h2>
-                <p className="text-[11px] text-text-secondary dark:text-neutral-500 mt-0.5">
-                  {isEditing ? "Modifier les informations" : "Remplissez les informations"}
-                </p>
               </div>
               <button
                 onClick={() => { setShowModal(false); resetForm(); }}
@@ -469,34 +446,27 @@ export default function CatalogPage() {
 
             <form onSubmit={handleCreate}>
               <div className="px-5 py-4 flex flex-col gap-3">
-                {/* Nom */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Nom</label>
+                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">{t("form.name")}</label>
                   <input
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Nom du produit/service"
                     className="input w-full h-9"
                   />
                 </div>
-
-                {/* Description */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Description</label>
+                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">{t("form.description")}</label>
                   <textarea
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Description détaillée..."
                     rows={3}
                     className="input w-full resize-none"
                   />
                 </div>
-
-                {/* Prix + Devise */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Prix de base</label>
+                    <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">{t("form.price")}</label>
                     <input
                       type="number"
                       min="0"
@@ -507,7 +477,7 @@ export default function CatalogPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Devise</label>
+                    <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">{t("form.currency")}</label>
                     <select
                       value={form.currency}
                       onChange={(e) => setForm({ ...form, currency: e.target.value })}
@@ -519,31 +489,28 @@ export default function CatalogPage() {
                     </select>
                   </div>
                 </div>
-
-                {/* Catégorie */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Catégorie</label>
+                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">{t("form.category")}</label>
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="input w-full h-9"
                   >
-                    <option value="">Sélectionner une catégorie</option>
+                    <option value="">{tc("all")}</option>
                     {CATEGORY_LIST.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>{t.has(`categories.${c}`) ? t(`categories.${c}`) : c}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
                 <button
                   type="button"
                   onClick={() => { setShowModal(false); resetForm(); }}
                   className="tertiary-icon px-3 py-2 active-scale"
                 >
-                  <p className="text-sm font-medium">Annuler</p>
+                  <p className="text-sm font-medium">{tc("cancel")}</p>
                 </button>
                 <button
                   type="submit"
@@ -557,7 +524,7 @@ export default function CatalogPage() {
                       </svg>
                     )}
                     <p className="text-sm font-medium">
-                      {creating ? "Enregistrement..." : "Enregistrer"}
+                      {creating ? tc("saving") : tc("save")}
                     </p>
                   </span>
                 </button>
@@ -567,7 +534,7 @@ export default function CatalogPage() {
         </div>
       )}
 
-      {/* ===== MODAL DÉTAIL ===== */}
+      {/* Modal detail */}
       {detailItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
@@ -575,7 +542,7 @@ export default function CatalogPage() {
         >
           <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
-              <h2 className="text-base font-bold text-black dark:text-white">Détails</h2>
+              <h2 className="text-base font-bold text-black dark:text-white">{t("columns.description")}</h2>
               <button
                 onClick={() => setDetailItem(null)}
                 className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
@@ -596,35 +563,35 @@ export default function CatalogPage() {
                 <div>
                   <p className="text-sm font-bold text-black dark:text-white">{detailItem.name}</p>
                   <p className="text-xs text-text-secondary dark:text-neutral-500">
-                    {TAB_LABELS[detailItem.type]}
+                    {t(`tabs.${TAB_KEYS[detailItem.type]}`)}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Prix</p>
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">{t("columns.price")}</p>
                   <p className="text-sm font-bold text-black dark:text-white">{formatPrice(detailItem.basePrice, detailItem.currency)}</p>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Statut</p>
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">{t("columns.status")}</p>
                   <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                    {STATUS_LABELS[detailItem.status] || detailItem.status}
+                    {t.has(`status.${detailItem.status}`) ? t(`status.${detailItem.status}`) : detailItem.status}
                   </span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Catégorie</p>
-                  <p className="text-sm font-bold text-black dark:text-white">{detailItem.categoryId || "Non définie"}</p>
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">{t("columns.category")}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">{detailItem.categoryId || ""}</p>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Créé le</p>
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">{tc("date")}</p>
                   <p className="text-sm font-bold text-black dark:text-white">{formatDate(detailItem.createdAt)}</p>
                 </div>
               </div>
 
               {detailItem.description && (
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Description</p>
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">{t("columns.description")}</p>
                   <p className="text-sm text-black dark:text-white">{detailItem.description}</p>
                 </div>
               )}
@@ -638,21 +605,21 @@ export default function CatalogPage() {
                   <svg className="size-3.5" viewBox="0 0 16 16" fill="none">
                     <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                   </svg>
-                  <p className="text-sm font-medium">Modifier</p>
+                  <p className="text-sm font-medium">{tc("edit")}</p>
                 </span>
               </button>
               <button
                 onClick={() => setDetailItem(null)}
                 className="tertiary-icon px-3 py-2 active-scale"
               >
-                <p className="text-sm font-medium">Fermer</p>
+                <p className="text-sm font-medium">{tc("close")}</p>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ===== MODAL SUPPRESSION ===== */}
+      {/* Modal delete */}
       {deleteTarget && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
@@ -666,9 +633,9 @@ export default function CatalogPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-black dark:text-white">Supprimer cet élément ?</p>
+                <p className="text-sm font-bold text-black dark:text-white">{t("messages.deleteConfirm")} ?</p>
                 <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1">
-                  <span className="font-semibold text-black dark:text-white">{deleteTarget.name}</span> sera supprimé définitivement.
+                  <span className="font-semibold text-black dark:text-white">{deleteTarget.name}</span> · {t("messages.deleteWarning")}
                 </p>
               </div>
             </div>
@@ -677,7 +644,7 @@ export default function CatalogPage() {
                 onClick={() => setDeleteTarget(null)}
                 className="tertiary-icon px-4 py-2 active-scale"
               >
-                <p className="text-sm font-medium">Annuler</p>
+                <p className="text-sm font-medium">{tc("cancel")}</p>
               </button>
               <button
                 onClick={handleDelete}
@@ -685,7 +652,7 @@ export default function CatalogPage() {
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium active-scale disabled:opacity-60 transition-colors cursor-pointer"
                 style={{ borderRadius: 7 }}
               >
-                {deleting ? "Suppression..." : "Supprimer"}
+                {deleting ? tc("deleting") : tc("delete")}
               </button>
             </div>
           </div>
