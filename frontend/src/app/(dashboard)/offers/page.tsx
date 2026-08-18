@@ -251,14 +251,11 @@ export default function OffersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
+      {/* Actions */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">Offres</h1>
-          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
-            {offers.length} offre{offers.length > 1 ? "s" : ""} au total
-          </p>
-        </div>
+        <p className="text-sm text-text-secondary dark:text-neutral-500">
+          {offers.length} offre{offers.length > 1 ? "s" : ""} au total
+        </p>
         <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
           <span className="flex items-center gap-2">
             <svg className="size-4" viewBox="0 0 16 16" fill="none">

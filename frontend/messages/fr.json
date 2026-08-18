@@ -1,4 +1,21 @@
 {
+  "appbar": {
+    "search": "Rechercher...",
+    "editProfile": "Modifier le profil",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "dashboardSub": "Vue d'ensemble de la plateforme",
+    "catalogSub": "Gérez vos produits, services et packs",
+    "offersSub": "Créez et gérez vos offres commerciales",
+    "campaignsSub": "Planifiez et suivez vos campagnes",
+    "mediaSub": "Bibliothèque de fichiers et médias",
+    "rulesSub": "Configurez les règles métier",
+    "usersSub": "Gestion des utilisateurs et rôles",
+    "notificationsSub": "Centre de notifications",
+    "auditSub": "Journal des actions et événements",
+    "settingsSub": "Configuration de la plateforme",
+    "profileSub": "Votre profil et préférences"
+  },
   "commandPalette": {
     "placeholder": "Rechercher une page, offre, produit...",
     "navigation": "Navigation",

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
 import CommandPalette from "@/components/CommandPalette";
+import AppBar from "@/components/AppBar";
 import { ThemeColorProvider } from "@/lib/theme";
 
 export default function DashboardLayout({
@@ -36,9 +37,12 @@ export default function DashboardLayout({
       <div className="h-dvh bg-bg dark:bg-neutral-950 overflow-hidden">
         <Sidebar />
         <CommandPalette />
-        <main className="ml-65 h-dvh overflow-y-auto hide-scrollbar p-6">
-          {children}
-        </main>
+        <div className="ml-65 h-dvh flex flex-col overflow-hidden">
+          <AppBar />
+          <main className="flex-1 overflow-y-auto hide-scrollbar p-6">
+            {children}
+          </main>
+        </div>
       </div>
     </ThemeColorProvider>
   );

@@ -236,14 +236,8 @@ export default function CatalogPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
-          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
-            {t("subtitle")}
-          </p>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end">
         <button
           onClick={openCreateModal}
           className="primary-icon px-4 py-2.5 active-scale"

@@ -1,4 +1,21 @@
 {
+  "appbar": {
+    "search": "Search...",
+    "editProfile": "Edit profile",
+    "settings": "Settings",
+    "logout": "Log out",
+    "dashboardSub": "Platform overview",
+    "catalogSub": "Manage your products, services and packs",
+    "offersSub": "Create and manage your commercial offers",
+    "campaignsSub": "Plan and track your campaigns",
+    "mediaSub": "File and media library",
+    "rulesSub": "Configure business rules",
+    "usersSub": "User and role management",
+    "notificationsSub": "Notification center",
+    "auditSub": "Action and event log",
+    "settingsSub": "Platform configuration",
+    "profileSub": "Your profile and preferences"
+  },
   "commandPalette": {
     "placeholder": "Search a page, offer, product...",
     "navigation": "Navigation",

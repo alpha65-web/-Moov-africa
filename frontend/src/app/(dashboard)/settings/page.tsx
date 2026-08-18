@@ -143,14 +143,6 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-black dark:text-white">Paramètres</h1>
-        <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
-          Configuration des notifications et indicateurs
-        </p>
-      </div>
-
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit">
         {TABS.map((t) => (

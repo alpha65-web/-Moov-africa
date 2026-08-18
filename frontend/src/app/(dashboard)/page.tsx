@@ -329,28 +329,19 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1360px] mx-auto pb-10">
 
-      {/* ═══ HEADER ═══ */}
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pt-1">
+      {/* ═══ GREETING ═══ */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-white">{greeting}, {user?.firstName}</h1>
+          <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-white">{greeting}, {user?.firstName}</h2>
           <p className="text-[13px] text-neutral-500 dark:text-neutral-500 mt-0.5">
             {loading ? <Skeleton className="w-52 h-4" /> : summaryText}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
-            className="flex items-center gap-2 h-8 px-3 rounded-lg text-xs text-neutral-400 dark:text-neutral-500 bg-white dark:bg-white/[0.04] ring-1 ring-neutral-200/80 dark:ring-white/[0.08] hover:ring-neutral-300 dark:hover:ring-white/[0.12] transition-all cursor-pointer"
-          >
-            <svg className="size-3.5 shrink-0" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" /><path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            <span>Ctrl+K</span>
-          </button>
-          <Link href="/offers" className="primary-icon !rounded-lg !px-3 !py-1.5 !gap-1.5">
-            <svg className="size-3.5" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round"><path d="M10 3v14M3 10h14" /></svg>
-            <span className="hidden lg:inline text-xs font-medium">{t("createOffer")}</span>
-          </Link>
-        </div>
-      </header>
+        <Link href="/offers" className="primary-icon !rounded-lg !px-3 !py-1.5 !gap-1.5">
+          <svg className="size-3.5" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round"><path d="M10 3v14M3 10h14" /></svg>
+          <span className="hidden lg:inline text-xs font-medium">{t("createOffer")}</span>
+        </Link>
+      </div>
 
       {/* ═══ FILTERS ═══ */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
