@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import type { NotificationConfig, KpiConfig } from "@/lib/types";
 import toast from "react-hot-toast";
+import { useThemeColor, THEME_PRESETS } from "@/lib/theme";
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<"notifications" | "kpi">("notifications");
+  const [tab, setTab] = useState<"appearance" | "notifications" | "kpi">("appearance");
+  const { themeKey, setThemeKey } = useThemeColor();
 
   const [notifConfigs, setNotifConfigs] = useState<NotificationConfig[]>([]);
   const [kpiConfigs, setKpiConfigs] = useState<KpiConfig[]>([]);
@@ -117,6 +119,7 @@ export default function SettingsPage() {
   }
 
   const TABS = [
+    { key: "appearance" as const, label: "Apparence", count: THEME_PRESETS.length },
     { key: "notifications" as const, label: "Notifications", count: notifConfigs.length },
     { key: "kpi" as const, label: "Indicateurs KPI", count: kpiConfigs.length },
   ];
@@ -175,6 +178,97 @@ export default function SettingsPage() {
 
       {/* Content */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+        {tab === "appearance" && (
+          <div>
+            <div className="flex items-center justify-between px-6 py-3 border-b border-primary bg-primary dark:bg-primary rounded-t-2xl">
+              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
+                Thème de couleur
+              </h2>
+              <span className="text-xs text-white/70">
+                {THEME_PRESETS.find(p => p.key === themeKey)?.label}
+              </span>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-text-secondary dark:text-neutral-400 mb-5">
+                Choisissez la couleur principale de votre interface. Elle sera appliquée sur tous les boutons, liens et accents.
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {THEME_PRESETS.map(preset => {
+                  const active = themeKey === preset.key;
+                  return (
+                    <button
+                      key={preset.key}
+                      onClick={() => setThemeKey(preset.key)}
+                      className={`relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                        active
+                          ? "border-current ring-2 ring-offset-2 ring-offset-white dark:ring-offset-neutral-900"
+                          : "border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"
+                      }`}
+                      style={active ? { borderColor: preset.primary, outlineColor: preset.primary } : {}}
+                    >
+                      <span
+                        className="size-8 rounded-lg shrink-0 shadow-sm"
+                        style={{ background: `linear-gradient(135deg, ${preset.primaryLight}, ${preset.primary})` }}
+                      />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium text-black dark:text-white">{preset.label}</p>
+                        <p className="text-[11px] text-text-secondary dark:text-neutral-500 font-mono">{preset.primary}</p>
+                      </div>
+                      {active && (
+                        <span className="absolute top-2 right-2">
+                          <svg className="size-4" viewBox="0 0 20 20" fill="none" style={{ color: preset.primary }}>
+                            <circle cx="10" cy="10" r="8" fill="currentColor" />
+                            <path d="M7 10l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Preview */}
+              <div className="mt-8">
+                <p className="text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider mb-3">Aperçu</p>
+                <div className="flex flex-wrap items-center gap-3 p-5 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-border dark:border-neutral-800">
+                  <button
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                    style={{ background: THEME_PRESETS.find(p => p.key === themeKey)?.primary }}
+                  >
+                    Bouton principal
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
+                    style={{ borderColor: THEME_PRESETS.find(p => p.key === themeKey)?.primary, color: THEME_PRESETS.find(p => p.key === themeKey)?.primary }}
+                  >
+                    Bouton secondaire
+                  </button>
+                  <span
+                    className="text-sm font-medium underline underline-offset-2 cursor-pointer"
+                    style={{ color: THEME_PRESETS.find(p => p.key === themeKey)?.primary }}
+                  >
+                    Lien d&apos;exemple
+                  </span>
+                  <span
+                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium text-white"
+                    style={{ background: THEME_PRESETS.find(p => p.key === themeKey)?.primary }}
+                  >
+                    Badge
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1.5 text-sm"
+                  >
+                    <span className="size-2 rounded-full" style={{ background: THEME_PRESETS.find(p => p.key === themeKey)?.primary }} />
+                    <span className="text-neutral-600 dark:text-neutral-400">Indicateur actif</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tab === "notifications" && (
           <>
             <div className="flex items-center justify-between px-6 py-3 border-b border-blue-600 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
