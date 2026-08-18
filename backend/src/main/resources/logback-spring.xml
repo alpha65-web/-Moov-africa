@@ -3,6 +3,8 @@
 
     <conversionRule conversionWord="piiMask" converterClass="com.moov.pim.shared.logging.PiiMaskConverter"/>
 
+    <property name="LOG_DIR" value="${LOG_DIR:-logs}"/>
+
     <!-- Structured JSON console appender -->
     <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
@@ -12,11 +14,11 @@
 
     <!-- Immutable file appender with rolling and integrity -->
     <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/app/logs/audit.log</file>
+        <file>${LOG_DIR}/audit.log</file>
         <append>true</append>
         <immediateFlush>true</immediateFlush>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>/app/logs/audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <fileNamePattern>${LOG_DIR}/audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxFileSize>50MB</maxFileSize>
             <maxHistory>365</maxHistory>
             <totalSizeCap>5GB</totalSizeCap>
