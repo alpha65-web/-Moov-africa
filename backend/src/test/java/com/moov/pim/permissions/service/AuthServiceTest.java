@@ -109,7 +109,7 @@ class AuthServiceTest {
     @Test
     void register_shouldCreateUser() {
         RegisterRequest request = new RegisterRequest(
-                "nouveau@moov.bf", "password12345", "Nouveau", "Utilisateur", "CHEF_PRODUIT");
+                "nouveau@moov.bf", "password12345", "Nouveau", "Utilisateur", null, "CHEF_PRODUIT");
 
         Role chefRole;
         try {
@@ -138,7 +138,7 @@ class AuthServiceTest {
     @Test
     void register_shouldThrowIfEmailExists() {
         RegisterRequest request = new RegisterRequest(
-                "existant@moov.bf", "password12345", "A", "B", "CHEF_PRODUIT");
+                "existant@moov.bf", "password12345", "A", "B", null, "CHEF_PRODUIT");
 
         when(userRepository.existsByEmail("existant@moov.bf")).thenReturn(true);
 
@@ -150,7 +150,7 @@ class AuthServiceTest {
     @Test
     void register_shouldThrowIfRoleNotFound() {
         RegisterRequest request = new RegisterRequest(
-                "new@moov.bf", "password12345", "A", "B", "CHEF_PRODUIT");
+                "new@moov.bf", "password12345", "A", "B", null, "CHEF_PRODUIT");
 
         when(userRepository.existsByEmail("new@moov.bf")).thenReturn(false);
         when(roleRepository.findByName(RoleName.CHEF_PRODUIT)).thenReturn(Optional.empty());
