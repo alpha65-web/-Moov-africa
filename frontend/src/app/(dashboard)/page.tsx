@@ -379,11 +379,10 @@ export default function DashboardPage() {
 
       {/* ═══ KPIs ═══ */}
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
-        {/* Catalog */}
         <div className="surface p-5 flex flex-col justify-between">
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("catalogItems")}</p>
           <div className="mt-3 flex items-end justify-between gap-3">
-            <span className="text-[30px] font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
+            <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {loading ? <Skeleton className="w-10 h-7" /> : catalogItems.length}
             </span>
             {!loading && (
@@ -394,21 +393,19 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-        {/* Offres */}
         <div className="surface p-5 flex flex-col justify-between">
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("activeOffers")}</p>
           <div className="mt-3 flex items-end justify-between gap-3">
-            <span className="text-[30px] font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
+            <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {loading ? <Skeleton className="w-10 h-7" /> : filteredOffers.filter(o => o.status === "PUBLISHED").length}
             </span>
             {!loading && <Sparkline data={sparklineData} className="w-20 h-8 text-emerald-500 pb-1" />}
           </div>
         </div>
-        {/* Campagnes */}
         <div className="surface p-5 flex flex-col justify-between">
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("activeCampaigns")}</p>
           <div className="mt-3 flex items-end justify-between gap-3">
-            <span className="text-[30px] font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
+            <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {loading ? <Skeleton className="w-10 h-7" /> : activeCampaigns.length}
             </span>
             {!loading && channelTypes.length > 0 && (
@@ -416,21 +413,19 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-        {/* Enrichissement */}
         <div className="surface p-5 flex flex-col justify-between">
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("enrichmentRate")}</p>
           <div className="mt-3">
-            <span className="text-[30px] font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
+            <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {loading ? <Skeleton className="w-10 h-7" /> : `${enrichmentRate}%`}
             </span>
             {!loading && <div className="mt-3"><ProgressBar value={enrichmentRate} color="bg-amber-500" /></div>}
           </div>
         </div>
-        {/* Quality Score */}
         <div className="surface p-5 flex flex-col justify-between">
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("qualityScore")}</p>
           <div className="mt-3">
-            <span className="text-[30px] font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
+            <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {loading ? <Skeleton className="w-10 h-7" /> : avgQualityScore > 0 ? `${avgQualityScore}/100` : <span className="text-neutral-300 dark:text-neutral-600 text-lg">·</span>}
             </span>
             {!loading && avgQualityScore > 0 && (
@@ -474,7 +469,7 @@ export default function DashboardPage() {
           </div>
           <div className="px-2 pb-3 pt-3">
             {loading ? <Skeleton className="w-full h-[200px] mx-3" /> : (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={220}>
                 {activityChartType === "area" ? (
                   <AreaChart data={offerActivityData} margin={{ top: 4, right: 12, left: -24, bottom: 0 }}>
                     <defs>
@@ -672,8 +667,35 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* ═══ CATALOG HEALTH + CHANNELS + ACTION CENTER ═══ */}
+      {/* ═══ ACTION CENTER + CATALOG HEALTH + CHANNELS ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Action Center */}
+        <div className="surface flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-5 pt-5 pb-3">
+            <p className="text-[13px] font-medium text-neutral-900 dark:text-white">{t("actionCenter")}</p>
+            {!loading && actionItems.length > 0 && <span className="min-w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center px-1.5">{actionItems.length}</span>}
+          </div>
+          <div className="flex-1">
+            {loading ? (
+              <div className="px-5 pb-5 space-y-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="w-full h-9" />)}</div>
+            ) : actionItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full pb-5">
+                <svg className="size-7 text-emerald-500/30 mb-1.5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><path d="M7 10l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                <p className="text-[12px] text-neutral-400">{t("actionCenterEmpty")}</p>
+              </div>
+            ) : actionItems.map(item => (
+              <Link key={item.id} href={item.href} className="flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors group">
+                <span className={`size-[7px] rounded-full shrink-0 ${SEVERITY_DOT[item.severity]}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] text-neutral-800 dark:text-neutral-200 truncate">{item.label}</p>
+                  <p className="text-[11px] text-neutral-400">{item.detail}</p>
+                </div>
+                <svg className="size-3.5 text-neutral-300 dark:text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" viewBox="0 0 20 20" fill="none"><path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         {/* Catalog Health */}
         <div className="surface p-5">
           <p className="text-[13px] font-medium text-neutral-900 dark:text-white mb-5">{t("catalogHealth")}</p>
@@ -716,33 +738,6 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           )}
         </div>
-
-        {/* Action Center */}
-        <div className="surface flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-5 pt-5 pb-3">
-            <p className="text-[13px] font-medium text-neutral-900 dark:text-white">{t("actionCenter")}</p>
-            {!loading && actionItems.length > 0 && <span className="min-w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center px-1.5">{actionItems.length}</span>}
-          </div>
-          <div className="flex-1">
-            {loading ? (
-              <div className="px-5 pb-5 space-y-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="w-full h-9" />)}</div>
-            ) : actionItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full pb-5">
-                <svg className="size-7 text-emerald-500/30 mb-1.5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><path d="M7 10l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                <p className="text-[12px] text-neutral-400">{t("actionCenterEmpty")}</p>
-              </div>
-            ) : actionItems.map(item => (
-              <Link key={item.id} href={item.href} className="flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors group">
-                <span className={`size-[7px] rounded-full shrink-0 ${SEVERITY_DOT[item.severity]}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-neutral-800 dark:text-neutral-200 truncate">{item.label}</p>
-                  <p className="text-[11px] text-neutral-400">{item.detail}</p>
-                </div>
-                <svg className="size-3.5 text-neutral-300 dark:text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" viewBox="0 0 20 20" fill="none"><path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ═══ RECENT OFFERS + ACTIVITY ═══ */}
@@ -763,9 +758,9 @@ export default function DashboardPage() {
                 <p className="text-[13px] font-medium text-neutral-900 dark:text-white truncate">{offer.name}</p>
                 <p className="text-[11px] text-neutral-400 truncate mt-0.5">{offer.shortDescription}</p>
               </div>
-              <span className="flex items-center gap-1.5 shrink-0">
-                <span className="size-[6px] rounded-full shrink-0" style={{ background: STATUS_HEX[offer.status] || "#94a3b8" }} />
-                <span className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400">{ts.has(offer.status) ? ts(offer.status) : offer.status}</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0" style={{ background: `${STATUS_HEX[offer.status] || "#94a3b8"}15`, color: STATUS_HEX[offer.status] || "#94a3b8" }}>
+                <span className="size-[5px] rounded-full shrink-0" style={{ background: STATUS_HEX[offer.status] || "#94a3b8" }} />
+                {ts.has(offer.status) ? ts(offer.status) : offer.status}
               </span>
             </div>
           ))}
