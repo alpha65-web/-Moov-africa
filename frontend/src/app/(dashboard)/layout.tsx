@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
+import CommandPalette from "@/components/CommandPalette";
+import { ThemeColorProvider } from "@/lib/theme";
 
 export default function DashboardLayout({
   children,
@@ -30,11 +32,14 @@ export default function DashboardLayout({
   if (!user) return null;
 
   return (
-    <div className="h-dvh bg-bg dark:bg-neutral-950 overflow-hidden">
-      <Sidebar />
-      <main className="ml-65 h-dvh overflow-y-auto hide-scrollbar p-6">
-        {children}
-      </main>
-    </div>
+    <ThemeColorProvider>
+      <div className="h-dvh bg-bg dark:bg-neutral-950 overflow-hidden">
+        <Sidebar />
+        <CommandPalette />
+        <main className="ml-65 h-dvh overflow-y-auto hide-scrollbar p-6">
+          {children}
+        </main>
+      </div>
+    </ThemeColorProvider>
   );
 }
