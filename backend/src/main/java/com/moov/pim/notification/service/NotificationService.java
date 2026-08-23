@@ -45,9 +45,13 @@ public class NotificationService {
     }
 
     @Transactional
-    public void markAsRead(UUID notificationId) {
+    public void markAsRead(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("Notification introuvable"));
+        if (!notification.getRecipientId().equals(userId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Vous ne pouvez pas modifier cette notification");
+        }
         notification.setRead(true);
         notificationRepository.save(notification);
     }
@@ -61,7 +65,13 @@ public class NotificationService {
     }
 
     @Transactional
-    public void delete(UUID notificationId) {
-        notificationRepository.deleteById(notificationId);
+    public void delete(UUID notificationId, UUID userId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new IllegalArgumentException("Notification introuvable"));
+        if (!notification.getRecipientId().equals(userId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Vous ne pouvez pas supprimer cette notification");
+        }
+        notificationRepository.delete(notification);
     }
 }

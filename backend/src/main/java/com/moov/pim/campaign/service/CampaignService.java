@@ -8,8 +8,10 @@ import com.moov.pim.campaign.domain.CampaignStatus;
 import com.moov.pim.campaign.repository.CampaignRepository;
 import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
+import com.moov.pim.shared.event.CampaignStatusEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,9 +28,12 @@ public class CampaignService {
     private static final Logger log = LoggerFactory.getLogger(CampaignService.class);
 
     private final CampaignRepository campaignRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public CampaignService(CampaignRepository campaignRepository) {
+    public CampaignService(CampaignRepository campaignRepository,
+                           ApplicationEventPublisher eventPublisher) {
         this.campaignRepository = campaignRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -140,6 +145,8 @@ public class CampaignService {
 
         campaign.setStatus(CampaignStatus.CANCELLED);
         campaign = campaignRepository.save(campaign);
+        eventPublisher.publishEvent(new CampaignStatusEvent(
+                campaign.getId(), campaign.getName(), currentUserId(), "CANCELLED"));
         return CampaignResponse.from(campaign);
     }
 
@@ -154,6 +161,8 @@ public class CampaignService {
             campaign.setStatus(CampaignStatus.PUBLISHED);
             campaign.setPublishedAt(now);
             campaignRepository.save(campaign);
+            eventPublisher.publishEvent(new CampaignStatusEvent(
+                    campaign.getId(), campaign.getName(), campaign.getCreatedById(), "PUBLISHED"));
             log.info("Publication automatique de la campagne {} ({})", campaign.getName(), campaign.getId());
         }
     }

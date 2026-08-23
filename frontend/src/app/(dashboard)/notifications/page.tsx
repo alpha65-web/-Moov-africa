@@ -4,16 +4,16 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import type { Notification } from "@/lib/types";
 import toast from "react-hot-toast";
+import { useNotifications } from "@/lib/notifications";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount, refreshCount } = useNotifications();
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
 
   useEffect(() => {
     loadNotifications();
-    loadUnreadCount();
   }, []);
 
   async function loadNotifications() {
@@ -27,21 +27,14 @@ export default function NotificationsPage() {
     }
   }
 
-  async function loadUnreadCount() {
-    try {
-      const { data } = await api.get("/notifications/unread/count");
-      setUnreadCount(typeof data === "number" ? data : data.count ?? 0);
-    } catch { /* */ }
-  }
-
   async function markAsRead(id: string) {
     try {
       await api.patch(`/notifications/${id}/read`);
       loadNotifications();
-      loadUnreadCount();
+      refreshCount();
     } catch {
       setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      refreshCount();
     }
   }
 
@@ -50,11 +43,11 @@ export default function NotificationsPage() {
       await api.patch("/notifications/read-all");
       toast.success("Toutes les notifications marquées comme lues");
       loadNotifications();
-      loadUnreadCount();
+      refreshCount();
     } catch {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
       toast.success("Toutes les notifications marquées comme lues");
+      refreshCount();
     }
   }
 
@@ -84,7 +77,7 @@ export default function NotificationsPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-enter-up stagger-1">
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-white">Notifications</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
@@ -107,7 +100,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit">
+      <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit animate-enter-up stagger-2">
         {([
           { key: "all" as const, label: "Toutes", count: notifications.length },
           { key: "unread" as const, label: "Non lues", count: unreadCount },
@@ -132,7 +125,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* Liste */}
-      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden animate-enter-up stagger-3">
         {loading ? (
           <div className="px-6 py-4 flex flex-col gap-3">
             {[...Array(4)].map((_, i) => (

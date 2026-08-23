@@ -13,6 +13,7 @@ import com.moov.pim.dam.repository.MediaValidationRepository;
 import com.moov.pim.dam.repository.OfferMediaRepository;
 import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
+import com.moov.pim.shared.event.MediaValidatedEvent;
 import com.moov.pim.shared.security.ClamAvScanService;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -20,6 +21,7 @@ import io.minio.RemoveObjectArgs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -39,7 +41,7 @@ public class MediaAssetService {
     private static final Logger log = LoggerFactory.getLogger(MediaAssetService.class);
 
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+            "image/jpeg", "image/png", "image/gif", "image/webp",
             "application/pdf",
             "video/mp4", "video/webm",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -48,7 +50,8 @@ public class MediaAssetService {
 
     private static final Set<String> BLOCKED_EXTENSIONS = Set.of(
             ".exe", ".bat", ".cmd", ".sh", ".ps1", ".jar", ".war",
-            ".php", ".jsp", ".cgi", ".py", ".rb", ".js", ".html", ".htm"
+            ".php", ".jsp", ".cgi", ".py", ".rb", ".js", ".html", ".htm",
+            ".svg", ".svgz", ".xml", ".xhtml", ".hta", ".mht", ".mhtml"
     );
 
     private final MediaAssetRepository mediaAssetRepository;
@@ -56,6 +59,7 @@ public class MediaAssetService {
     private final OfferMediaRepository offerMediaRepository;
     private final MinioClient minioClient;
     private final ClamAvScanService clamAvScanService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${pim.minio.bucket}")
     private String bucket;
@@ -64,12 +68,14 @@ public class MediaAssetService {
                              MediaValidationRepository mediaValidationRepository,
                              OfferMediaRepository offerMediaRepository,
                              MinioClient minioClient,
-                             ClamAvScanService clamAvScanService) {
+                             ClamAvScanService clamAvScanService,
+                             ApplicationEventPublisher eventPublisher) {
         this.mediaAssetRepository = mediaAssetRepository;
         this.mediaValidationRepository = mediaValidationRepository;
         this.offerMediaRepository = offerMediaRepository;
         this.minioClient = minioClient;
         this.clamAvScanService = clamAvScanService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -142,10 +148,11 @@ public class MediaAssetService {
     private String detectMimeType(MultipartFile file) {
         try (InputStream is = new BufferedInputStream(file.getInputStream())) {
             String detected = URLConnection.guessContentTypeFromStream(is);
-            return detected != null ? detected : file.getContentType();
-        } catch (Exception e) {
-            return file.getContentType();
+            if (detected != null) return detected;
+        } catch (Exception ignored) {
         }
+        throw new IllegalArgumentException(
+                "Impossible de determiner le type du fichier. Assurez-vous que le fichier n'est pas corrompu.");
     }
 
     private void validateMimeType(String mimeType) {
@@ -173,6 +180,11 @@ public class MediaAssetService {
             asset.setConformityStatus(ConformityStatus.NON_COMPLIANT);
         }
         asset = mediaAssetRepository.save(asset);
+
+        boolean approved = request.status() == ValidationStatus.APPROVED;
+        eventPublisher.publishEvent(new MediaValidatedEvent(
+                asset.getId(), asset.getFileName(), currentUserId(), approved));
+
         return MediaAssetResponse.from(asset);
     }
 
