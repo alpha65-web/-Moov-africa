@@ -5,6 +5,7 @@ spring:
     import: "optional:vault://"
   cloud:
     vault:
+      enabled: ${PIM_VAULT_ENABLED:false}
       uri: ${VAULT_ADDR:http://vault:8200}
       token: ${VAULT_TOKEN:}
       kv:
@@ -77,6 +78,11 @@ pim:
     enabled: ${PIM_OAUTH2_ENABLED:false}
     issuer-uri: ${PIM_OAUTH2_ISSUER_URI:}
     client-id: ${PIM_OAUTH2_CLIENT_ID:pim-backend}
+  mfa:
+    # Bloque tous les endpoints des comptes ADMIN_SYSTEME / SUPER_ADMIN tant que
+    # la double authentification n'est pas activee. Passer a false uniquement sur
+    # un environnement de demonstration ou l'enrolement TOTP n'est pas possible.
+    require-for-admin: ${PIM_MFA_REQUIRE_FOR_ADMIN:true}
   webauthn:
     enabled: ${PIM_WEBAUTHN_ENABLED:false}
     rp-id: ${PIM_WEBAUTHN_RP_ID:localhost}

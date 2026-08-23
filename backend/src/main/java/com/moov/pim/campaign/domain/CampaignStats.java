@@ -23,7 +23,9 @@ public class CampaignStats {
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "channel_id", nullable = false, unique = true)
+    // La colonne s'appelle campaign_channel_id depuis V008 : "channel_id" faisait
+    // echouer tout chargement des statistiques de campagne (SQLGrammarException).
+    @JoinColumn(name = "campaign_channel_id", nullable = false, unique = true)
     private CampaignChannel channel;
 
     @Column(nullable = false)

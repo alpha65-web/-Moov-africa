@@ -221,6 +221,13 @@ public class MediaAssetService {
     }
 
     @Transactional(readOnly = true)
+    public List<MediaAssetResponse> listAll() {
+        return mediaAssetRepository.findAll().stream()
+                .map(MediaAssetResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<MediaAssetResponse> listPending() {
         return mediaAssetRepository.findByConformityStatus(ConformityStatus.PENDING).stream()
                 .map(MediaAssetResponse::from)

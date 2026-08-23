@@ -59,6 +59,12 @@ public class MediaAssetController {
         return ResponseEntity.ok(mediaAssetService.listByOffer(offerId));
     }
 
+    @GetMapping
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public ResponseEntity<List<MediaAssetResponse>> listAll() {
+        return ResponseEntity.ok(mediaAssetService.listAll());
+    }
+
     @GetMapping("/pending")
     @PreAuthorize("hasAuthority('MEDIA_VALIDATE')")
     public ResponseEntity<List<MediaAssetResponse>> listPending() {

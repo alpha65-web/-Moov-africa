@@ -95,6 +95,11 @@ public class IntegrationExportService {
     }
 
     @Transactional(readOnly = true)
+    public Page<IntegrationExportResponse> listAll(Pageable pageable) {
+        return exportRepository.findAll(pageable).map(IntegrationExportResponse::from);
+    }
+
+    @Transactional(readOnly = true)
     public Page<IntegrationExportResponse> listByStatus(ExportStatus status, Pageable pageable) {
         return exportRepository.findByStatus(status, pageable).map(IntegrationExportResponse::from);
     }

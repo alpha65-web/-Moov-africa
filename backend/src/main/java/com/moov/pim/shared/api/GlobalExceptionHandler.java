@@ -2,6 +2,7 @@ package com.moov.pim.shared.api;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -11,6 +12,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import com.moov.pim.permissions.service.AuthService;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -42,6 +44,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LockedException.class)
     public ResponseEntity<ApiError> handleLocked(LockedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of(403, "Compte verrouillé"));
+    }
+
+    @ExceptionHandler(AuthService.InvalidMfaCodeException.class)
+    public ResponseEntity<ApiError> handleInvalidMfaCode(AuthService.InvalidMfaCodeException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiError.of(401, "MFA_INVALID"));
     }
 
     @ExceptionHandler(AuthService.MfaRequiredException.class)
@@ -87,6 +94,62 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.of(404, "Ressource introuvable"));
+    }
+
+    /**
+     * Conflit d'integrite en base : doublon sur une contrainte unique, ou suppression
+     * d'un element encore reference. Ce sont des situations provoquees par l'utilisateur,
+     * pas des pannes : elles doivent remonter en 409 avec un message exploitable et non
+     * en 500 "Erreur interne du serveur".
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String cause = rootMessage(ex);
+        String message;
+        if (cause.contains("foreign key") || cause.contains("cl\u00e9 \u00e9trang\u00e8re")) {
+            message = "Suppression impossible : cet \u00e9l\u00e9ment est encore r\u00e9f\u00e9renc\u00e9 par d'autres donn\u00e9es";
+        } else if (cause.contains("duplicate key") || cause.contains("cl\u00e9 dupliqu\u00e9e")) {
+            message = "Un \u00e9l\u00e9ment portant les m\u00eames valeurs existe d\u00e9j\u00e0";
+        } else if (cause.contains("not-null") || cause.contains("non nulle")) {
+            message = "Un champ obligatoire est absent";
+        } else {
+            message = "Op\u00e9ration refus\u00e9e : elle romprait la coh\u00e9rence des donn\u00e9es";
+        }
+        log.warn("Conflit d'integrite : {}", cause);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of(409, message));
+    }
+
+    /** Remonte la chaine des causes pour atteindre le message du pilote JDBC. */
+    private static String rootMessage(Throwable ex) {
+        Throwable current = ex;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current.getMessage() == null ? "" : current.getMessage().toLowerCase();
+    }
+
+    /**
+     * Identifiant ou parametre d'URL au mauvais format (UUID invalide, valeur d'enum
+     * inconnue). C'est une requete mal formee et non une panne : sans ce traitement
+     * l'appel retombait sur le gestionnaire generique et repondait 500.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        Class<?> expected = ex.getRequiredType();
+        String detail = expected != null && expected.isEnum()
+                ? "valeur attendue : " + String.join(", ", enumNames(expected))
+                : "format attendu : " + (expected == null ? "inconnu" : expected.getSimpleName());
+        return ResponseEntity.badRequest()
+                .body(ApiError.of(400, "Param\u00e8tre invalide : " + ex.getName() + " (" + detail + ")"));
+    }
+
+    private static String[] enumNames(Class<?> type) {
+        Object[] constants = type.getEnumConstants();
+        String[] names = new String[constants.length];
+        for (int i = 0; i < constants.length; i++) {
+            names[i] = ((Enum<?>) constants[i]).name();
+        }
+        return names;
     }
 
     @ExceptionHandler(Exception.class)

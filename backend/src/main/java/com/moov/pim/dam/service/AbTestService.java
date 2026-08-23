@@ -35,6 +35,13 @@ public class AbTestService {
     }
 
     @Transactional(readOnly = true)
+    public List<AbTestResponse> listAll() {
+        return abTestRepository.findAll().stream()
+                .map(AbTestResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<AbTestResponse> listByOffer(UUID offerId) {
         return abTestRepository.findByOfferId(offerId).stream()
                 .map(AbTestResponse::from)

@@ -2,7 +2,11 @@ package com.moov.pim.shared.api;
 
 import com.moov.pim.permissions.service.AuthService;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.MethodParameter;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import java.util.UUID;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
@@ -16,6 +20,69 @@ import static org.junit.jupiter.api.Assertions.*;
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+    @Test
+    void handleDataIntegrity_foreignKey_shouldReturn409WithDeletionMessage() {
+        var ex = new DataIntegrityViolationException("wrapper",
+                new RuntimeException("update or delete on table \"offers\" violates foreign key constraint"));
+
+        var result = handler.handleDataIntegrity(ex);
+
+        assertEquals(HttpStatus.CONFLICT, result.getStatusCode());
+        assertTrue(result.getBody().message().contains("Suppression impossible"));
+    }
+
+    @Test
+    void handleDataIntegrity_duplicateKey_shouldReturn409WithDuplicateMessage() {
+        var ex = new DataIntegrityViolationException("wrapper",
+                new RuntimeException("duplicate key value violates unique constraint"));
+
+        var result = handler.handleDataIntegrity(ex);
+
+        assertEquals(HttpStatus.CONFLICT, result.getStatusCode());
+        assertTrue(result.getBody().message().contains("existe"));
+    }
+
+    @Test
+    void handleDataIntegrity_unknownCause_shouldStillReturn409() {
+        var ex = new DataIntegrityViolationException("cause inconnue");
+
+        var result = handler.handleDataIntegrity(ex);
+
+        assertEquals(HttpStatus.CONFLICT, result.getStatusCode());
+        assertEquals(409, result.getBody().status());
+    }
+
+    @Test
+    void handleTypeMismatch_invalidUuid_shouldReturn400() {
+        var ex = new MethodArgumentTypeMismatchException(
+                "pas-un-uuid", UUID.class, "id", (MethodParameter) null, null);
+
+        var result = handler.handleTypeMismatch(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
+        assertTrue(result.getBody().message().contains("id"));
+        assertTrue(result.getBody().message().contains("UUID"));
+    }
+
+    @Test
+    void handleTypeMismatch_invalidEnum_shouldListAcceptedValues() {
+        var ex = new MethodArgumentTypeMismatchException(
+                "INCONNU", HttpStatus.class, "status", (MethodParameter) null, null);
+
+        var result = handler.handleTypeMismatch(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
+        assertTrue(result.getBody().message().contains("valeur attendue"));
+    }
+
+    @Test
+    void handleInvalidMfaCode_shouldReturn401WithDedicatedMessage() {
+        var result = handler.handleInvalidMfaCode(new AuthService.InvalidMfaCodeException());
+
+        assertEquals(HttpStatus.UNAUTHORIZED, result.getStatusCode());
+        assertEquals("MFA_INVALID", result.getBody().message());
+    }
 
     @Test
     void handleIllegalArgument_shouldReturn400() {

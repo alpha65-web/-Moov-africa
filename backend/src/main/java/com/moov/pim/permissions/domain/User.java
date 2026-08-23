@@ -40,6 +40,15 @@ public class User {
     @Column(length = 20)
     private String sex;
 
+    @Column(length = 30)
+    private String phone;
+
+    @Column(length = 60)
+    private String pseudo;
+
+    @Column(name = "avatar_url", columnDefinition = "text")
+    private String avatarUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountStatus status = AccountStatus.ACTIVE;
@@ -108,6 +117,12 @@ public class User {
     public String getLastName() { return lastName; }
     public String getSex() { return sex; }
     public void setSex(String sex) { this.sex = sex; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getPseudo() { return pseudo; }
+    public void setPseudo(String pseudo) { this.pseudo = pseudo; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public AccountStatus getStatus() { return status; }
     public void setStatus(AccountStatus status) { this.status = status; }
     public int getFailedLoginAttempts() { return failedLoginAttempts; }

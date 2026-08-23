@@ -23,14 +23,17 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
 
     Page<Offer> findByStatus(OfferStatus status, Pageable pageable);
 
+    // CAST(:search AS string) est indispensable : sans lui, un :search null est transmis
+    // a PostgreSQL sans type, qui le prend pour un bytea et rejette lower(bytea).
+    // La requete echouait donc en 500 des que l'ecran chargeait la liste sans recherche.
     @Query("SELECT o FROM Offer o WHERE" +
             " (:status IS NULL OR o.status = :status)" +
-            " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')))")
+            " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")
     Page<Offer> search(OfferStatus status, String search, Pageable pageable);
 
     @Query("SELECT o FROM Offer o WHERE o.createdById = :ownerId" +
             " AND (:status IS NULL OR o.status = :status)" +
-            " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')))")
+            " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")
     Page<Offer> searchByOwner(OfferStatus status, String search, UUID ownerId, Pageable pageable);
 
     @Query("SELECT o FROM Offer o WHERE o.status = 'PLANNED' AND o.validFrom <= :now")

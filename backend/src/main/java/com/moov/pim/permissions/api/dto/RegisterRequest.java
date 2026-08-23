@@ -11,5 +11,9 @@ public record RegisterRequest(
         @NotBlank String firstName,
         @NotBlank String lastName,
         String sex,
+        String phone,
+        String pseudo,
+        // Data URI (data:image/...;base64,...) redimensionnee par le navigateur.
+        String avatarUrl,
         @NotNull String roleName
 ) {}

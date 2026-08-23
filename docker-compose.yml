@@ -8,7 +8,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pim-pgdata:/var/lib/postgresql/data
+      # postgres:18 range les donnees dans un sous-repertoire versionne de
+      # /var/lib/postgresql. Monter le volume directement sur .../data fait
+      # echouer le demarrage du conteneur (« unused mount/volume », exit 1).
+      - pim-pgdata:/var/lib/postgresql
     networks:
       - backend-net
     healthcheck:

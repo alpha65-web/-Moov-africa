@@ -15,8 +15,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Component
 public class MfaPolicyFilter extends OncePerRequestFilter {
+
+    private final boolean requireForAdmin;
+
+    /**
+     * @param requireForAdmin permet de lever l'obligation de MFA sur un environnement
+     *                        ou l'enrolement TOTP n'est pas praticable (poste sans
+     *                        application d'authentification). Actif par defaut : c'est
+     *                        une exigence de securite en production.
+     */
+    public MfaPolicyFilter(@Value("${pim.mfa.require-for-admin:true}") boolean requireForAdmin) {
+        this.requireForAdmin = requireForAdmin;
+    }
 
     private static final Set<String> MFA_EXEMPT_PATHS = Set.of(
             "/auth/totp/setup", "/auth/totp/enable", "/auth/totp",
@@ -30,7 +44,7 @@ public class MfaPolicyFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+        if (requireForAdmin && auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
             String roleName = userDetails.getUser().getRole().getName().name();
             boolean isAdmin = RoleName.ADMIN_SYSTEME.name().equals(roleName)
                     || RoleName.SUPER_ADMIN.name().equals(roleName);

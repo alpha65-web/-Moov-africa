@@ -118,7 +118,7 @@ public class AuthService {
                 metricsService.recordMfaFailure();
                 eventPublisher.publishEvent(new LoginFailedEvent(
                         user.getId(), request.email(), "INVALID_MFA", ipAddress, userAgent));
-                throw new BadCredentialsException("Code MFA invalide");
+                throw new InvalidMfaCodeException();
             }
         }
 
@@ -214,10 +214,17 @@ public class AuthService {
                 request.sex(),
                 role
         );
+        user.setPhone(blankToNull(request.phone()));
+        user.setPseudo(blankToNull(request.pseudo()));
+        user.setAvatarUrl(AvatarValidator.normalize(request.avatarUrl()));
 
         user = userRepository.save(user);
         eventPublisher.publishEvent(new UserRegisteredEvent(user.getId(), user.getEmail()));
         return UserResponse.from(user);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     @Transactional
@@ -323,6 +330,18 @@ public class AuthService {
     public static class MfaRequiredException extends RuntimeException {
         public MfaRequiredException() {
             super("MFA_REQUIRED");
+        }
+    }
+
+    /**
+     * Code de verification errone. Distinct d'un echec d'identifiants : a ce stade le
+     * mot de passe a deja ete valide, il n'y a donc aucun risque d'enumeration a le
+     * dire clairement. Repondre "Email ou mot de passe incorrect" induisait
+     * l'utilisateur en erreur sur la cause reelle du refus.
+     */
+    public static class InvalidMfaCodeException extends RuntimeException {
+        public InvalidMfaCodeException() {
+            super("MFA_INVALID");
         }
     }
 }

@@ -30,7 +30,7 @@ public class IntegrationExportController {
     }
 
     @PostMapping("/trigger")
-    @PreAuthorize("hasRole('ADMIN_SYSTEME')")
+    @PreAuthorize("hasAuthority('EXPORT_MANAGE')")
     public ResponseEntity<IntegrationExportResponse> trigger(
             @RequestParam UUID offerId,
             @RequestParam TargetSystem targetSystem,
@@ -45,10 +45,14 @@ public class IntegrationExportController {
         return ResponseEntity.ok(exportService.listByOffer(offerId, pageable));
     }
 
+    // status omis => tous les exports. Sans cela, l'ecran ne pouvait afficher que
+    // les exports PENDING et les exports termines restaient invisibles.
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN_SYSTEME')")
-    public ResponseEntity<Page<IntegrationExportResponse>> byStatus(
-            @RequestParam(defaultValue = "PENDING") ExportStatus status, Pageable pageable) {
-        return ResponseEntity.ok(exportService.listByStatus(status, pageable));
+    @PreAuthorize("hasAuthority('EXPORT_MANAGE')")
+    public ResponseEntity<Page<IntegrationExportResponse>> list(
+            @RequestParam(required = false) ExportStatus status, Pageable pageable) {
+        return ResponseEntity.ok(status == null
+                ? exportService.listAll(pageable)
+                : exportService.listByStatus(status, pageable));
     }
 }

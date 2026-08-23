@@ -35,6 +35,12 @@ public class AbTestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(abTestService.create(request));
     }
 
+    @GetMapping
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public ResponseEntity<List<AbTestResponse>> listAll() {
+        return ResponseEntity.ok(abTestService.listAll());
+    }
+
     @GetMapping("/offers/{offerId}")
     @PreAuthorize("hasAuthority('CATALOG_READ')")
     public ResponseEntity<List<AbTestResponse>> listByOffer(@PathVariable UUID offerId) {

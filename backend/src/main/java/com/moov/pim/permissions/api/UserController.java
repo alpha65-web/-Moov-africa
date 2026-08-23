@@ -9,9 +9,12 @@ import com.moov.pim.permissions.domain.User;
 import com.moov.pim.permissions.repository.RoleRepository;
 import com.moov.pim.permissions.repository.UserRepository;
 import com.moov.pim.permissions.security.CustomUserDetails;
+import com.moov.pim.permissions.security.PasswordPolicyService;
+import com.moov.pim.permissions.service.AvatarValidator;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,10 +35,17 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final PasswordPolicyService passwordPolicyService;
 
-    public UserController(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserController(UserRepository userRepository,
+                          RoleRepository roleRepository,
+                          PasswordEncoder passwordEncoder,
+                          PasswordPolicyService passwordPolicyService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.passwordPolicyService = passwordPolicyService;
     }
 
     @GetMapping("/me")
@@ -78,9 +88,29 @@ public class UserController {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
 
+        if (request.email() != null && !request.email().isBlank()
+                && !request.email().equalsIgnoreCase(user.getEmail())) {
+            if (userRepository.existsByEmail(request.email())) {
+                throw new IllegalArgumentException("Un compte existe déjà avec cet email");
+            }
+            user.setEmail(request.email());
+        }
+
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
-        user.setSex(request.sex());
+        user.setSex(blankToNull(request.sex()));
+        user.setPhone(blankToNull(request.phone()));
+        user.setPseudo(blankToNull(request.pseudo()));
+        user.setAvatarUrl(AvatarValidator.normalize(request.avatarUrl()));
+
+        // Reinitialisation du mot de passe par un administrateur : les sessions en
+        // cours sont invalidees et l'utilisateur devra le changer a la reconnexion.
+        if (request.password() != null && !request.password().isBlank()) {
+            passwordPolicyService.validate(request.password());
+            user.setPasswordHash(passwordEncoder.encode(request.password()));
+            user.setForcePasswordChange(true);
+            user.incrementTokenVersion();
+        }
 
         if (request.roleName() != null) {
             RoleName roleName = RoleName.valueOf(request.roleName());
@@ -91,6 +121,10 @@ public class UserController {
 
         user = userRepository.save(user);
         return ResponseEntity.ok(UserResponse.from(user));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     @DeleteMapping("/{id}")

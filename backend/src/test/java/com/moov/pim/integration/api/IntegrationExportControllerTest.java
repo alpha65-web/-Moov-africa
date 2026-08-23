@@ -52,12 +52,22 @@ class IntegrationExportControllerTest {
     }
 
     @Test
-    void byStatus_shouldReturn200() {
+    void list_withStatus_shouldReturn200() {
         var pageable = PageRequest.of(0, 10);
         when(exportService.listByStatus(ExportStatus.PENDING, pageable))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        var result = controller.byStatus(ExportStatus.PENDING, pageable);
+        var result = controller.list(ExportStatus.PENDING, pageable);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+    }
+
+    @Test
+    void list_withoutStatus_shouldReturnAll() {
+        var pageable = PageRequest.of(0, 10);
+        when(exportService.listAll(pageable)).thenReturn(new PageImpl<>(List.of()));
+
+        var result = controller.list(null, pageable);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
     }

@@ -21,7 +21,19 @@ import static org.mockito.Mockito.*;
 
 class MfaPolicyFilterTest {
 
-    private final MfaPolicyFilter filter = new MfaPolicyFilter();
+    private final MfaPolicyFilter filter = new MfaPolicyFilter(true);
+
+    @Test
+    void doFilter_shouldPassIfPolicyDisabled() throws Exception {
+        setupAuth(RoleName.ADMIN_SYSTEME, false);
+        var request = mock(HttpServletRequest.class);
+        var response = mock(HttpServletResponse.class);
+        var chain = mock(FilterChain.class);
+
+        new MfaPolicyFilter(false).doFilterInternal(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
 
     @AfterEach
     void tearDown() {

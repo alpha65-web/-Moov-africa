@@ -69,8 +69,16 @@ public class CampaignService {
     }
 
     @Transactional(readOnly = true)
+    /**
+     * Un administrateur a une vue globale, comme sur le catalogue et les offres.
+     * Sans cette exception, l'ecran Campagnes restait vide pour un ADMIN_SYSTEME
+     * alors meme que des campagnes existaient.
+     */
     public List<CampaignResponse> listMyCampaigns() {
-        return campaignRepository.findByCreatedById(currentUserId()).stream()
+        List<Campaign> campaigns = isAdmin()
+                ? campaignRepository.findAll()
+                : campaignRepository.findByCreatedById(currentUserId());
+        return campaigns.stream()
                 .map(CampaignResponse::from)
                 .toList();
     }
