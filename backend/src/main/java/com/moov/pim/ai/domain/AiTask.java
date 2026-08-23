@@ -1,0 +1,15 @@
+package com.moov.pim.ai.domain;
+
+public enum AiTask {
+    GENERATE_DESCRIPTION,
+    GENERATE_SEO,
+    GENERATE_LEGAL,
+    QUALITY_SCORE,
+    SUGGEST_PRICING,
+    SUGGEST_SEGMENT,
+    DETECT_ANOMALIES,
+    TRANSLATE,
+    SUMMARIZE_CATALOG,
+    COMPETITOR_ANALYSIS,
+    CHAT
+}
