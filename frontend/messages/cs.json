@@ -40,7 +40,12 @@
     "audit": "Audit",
     "settings": "Paramètres",
     "theme": "Thème",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "categories": "Categories",
+    "abTests": "A/B Tests",
+    "analytics": "Analytics",
+    "exports": "Exports",
+    "ai": "AI"
   },
   "dashboard": {
     "greeting_morning": "Bonjour",
@@ -54,7 +59,18 @@
     "drafts": "Brouillons",
     "activeCampaigns": "Campagnes actives",
     "recentOffers": "Offres récentes",
-    "noOffers": "Aucune offre pour le moment"
+    "noOffers": "Aucune offre pour le moment",
+    "offerBreakdown": "Offer breakdown",
+    "campaignsRunning": "currently running",
+    "draftsToFinalize": "to finalize",
+    "viewAll": "View All",
+    "quickAccess": "Quick Access",
+    "smartTip": "Smart Tip",
+    "tipDrafts": "You have {count, plural, one {# draft} other {# drafts}} pending. Finalize them to maximize your catalog.",
+    "tipEmpty": "Start by creating your first offer to populate your PIM catalog.",
+    "tipGood": "Your catalog is well stocked. Consider reviewing offers in enrichment.",
+    "today": "Today",
+    "yesterday": "Yesterday"
   },
   "catalog": {
     "title": "Catalogue",
@@ -79,7 +95,10 @@
       "price": "Prix de base",
       "currency": "Devise",
       "category": "Catégorie",
-      "characteristics": "Caractéristiques (JSON)"
+      "characteristics": "Caractéristiques (JSON)",
+      "packItems": "Éléments du pack",
+      "selected": "sélectionné(s)",
+      "noItems": "Aucun produit ou service disponible"
     },
     "categories": {
       "Voix": "Voix",
@@ -106,19 +125,35 @@
       "saved": "Élément enregistré"
     },
     "empty": "Aucun élément dans cette catégorie",
+    "emptyHint": "Commencez par créer votre premier élément pour alimenter votre catalogue.",
+    "createFirst": "Créer le premier élément",
+    "viewAll": "Voir tous",
+    "filter": "Filtrer",
     "createTitle": "Nouveau {type}",
     "editTitle": "Modifier l'élément"
   },
   "offers": {
     "title": "Offres",
+    "headerTitle": "Gestion des offres",
+    "headerSubtitle": "Créez, enrichissez, validez et suivez le cycle de vie de vos offres.",
     "subtitle": "Gérez le cycle de vie de vos offres commerciales",
     "newOffer": "Nouvelle offre",
+    "createOffer": "Créer une offre",
+    "createFromTemplate": "Créer à partir d'un modèle",
+    "importOffer": "Importer une offre",
+    "importOffers": "Importer des offres",
+    "searchPlaceholder": "Rechercher par nom, code, description...",
     "columns": {
       "name": "Nom",
+      "offer": "Offre",
+      "type": "Type",
       "description": "Description",
-      "price": "Prix promo",
+      "price": "Prix",
+      "period": "Période",
       "status": "Statut",
       "quality": "Qualité",
+      "channels": "Canaux",
+      "lastModified": "Dernière modification",
       "created": "Créée le",
       "actions": "Actions"
     },
@@ -144,11 +179,26 @@
       "WITHDRAWN": "Retirée",
       "ARCHIVED": "Archivée"
     },
+    "segments": {},
+    "customerTypes": {},
+    "stats": {
+      "total": "Total offres",
+      "published": "Publiées",
+      "draft": "Brouillons",
+      "inProgress": "En cours"
+    },
+    "detail": {
+      "version": "Version",
+      "updatedAt": "Modifiée le"
+    },
     "transition": {
       "title": "Transition de statut",
       "comment": "Commentaire",
       "commentPlaceholder": "Raison de la transition...",
-      "confirm": "Confirmer la transition"
+      "confirm": "Confirmer la transition",
+      "currentStatus": "Statut actuel",
+      "availableTransitions": "Transitions possibles",
+      "commentRequired": "Un commentaire est requis pour cette transition"
     },
     "messages": {
       "created": "Offre créée avec succès",
@@ -160,13 +210,33 @@
       "saved": "Offre enregistrée"
     },
     "empty": "Aucune offre trouvée",
+    "emptyHint": "Commencez par créer votre première offre pour alimenter votre catalogue.",
+    "createFirst": "Créer la première offre",
     "createTitle": "Nouvelle offre",
     "editTitle": "Modifier l'offre",
-    "filterAll": "Toutes"
+    "filterAll": "Toutes",
+    "filters": {
+      "status": "Statut",
+      "category": "Catégorie",
+      "channel": "Canal",
+      "date": "Date",
+      "filters": "Filtres"
+    },
+    "features": {
+      "workflow": "Workflow complet",
+      "workflowDesc": "Suivez chaque étape du cycle de vie de vos offres de la création à la publication.",
+      "quality": "Qualité des données",
+      "qualityDesc": "Contrôlez le niveau de complétude et assurez la qualité des informations.",
+      "multichannel": "Diffusion multi-canal",
+      "multichannelDesc": "Publiez vos offres sur tous les canaux Moov Africa en toute cohérence."
+    },
+    "emptyTitle": "Aucune offre disponible",
+    "emptyDescription": "Votre catalogue d'offres est actuellement vide. Créez votre première offre pour commencer à gérer son contenu, ses règles, ses médias et son cycle de validation.",
+    "createFirstOffer": "Créer ma première offre"
   },
   "campaigns": {
     "title": "Campagnes",
-    "subtitle": "Planifiez et gérez vos campagnes de diffusion",
+    "subtitle": "Créez, planifiez et suivez vos campagnes marketing.",
     "newCampaign": "Nouvelle campagne",
     "columns": {
       "name": "Nom",
@@ -205,13 +275,43 @@
       "deleteWarning": "Cette action est irréversible.",
       "saved": "Campagne enregistrée"
     },
-    "empty": "Aucune campagne trouvée",
     "createTitle": "Nouvelle campagne",
-    "editTitle": "Modifier la campagne"
+    "editTitle": "Modifier la campagne",
+    "searchPlaceholder": "Rechercher par nom, code, description...",
+    "createFirst": "Créer la première campagne",
+    "emptyTitle": "Aucune campagne pour le moment",
+    "emptyDescription": "Créez votre première campagne marketing pour commencer à diffuser vos offres à vos clients via tous les canaux disponibles.",
+    "notSent": "Non envoyé",
+    "stats": {
+      "total": "Campagnes totales",
+      "scheduled": "Planifiées",
+      "active": "En cours",
+      "done": "Terminées",
+      "viewAll": "Voir toutes les campagnes",
+      "viewScheduled": "Voir les planifiées",
+      "viewActive": "Voir les actives",
+      "viewDone": "Voir les terminées"
+    },
+    "filters": {
+      "allStatuses": "Tous les statuts",
+      "allChannels": "Tous les canaux",
+      "period": "Période",
+      "filters": "Filtres"
+    },
+    "features": {
+      "planning": "Planification facile",
+      "planningDesc": "Programmez vos campagnes à l'avance et définissez des dates de lancement automatiques.",
+      "targeting": "Ciblage précis",
+      "targetingDesc": "Segmentez vos audiences pour des campagnes personnalisées et plus performantes.",
+      "realtime": "Suivi en temps réel",
+      "realtimeDesc": "Suivez les performances de vos campagnes avec des métriques détaillées en direct.",
+      "multichannel": "Multi-canal",
+      "multichannelDesc": "Diffusez vos campagnes sur SMS, email, push et réseaux sociaux simultanément."
+    }
   },
   "media": {
-    "title": "Médias",
-    "subtitle": "Gérez vos fichiers et assets numériques",
+    "title": "Médiathèque",
+    "subtitle": "Gérez vos fichiers et assets numériques.",
     "upload": "Uploader",
     "columns": {
       "file": "Fichier",
@@ -228,13 +328,12 @@
       "uploading": "Upload en cours..."
     },
     "status": {
-      "PENDING": "En attente",
-      "APPROVED": "Approuvé",
-      "REJECTED": "Rejeté"
+      "PENDING": "En attente"
     },
     "actions": {
       "approve": "Approuver",
-      "reject": "Rejeter"
+      "reject": "Rejeter",
+      "details": "Détails"
     },
     "messages": {
       "uploaded": "Fichier uploadé avec succès",
@@ -243,10 +342,39 @@
       "deleted": "Média supprimé",
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce média ?",
       "fileTooLarge": "Le fichier ne doit pas dépasser 10 Mo",
-      "saved": "Média enregistré"
+      "saved": "Média enregistré",
+      "deleteWarning": "Cette action est irréversible."
     },
-    "empty": "Aucun média trouvé",
-    "pending": "en attente de validation"
+    "refresh": "Actualiser",
+    "searchPlaceholder": "Rechercher par nom de fichier...",
+    "uploadFirst": "Uploader mon premier fichier",
+    "emptyTitle": "Aucun média pour le moment",
+    "emptyDescription": "Uploadez vos premiers fichiers pour commencer à gérer vos assets numériques. Images, PDF et vidéos sont supportés.",
+    "stats": {
+      "total": "Fichiers totaux",
+      "pending": "En attente",
+      "approved": "Approuvés",
+      "rejected": "Rejetés",
+      "viewAll": "Voir tous les fichiers",
+      "viewPending": "Voir les fichiers en attente",
+      "viewApproved": "Voir les approuvés",
+      "viewRejected": "Voir les rejetés"
+    },
+    "filters": {
+      "allStatuses": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "filters": "Filtres"
+    },
+    "features": {
+      "formats": "Multi-formats",
+      "formatsDesc": "Supportez images, PDF et vidéos dans tous les formats courants pour vos offres.",
+      "validation": "Workflow de validation",
+      "validationDesc": "Approuvez ou rejetez les fichiers avant leur utilisation dans vos offres et campagnes.",
+      "versioning": "Versionnage",
+      "versioningDesc": "Gérez les différentes versions de vos fichiers avec un historique complet.",
+      "organization": "Organisation",
+      "organizationDesc": "Classez et retrouvez facilement vos fichiers grâce à la recherche et aux filtres."
+    }
   },
   "users": {
     "title": "Utilisateurs",
@@ -273,10 +401,7 @@
       "phone": "Téléphone",
       "selectRole": "Sélectionner un rôle"
     },
-    "sex": {
-      "Masculin": "Masculin",
-      "Féminin": "Féminin"
-    },
+    "sex": {},
     "roles": {
       "SUPER_ADMIN": "Super Administrateur",
       "ADMIN_SYSTEME": "Administrateur Système",
@@ -301,7 +426,6 @@
       "statusUpdated": "Statut mis à jour",
       "saved": "Utilisateur enregistré"
     },
-    "empty": "Aucun utilisateur trouvé",
     "createTitle": "Nouvel utilisateur",
     "editTitle": "Modifier l'utilisateur"
   },
@@ -399,16 +523,18 @@
       "deleteWarning": "Cette action est irréversible.",
       "saved": "Règle enregistrée"
     },
-    "empty": "Aucune règle métier trouvée",
     "createTitle": "Nouvelle règle",
     "editTitle": "Modifier la règle"
   },
   "settings": {
     "title": "Paramètres",
-    "subtitle": "Configuration du système",
+    "subtitle": "General configuration, notifications, security and integrations",
     "tabs": {
+      "general": "General",
       "notifications": "Notifications",
-      "kpi": "Indicateurs KPI"
+      "kpi": "KPI Indicators",
+      "security": "Security",
+      "integrations": "Integrations"
     },
     "notifications": {
       "type": "Type",
@@ -428,6 +554,42 @@
       "save": "Sauvegarder",
       "updated": "Configuration KPI mise à jour",
       "empty": "Aucune configuration KPI"
+    },
+    "general": {
+      "title": "General configuration",
+      "platformName": "Platform name",
+      "defaultLanguage": "Default language",
+      "currency": "Currency",
+      "timezone": "Timezone",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Configuration saved"
+    },
+    "security": {
+      "passwordPolicy": "Password policy",
+      "minLength": "Minimum length",
+      "expireDays": "Expiry (days)",
+      "requireSpecial": "Require special characters",
+      "requireNumbers": "Require numbers",
+      "twoFactor": "Two-factor authentication (2FA)",
+      "activeSessions": "Active sessions",
+      "sessionsDesc": "Devices currently connected to your account",
+      "current": "Current",
+      "revoke": "Revoke"
+    },
+    "integrations": {
+      "apiKey": "API Key",
+      "apiKeyDesc": "Use this key to authenticate your API requests",
+      "regenerate": "Regenerate",
+      "title": "Configured integrations",
+      "subtitle": "Webhooks, APIs and external connectors",
+      "add": "Add",
+      "lastSync": "Last sync:",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "error": "Error"
+      }
     }
   },
   "profile": {
@@ -451,6 +613,7 @@
     },
     "password": {
       "title": "Changer le mot de passe",
+      "forced": "Vous devez changer votre mot de passe avant d'accéder à l'application.",
       "current": "Mot de passe actuel",
       "new": "Nouveau mot de passe",
       "confirm": "Confirmer le mot de passe",
@@ -499,5 +662,259 @@
   "language": {
     "title": "Langue",
     "select": "Sélectionner la langue"
+  },
+  "categories": {
+    "title": "Categories",
+    "subtitle": "Organize your products and services into hierarchical categories.",
+    "newCategory": "New category",
+    "count": "{count} category",
+    "countPlural": "{count} categories",
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "level": "Level",
+      "parent": "Parent",
+      "actions": "Actions"
+    },
+    "levels": {
+      "root": "Root",
+      "sub": "Subcategory"
+    },
+    "allLevels": "All levels",
+    "form": {
+      "name": "Category name",
+      "description": "Description",
+      "parentId": "Parent category",
+      "noParent": "None (root category)"
+    },
+    "createTitle": "New category",
+    "editTitle": "Edit category",
+    "messages": {
+      "created": "Category created successfully",
+      "updated": "Category updated successfully",
+      "deleted": "Category deleted",
+      "deleteConfirm": "Delete category",
+      "deleteWarning": "This will also delete subcategories."
+    },
+    "empty": "No categories",
+    "emptyDescription": "Create your first categories to organize your catalog.",
+    "children": "Subcategories",
+    "noChildren": "No subcategories",
+    "features": {
+      "hierarchy": "Hierarchy",
+      "hierarchyDesc": "Organize your categories across multiple levels.",
+      "classification": "Classification",
+      "classificationDesc": "Classify your products and services in a structured way.",
+      "navigation": "Navigation",
+      "navigationDesc": "Facilitate navigation in your catalog.",
+      "flexibility": "Flexibility",
+      "flexibilityDesc": "Add, modify or reorganize your categories at any time."
+    }
+  },
+  "abTests": {
+    "title": "A/B Tests",
+    "subtitle": "Compare different variants of your offers to optimize performance.",
+    "newTest": "New test",
+    "count": "{count} test",
+    "countPlural": "{count} tests",
+    "stats": {
+      "total": "Total tests",
+      "running": "Running",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "columns": {
+      "test": "Test",
+      "offer": "Offer",
+      "variantA": "Variant A",
+      "variantB": "Variant B",
+      "metric": "Metric",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "RUNNING": "Running",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "form": {
+      "offerId": "Offer to test",
+      "selectOffer": "Select an offer",
+      "variantA": "Variant A",
+      "variantB": "Variant B",
+      "metric": "Measurement metric",
+      "metricPlaceholder": "E.g.: conversion rate, clicks..."
+    },
+    "actions": {
+      "start": "Start",
+      "complete": "Complete",
+      "cancel": "Cancel",
+      "chooseWinner": "Choose winner"
+    },
+    "winner": "Winner",
+    "selectWinner": "Select the winner",
+    "completeTitle": "Complete A/B test",
+    "createTitle": "New A/B test",
+    "messages": {
+      "created": "A/B test created successfully",
+      "started": "Test started",
+      "completed": "Test completed",
+      "cancelled": "Test cancelled",
+      "error": "An error occurred"
+    },
+    "empty": "No A/B tests",
+    "emptyDescription": "Create your first A/B test to compare your offer performances.",
+    "features": {
+      "compare": "Comparison",
+      "compareDesc": "Compare two variants of an offer side by side.",
+      "measure": "Measurement",
+      "measureDesc": "Measure performance with precise metrics.",
+      "optimize": "Optimization",
+      "optimizeDesc": "Identify the best variant to maximize your results.",
+      "data": "Data-driven",
+      "dataDesc": "Make decisions based on real data."
+    }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Track performance indicators for your offers.",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "apply": "Apply",
+    "stats": {
+      "totalEvents": "Total events",
+      "avgDuration": "Average duration",
+      "uniqueTypes": "Unique types",
+      "offersTracked": "Offers tracked"
+    },
+    "columns": {
+      "event": "Event",
+      "type": "Type",
+      "offerId": "Offer ID",
+      "actorId": "Actor ID",
+      "duration": "Duration",
+      "date": "Date"
+    },
+    "eventTypes": {},
+    "allTypes": "All types",
+    "empty": "No KPI events",
+    "emptyDescription": "No analytics events for the selected period.",
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "durationMs": "{ms} ms",
+    "durationSec": "{sec} s",
+    "durationMin": "{min} min"
+  },
+  "exports": {
+    "title": "Exports & Integrations",
+    "subtitle": "Manage the export of your offers to external systems.",
+    "triggerExport": "Trigger export",
+    "stats": {
+      "pending": "Pending",
+      "success": "Successful",
+      "failed": "Failed"
+    },
+    "columns": {
+      "system": "System",
+      "offerId": "Offer ID",
+      "type": "Type",
+      "status": "Status",
+      "retries": "Retries",
+      "createdAt": "Created at",
+      "completedAt": "Completed at"
+    },
+    "allStatuses": "All statuses",
+    "allSystems": "All systems",
+    "allTypes": "All types",
+    "status": {
+      "PENDING": "Pending",
+      "SUCCESS": "Successful",
+      "FAILED": "Failed"
+    },
+    "targetSystem": {
+      "CRM": "CRM",
+      "CALL_CENTER": "Call center",
+      "WEBSITE": "Website"
+    },
+    "exportType": {
+      "AUTO_PUBLISH": "Auto publish",
+      "MANUAL_EXPORT": "Manual export",
+      "RESYNC": "Resync",
+      "CATALOG_EXPORT": "Catalog export"
+    },
+    "form": {
+      "selectOffer": "Select an offer",
+      "selectSystem": "Target system",
+      "selectType": "Export type"
+    },
+    "triggerTitle": "Trigger an export",
+    "messages": {
+      "triggered": "Export triggered successfully",
+      "error": "Error triggering export"
+    },
+    "empty": "No exports",
+    "emptyDescription": "No exports have been triggered yet.",
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "notCompleted": "—"
+  },
+  "ai": {
+    "title": "Artificial Intelligence",
+    "subtitle": "AI-powered assistant, content generation, and smart insights for your PIM",
+    "tabs": {
+      "assistant": "Assistant",
+      "generation": "Generation",
+      "insights": "Insights"
+    },
+    "assistant": {
+      "placeholder": "Ask a question about your data...",
+      "suggestion1": "Summarize active offers",
+      "suggestion2": "Products without description?",
+      "suggestion3": "Active campaigns status",
+      "suggestion4": "Catalog quality score"
+    },
+    "generation": {
+      "title": "AI Content Generation",
+      "type": "Content type",
+      "types": {
+        "description": "Description",
+        "tags": "Tags",
+        "translation": "Translation"
+      },
+      "product": "Product name",
+      "productPlaceholder": "e.g. Data Plan 5GB",
+      "language": "Target language",
+      "tone": "Tone",
+      "tones": {
+        "professional": "Professional",
+        "creative": "Creative"
+      },
+      "generate": "Generate with AI",
+      "generating": "Generating...",
+      "result": "Result",
+      "emptyState": "Configure your options and click Generate",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "apply": "Apply to product"
+    },
+    "insights": {
+      "qualityScore": "Quality score",
+      "anomalies": "Anomalies",
+      "noDescription": "No description",
+      "suggestions": "Suggestions",
+      "recommendations": "Recommendations",
+      "recommendationsDesc": "AI-detected issues and improvement suggestions",
+      "priority": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
+    }
   }
 }

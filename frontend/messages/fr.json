@@ -26,7 +26,14 @@
     "yes": "Oui",
     "no": "Non",
     "result": "résultat",
-    "results": "résultats"
+    "results": "résultats",
+    "errors": {
+      "load": "Impossible de charger les donnees.",
+      "create": "La creation a echoue.",
+      "update": "La modification a echoue.",
+      "delete": "La suppression a echoue.",
+      "action": "L operation a echoue."
+    }
   },
   "sidebar": {
     "dashboard": "Tableau de bord",
@@ -37,6 +44,11 @@
     "rules": "Règles métier",
     "users": "Utilisateurs",
     "notifications": "Notifications",
+    "categories": "Catégories",
+    "abTests": "Tests A/B",
+    "analytics": "Analytics",
+    "exports": "Exports",
+    "ai": "IA",
     "audit": "Audit",
     "settings": "Paramètres",
     "theme": "Thème",
@@ -54,7 +66,18 @@
     "drafts": "Brouillons",
     "activeCampaigns": "Campagnes actives",
     "recentOffers": "Offres récentes",
-    "noOffers": "Aucune offre pour le moment"
+    "noOffers": "Aucune offre pour le moment",
+    "offerBreakdown": "Répartition des offres",
+    "campaignsRunning": "en cours d'exécution",
+    "draftsToFinalize": "à finaliser",
+    "viewAll": "Voir tout",
+    "quickAccess": "Accès rapides",
+    "smartTip": "Astuce",
+    "tipDrafts": "Vous avez {count, plural, one {# brouillon} other {# brouillons}} en attente. Finalisez-les pour maximiser votre catalogue.",
+    "tipEmpty": "Commencez par créer votre première offre pour alimenter votre catalogue PIM.",
+    "tipGood": "Votre catalogue est bien garni. Pensez à vérifier les offres en enrichissement.",
+    "today": "Aujourd'hui",
+    "yesterday": "Hier"
   },
   "catalog": {
     "title": "Catalogue",
@@ -79,7 +102,10 @@
       "price": "Prix de base",
       "currency": "Devise",
       "category": "Catégorie",
-      "characteristics": "Caractéristiques (JSON)"
+      "characteristics": "Caractéristiques (JSON)",
+      "packItems": "Éléments du pack",
+      "selected": "sélectionné(s)",
+      "noItems": "Aucun produit ou service disponible"
     },
     "categories": {
       "Voix": "Voix",
@@ -106,19 +132,35 @@
       "saved": "Élément enregistré"
     },
     "empty": "Aucun élément dans cette catégorie",
+    "emptyHint": "Commencez par créer votre premier élément pour alimenter votre catalogue.",
+    "createFirst": "Créer le premier élément",
+    "viewAll": "Voir tous",
+    "filter": "Filtrer",
     "createTitle": "Nouveau {type}",
     "editTitle": "Modifier l'élément"
   },
   "offers": {
     "title": "Offres",
+    "headerTitle": "Gestion des offres",
+    "headerSubtitle": "Créez, enrichissez, validez et suivez le cycle de vie de vos offres.",
     "subtitle": "Gérez le cycle de vie de vos offres commerciales",
     "newOffer": "Nouvelle offre",
+    "createOffer": "Créer une offre",
+    "createFromTemplate": "Créer à partir d'un modèle",
+    "importOffer": "Importer une offre",
+    "importOffers": "Importer des offres",
+    "searchPlaceholder": "Rechercher par nom, code, description...",
     "columns": {
       "name": "Nom",
+      "offer": "Offre",
+      "type": "Type",
       "description": "Description",
-      "price": "Prix promo",
+      "price": "Prix",
+      "period": "Période",
       "status": "Statut",
       "quality": "Qualité",
+      "channels": "Canaux",
+      "lastModified": "Dernière modification",
       "created": "Créée le",
       "actions": "Actions"
     },
@@ -144,11 +186,56 @@
       "WITHDRAWN": "Retirée",
       "ARCHIVED": "Archivée"
     },
+    "segments": {
+      "PREPAID": "Prépayé",
+      "POSTPAID": "Postpayé",
+      "HYBRID": "Hybride"
+    },
+    "customerTypes": {
+      "INDIVIDUAL": "Particulier",
+      "BUSINESS": "Entreprise",
+      "ALL": "Tous"
+    },
+    "stats": {
+      "total": "Total offres",
+      "totalOffers": "Offres totales",
+      "inValidation": "En validation",
+      "published": "Publiées",
+      "toComplete": "À compléter",
+      "draft": "Brouillons",
+      "inProgress": "En cours",
+      "viewAll": "Voir toutes les offres",
+      "viewValidations": "Voir les validations",
+      "viewPublished": "Voir les offres publiées",
+      "viewToComplete": "Voir les offres à compléter"
+    },
+    "filters": {
+      "status": "Statut",
+      "category": "Catégorie",
+      "channel": "Canal",
+      "date": "Date",
+      "filters": "Filtres"
+    },
+    "features": {
+      "workflow": "Workflow complet",
+      "workflowDesc": "Suivez chaque étape du cycle de vie de vos offres de la création à la publication.",
+      "quality": "Qualité des données",
+      "qualityDesc": "Contrôlez le niveau de complétude et assurez la qualité des informations.",
+      "multichannel": "Diffusion multi-canal",
+      "multichannelDesc": "Publiez vos offres sur tous les canaux Moov Africa en toute cohérence."
+    },
+    "detail": {
+      "version": "Version",
+      "updatedAt": "Modifiée le"
+    },
     "transition": {
       "title": "Transition de statut",
       "comment": "Commentaire",
       "commentPlaceholder": "Raison de la transition...",
-      "confirm": "Confirmer la transition"
+      "confirm": "Confirmer la transition",
+      "currentStatus": "Statut actuel",
+      "availableTransitions": "Transitions possibles",
+      "commentRequired": "Un commentaire est requis pour cette transition"
     },
     "messages": {
       "created": "Offre créée avec succès",
@@ -160,14 +247,50 @@
       "saved": "Offre enregistrée"
     },
     "empty": "Aucune offre trouvée",
+    "emptyTitle": "Aucune offre disponible",
+    "emptyDescription": "Votre catalogue d'offres est actuellement vide. Créez votre première offre pour commencer à gérer son contenu, ses règles, ses médias et son cycle de validation.",
+    "emptyHint": "Commencez par créer votre première offre pour alimenter votre catalogue.",
+    "createFirst": "Créer la première offre",
+    "createFirstOffer": "Créer ma première offre",
     "createTitle": "Nouvelle offre",
     "editTitle": "Modifier l'offre",
     "filterAll": "Toutes"
   },
   "campaigns": {
     "title": "Campagnes",
-    "subtitle": "Planifiez et gérez vos campagnes de diffusion",
+    "subtitle": "Créez, planifiez et suivez vos campagnes marketing.",
     "newCampaign": "Nouvelle campagne",
+    "searchPlaceholder": "Rechercher par nom, code, description...",
+    "createFirst": "Créer la première campagne",
+    "emptyTitle": "Aucune campagne pour le moment",
+    "emptyDescription": "Créez votre première campagne marketing pour commencer à diffuser vos offres à vos clients via tous les canaux disponibles.",
+    "notSent": "Non envoyé",
+    "stats": {
+      "total": "Campagnes totales",
+      "scheduled": "Planifiées",
+      "active": "En cours",
+      "done": "Terminées",
+      "viewAll": "Voir toutes les campagnes",
+      "viewScheduled": "Voir les planifiées",
+      "viewActive": "Voir les actives",
+      "viewDone": "Voir les terminées"
+    },
+    "filters": {
+      "allStatuses": "Tous les statuts",
+      "allChannels": "Tous les canaux",
+      "period": "Période",
+      "filters": "Filtres"
+    },
+    "features": {
+      "planning": "Planification facile",
+      "planningDesc": "Programmez vos campagnes à l'avance et définissez des dates de lancement automatiques.",
+      "targeting": "Ciblage précis",
+      "targetingDesc": "Segmentez vos audiences pour des campagnes personnalisées et plus performantes.",
+      "realtime": "Suivi en temps réel",
+      "realtimeDesc": "Suivez les performances de vos campagnes avec des métriques détaillées en direct.",
+      "multichannel": "Multi-canal",
+      "multichannelDesc": "Diffusez vos campagnes sur SMS, email, push et réseaux sociaux simultanément."
+    },
     "columns": {
       "name": "Nom",
       "channel": "Canal",
@@ -205,14 +328,43 @@
       "deleteWarning": "Cette action est irréversible.",
       "saved": "Campagne enregistrée"
     },
-    "empty": "Aucune campagne trouvée",
     "createTitle": "Nouvelle campagne",
     "editTitle": "Modifier la campagne"
   },
   "media": {
-    "title": "Médias",
-    "subtitle": "Gérez vos fichiers et assets numériques",
+    "title": "Médiathèque",
+    "subtitle": "Gérez vos fichiers et assets numériques.",
     "upload": "Uploader",
+    "refresh": "Actualiser",
+    "searchPlaceholder": "Rechercher par nom de fichier...",
+    "uploadFirst": "Uploader mon premier fichier",
+    "emptyTitle": "Aucun média pour le moment",
+    "emptyDescription": "Uploadez vos premiers fichiers pour commencer à gérer vos assets numériques. Images, PDF et vidéos sont supportés.",
+    "stats": {
+      "total": "Fichiers totaux",
+      "pending": "En attente",
+      "approved": "Approuvés",
+      "rejected": "Rejetés",
+      "viewAll": "Voir tous les fichiers",
+      "viewPending": "Voir les fichiers en attente",
+      "viewApproved": "Voir les approuvés",
+      "viewRejected": "Voir les rejetés"
+    },
+    "filters": {
+      "allStatuses": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "filters": "Filtres"
+    },
+    "features": {
+      "formats": "Multi-formats",
+      "formatsDesc": "Supportez images, PDF et vidéos dans tous les formats courants pour vos offres.",
+      "validation": "Workflow de validation",
+      "validationDesc": "Approuvez ou rejetez les fichiers avant leur utilisation dans vos offres et campagnes.",
+      "versioning": "Versionnage",
+      "versioningDesc": "Gérez les différentes versions de vos fichiers avec un historique complet.",
+      "organization": "Organisation",
+      "organizationDesc": "Classez et retrouvez facilement vos fichiers grâce à la recherche et aux filtres."
+    },
     "columns": {
       "file": "Fichier",
       "type": "Type",
@@ -229,12 +381,13 @@
     },
     "status": {
       "PENDING": "En attente",
-      "APPROVED": "Approuvé",
-      "REJECTED": "Rejeté"
+      "COMPLIANT": "Conforme",
+      "NON_COMPLIANT": "Non conforme"
     },
     "actions": {
       "approve": "Approuver",
-      "reject": "Rejeter"
+      "reject": "Rejeter",
+      "details": "Détails"
     },
     "messages": {
       "uploaded": "Fichier uploadé avec succès",
@@ -243,15 +396,15 @@
       "deleted": "Média supprimé",
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce média ?",
       "fileTooLarge": "Le fichier ne doit pas dépasser 10 Mo",
-      "saved": "Média enregistré"
-    },
-    "empty": "Aucun média trouvé",
-    "pending": "en attente de validation"
+      "saved": "Média enregistré",
+      "deleteWarning": "Cette action est irréversible."
+    }
   },
   "users": {
-    "title": "Utilisateurs",
-    "subtitle": "Gérez les comptes et les rôles des utilisateurs",
+    "title": "Gestion des utilisateurs",
+    "subtitle": "Gérez les comptes utilisateurs et leurs accès à la plateforme.",
     "newUser": "Nouvel utilisateur",
+    "drafts": "Brouillons",
     "columns": {
       "profile": "Profil",
       "name": "Nom",
@@ -262,6 +415,22 @@
       "status": "Statut",
       "actions": "Actions"
     },
+    "stats": {
+      "totalUsers": "Utilisateurs totaux",
+      "viewAll": "Voir tous",
+      "activeUsers": "Utilisateurs actifs",
+      "viewActive": "Voir actifs",
+      "disabledUsers": "Désactivés",
+      "viewDisabled": "Voir désactivés",
+      "rolesCount": "Rôles définis",
+      "viewRoles": "Voir les rôles"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom, email...",
+      "allRoles": "Tous les rôles",
+      "allStatuses": "Tous les statuts",
+      "filters": "Filtres"
+    },
     "form": {
       "firstName": "Prénom",
       "lastName": "Nom",
@@ -270,12 +439,33 @@
       "emailAuto": "(auto)",
       "role": "Rôle",
       "password": "Mot de passe temporaire",
+      "passwordEdit": "Nouveau mot de passe (optionnel)",
       "phone": "Téléphone",
-      "selectRole": "Sélectionner un rôle"
+      "pseudo": "Pseudo",
+      "address": "Adresse résidentielle",
+      "selectRole": "Sélectionner un rôle",
+      "selectSex": "Sélectionner",
+      "photoHint": "Importer une photo (JPG, PNG)",
+      "photoError": "La photo ne doit pas dépasser 2 Mo",
+      "step1": "Informations personnelles",
+      "step2": "Accès et sécurité",
+      "stepOf": "Étape {step} sur 2",
+      "next": "Suivant",
+      "back": "Retour",
+      "draft": "Brouillon",
+      "passwordHint": "L'utilisateur devra changer son mot de passe à la première connexion.",
+      "passwordPlaceholder": "Min. 12 caractères",
+      "passwordPlaceholderEdit": "Laisser vide pour ne pas changer",
+      "emailPlaceholder": "prenom.nom@moov-africa.bf",
+      "addressPlaceholder": "Quartier, ville",
+      "pseudoPlaceholder": "Nom d'utilisateur",
+      "lastNamePlaceholder": "Nom de famille",
+      "firstNamePlaceholder": "Prénom",
+      "roleLabel": "Rôle attribué"
     },
     "sex": {
-      "Masculin": "Masculin",
-      "Féminin": "Féminin"
+      "M": "Masculin",
+      "F": "Féminin"
     },
     "roles": {
       "SUPER_ADMIN": "Super Administrateur",
@@ -296,17 +486,56 @@
       "created": "Utilisateur créé avec succès",
       "updated": "Utilisateur modifié avec succès",
       "deleted": "Utilisateur supprimé",
-      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
-      "deleteWarning": "Cette action est irréversible.",
+      "deleteConfirm": "Supprimer cet utilisateur ?",
+      "deleteWarning": "sera définitivement supprimé. Cette action est irréversible.",
       "statusUpdated": "Statut mis à jour",
-      "saved": "Utilisateur enregistré"
+      "saved": "Utilisateur enregistré",
+      "draftSaved": "Brouillon sauvegardé",
+      "draftDeleted": "Brouillon supprimé",
+      "noDraftData": "Aucune donnée à sauvegarder",
+      "updateError": "Erreur lors de la modification",
+      "deleteError": "Erreur lors de la suppression",
+      "statusError": "Erreur lors de la mise à jour",
+      "validation": {
+        "lastNameRequired": "Le nom est requis",
+        "firstNameRequired": "Le prénom est requis",
+        "emailRequired": "L'email est requis",
+        "emailInvalid": "Format d'email invalide"
+      }
     },
-    "empty": "Aucun utilisateur trouvé",
+    "emptyTitle": "Aucun utilisateur trouvé",
+    "emptyDescription": "Vous n'avez pas encore ajouté d'utilisateur. Commencez par créer le premier compte utilisateur.",
+    "emptyFiltered": "Aucun résultat pour ces filtres",
+    "createFirst": "Créer le premier utilisateur",
     "createTitle": "Nouvel utilisateur",
-    "editTitle": "Modifier l'utilisateur"
+    "editTitle": "Modifier l'utilisateur",
+    "detailTitle": "Profil utilisateur",
+    "draftsTitle": "Brouillons",
+    "draftsEmpty": "Aucun brouillon",
+    "draftsEmptyHint": "Les inscriptions non terminées apparaîtront ici",
+    "draftsCount": "{count} inscription(s) inachevée(s)",
+    "draftResume": "Reprendre",
+    "draftNoName": "Sans nom",
+    "draftNoEmail": "Email non renseigné",
+    "notProvided": "Non renseigné",
+    "lastLogin": "Dernière connexion",
+    "never": "Jamais",
+    "createdAt": "Créé le",
+    "features": {
+      "roles": "Gestion des rôles",
+      "rolesDesc": "Attribuez des rôles et des permissions adaptés à chaque utilisateur.",
+      "security": "Sécurité renforcée",
+      "securityDesc": "Contrôlez les accès et protégez les données sensibles.",
+      "history": "Historique des actions",
+      "historyDesc": "Consultez l'historique des connexions et des actions effectuées.",
+      "collaboration": "Collaboration",
+      "collaborationDesc": "Facilitez le travail en équipe avec des accès adaptés à chacun."
+    }
   },
   "notifications": {
     "title": "Notifications",
+    "subtitle": "Restez informé des actions et événements importants.",
+    "settings": "Paramètres",
     "allRead": "Toutes les notifications sont lues",
     "unread": "{count} non lue",
     "unreads": "{count} non lues",
@@ -317,9 +546,39 @@
       "unread": "Non lues",
       "read": "Lues"
     },
+    "search": "Rechercher dans les notifications...",
+    "allTypes": "Tous les types",
+    "sortRecent": "Date (plus récentes)",
+    "sortOldest": "Date (plus anciennes)",
+    "columns": {
+      "notification": "Notification",
+      "type": "Type",
+      "date": "Date",
+      "status": "Statut"
+    },
+    "types": {
+      "ENRICHMENT_REQUIRED": "Enrichissement requis",
+      "VALIDATION_REQUIRED": "Validation requise",
+      "STRATEGIC_VALIDATION": "Validation stratégique",
+      "OFFER_REJECTED": "Offre rejetée",
+      "OFFER_PUBLISHED": "Offre publiée",
+      "OFFER_EXPIRING": "Offre bientôt expirée",
+      "CAMPAIGN_READY": "Campagne prête"
+    },
+    "readStatus": {
+      "read": "Lue",
+      "unread": "Non lue"
+    },
     "empty": "Aucune notification",
     "emptyUnread": "Aucune notification non lue",
+    "emptyDescription": "Vous n'avez aucune notification pour le moment. Les nouvelles alertes apparaîtront ici.",
     "allMarkedRead": "Toutes les notifications marquées comme lues",
+    "pagination": "Affichage de {from} à {to} sur {total} notifications",
+    "banner": {
+      "title": "Ne manquez rien d'important",
+      "description": "Activez les notifications par email pour recevoir les alertes importantes directement dans votre boîte mail.",
+      "cta": "Activer les notifications email"
+    },
     "timeAgo": {
       "now": "A l'instant",
       "minutes": "Il y a {count} min",
@@ -330,6 +589,11 @@
   "audit": {
     "title": "Audit",
     "subtitle": "Historique des actions sur la plateforme",
+    "entryCount": "{count} entrée enregistrée",
+    "entryCountPlural": "{count} entrées enregistrées",
+    "searchPlaceholder": "Rechercher...",
+    "allEntities": "Toutes les entités",
+    "allActions": "Toutes",
     "columns": {
       "date": "Date",
       "user": "Utilisateur",
@@ -352,16 +616,30 @@
       "DATA_ANONYMIZED": "Anonymisation",
       "DATA_EXPORT_REQUESTED": "Export RGPD"
     },
+    "entities": {
+      "OFFER": "Offre",
+      "CATALOG_ITEM": "Catalogue",
+      "USER": "Utilisateur",
+      "CAMPAIGN": "Campagne",
+      "MEDIA": "Média",
+      "RULE": "Règle",
+      "NOTIFICATION": "Notification"
+    },
     "filterByAction": "Filtrer par action",
     "filterByEntity": "Filtrer par entité",
-    "detail": "Détail de l'action",
+    "detail": "Détails de l'audit",
+    "userId": "Utilisateur ID",
+    "entityId": "Entité ID",
+    "ipAddress": "Adresse IP",
+    "userAgent": "User Agent",
+    "viewDetails": "Voir les détails",
     "previousValue": "Valeur précédente",
     "newValue": "Nouvelle valeur",
-    "empty": "Aucun log d'audit trouvé"
+    "empty": "Aucune entrée d'audit"
   },
   "rules": {
     "title": "Règles métier",
-    "subtitle": "Gérez les règles de compatibilité et composition",
+    "subtitle": "Gérez les règles de compatibilité et de composition pour vos offres et produits.",
     "newRule": "Nouvelle règle",
     "columns": {
       "name": "Nom",
@@ -369,7 +647,25 @@
       "source": "Source",
       "target": "Cible",
       "status": "Statut",
+      "lastModified": "Dernière modification",
       "actions": "Actions"
+    },
+    "stats": {
+      "totalRules": "Total des règles",
+      "viewAll": "Voir toutes",
+      "activeRules": "Règles actives",
+      "viewActive": "Voir actives",
+      "draftRules": "Règles en brouillon",
+      "viewDrafts": "Voir brouillons",
+      "archivedRules": "Règles archivées",
+      "viewArchived": "Voir archivées"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom, code, description...",
+      "allTypes": "Tous les types",
+      "allStatuses": "Tous les statuts",
+      "source": "Source",
+      "filters": "Filtres"
     },
     "form": {
       "name": "Nom de la règle",
@@ -395,20 +691,97 @@
       "deleted": "Règle supprimée",
       "activated": "Règle activée",
       "deactivated": "Règle désactivée",
-      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette règle ?",
+      "deleteConfirm": "Supprimer la règle",
       "deleteWarning": "Cette action est irréversible.",
       "saved": "Règle enregistrée"
     },
-    "empty": "Aucune règle métier trouvée",
+    "emptyTitle": "Aucune règle trouvée",
+    "emptyDescription": "Vous n'avez pas encore créé de règle métier. Commencez par créer votre première règle pour définir vos règles de compatibilité et de composition.",
+    "createFirst": "Créer ma première règle",
     "createTitle": "Nouvelle règle",
-    "editTitle": "Modifier la règle"
+    "editTitle": "Modifier la règle",
+    "features": {
+      "compatibility": "Compatibilité",
+      "compatibilityDesc": "Définissez les règles de compatibilité entre produits, services ou offres.",
+      "composition": "Composition",
+      "compositionDesc": "Gérez les règles de composition des packs et offres groupées.",
+      "validation": "Validation",
+      "validationDesc": "Validez automatiquement les offres selon vos règles métier.",
+      "traceability": "Traçabilité",
+      "traceabilityDesc": "Suivez l'historique et l'impact de chaque règle métier."
+    }
   },
   "settings": {
     "title": "Paramètres",
-    "subtitle": "Configuration du système",
+    "subtitle": "Configuration générale, notifications, sécurité et intégrations",
     "tabs": {
+      "general": "Général",
       "notifications": "Notifications",
-      "kpi": "Indicateurs KPI"
+      "kpi": "Indicateurs KPI",
+      "security": "Sécurité",
+      "integrations": "Intégrations"
+    },
+    "general": {
+      "title": "Configuration générale",
+      "platformName": "Nom de la plateforme",
+      "defaultLanguage": "Langue par défaut",
+      "currency": "Devise",
+      "timezone": "Fuseau horaire",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "saved": "Réglages enregistrés",
+      "loadError": "Impossible de charger les réglages.",
+      "saveError": "Enregistrement impossible.",
+      "updatedAt": "Dernière modification"
+    },
+    "security": {
+      "passwordPolicy": "Politique de mots de passe",
+      "minLength": "Longueur minimale",
+      "expireDays": "Expiration (jours)",
+      "requireSpecial": "Un caractère spécial obligatoire",
+      "requireNumbers": "Exiger des chiffres",
+      "twoFactor": "Authentification à deux facteurs (2FA)",
+      "activeSessions": "Sessions actives",
+      "sessionsDesc": "Appareils actuellement connectés à votre compte",
+      "current": "Actuel",
+      "revoke": "Révoquer",
+      "serverPolicy": "Politique appliquée par le serveur",
+      "serverPolicyDesc": "Ces règles sont vérifiées à chaque changement de mot de passe. Elles ne sont pas modifiables depuis l interface.",
+      "minLengthValue": "{n} caractères minimum",
+      "requireUppercase": "Une majuscule obligatoire",
+      "requireLowercase": "Une minuscule obligatoire",
+      "requireDigit": "Un chiffre obligatoire",
+      "checkBreached": "Refus des mots de passe présents dans une fuite connue",
+      "mfaMandatory": "Double authentification obligatoire pour les administrateurs",
+      "enforced": "Appliqué",
+      "notEnforced": "Non appliqué",
+      "myMfa": "Ma double authentification",
+      "myMfaDesc": "Protège votre compte avec un code à usage unique généré par votre téléphone.",
+      "mfaOn": "Activée",
+      "mfaOff": "Désactivée",
+      "manageInProfile": "Gérer depuis mon profil"
+    },
+    "integrations": {
+      "apiKey": "Clé API",
+      "apiKeyDesc": "Utilisez cette clé pour authentifier vos requêtes API",
+      "regenerate": "Régénérer",
+      "title": "Intégrations configurées",
+      "subtitle": "Webhooks, API et connecteurs externes",
+      "add": "Ajouter",
+      "lastSync": "Dernière sync :",
+      "status": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "error": "Erreur"
+      },
+      "header": "Systèmes cibles",
+      "headerDesc": "État réel des exports vers les systèmes tiers, calculé depuis l historique des exports.",
+      "never": "Aucun export",
+      "lastExport": "Dernier export",
+      "total": "exports",
+      "failed": "en échec",
+      "noData": "Aucun export enregistré pour le moment.",
+      "loadError": "Impossible de charger les exports."
     },
     "notifications": {
       "type": "Type",
@@ -416,18 +789,47 @@
       "enabled": "Activé",
       "disabled": "Désactivé",
       "updated": "Configuration mise à jour",
-      "empty": "Aucune configuration de notification"
+      "empty": "Aucune configuration de notification",
+      "header": "Configuration des notifications",
+      "activeCount": "{count} active",
+      "activeCountPlural": "{count} actives",
+      "notifEnabled": "Notification activée",
+      "notifDisabled": "Notification désactivée",
+      "types": {
+        "OFFER_CREATED": "Offre créée",
+        "OFFER_TRANSITION": "Transition d'offre",
+        "OFFER_PUBLISHED": "Offre publiée",
+        "MEDIA_UPLOADED": "Média uploadé",
+        "MEDIA_VALIDATED": "Média validé",
+        "CAMPAIGN_SCHEDULED": "Campagne planifiée",
+        "USER_REGISTERED": "Utilisateur inscrit"
+      },
+      "channels": {
+        "IN_APP": "Application",
+        "EMAIL": "Email",
+        "SMS": "SMS",
+        "PUSH": "Push"
+      }
     },
     "kpi": {
       "code": "Code",
       "label": "Libellé",
       "threshold": "Seuil",
+      "thresholdPrefix": "Seuil:",
       "enabled": "Activé",
       "disabled": "Désactivé",
       "edit": "Modifier",
-      "save": "Sauvegarder",
-      "updated": "Configuration KPI mise à jour",
-      "empty": "Aucune configuration KPI"
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "cancel": "Annuler",
+      "updated": "KPI mis à jour",
+      "empty": "Aucun indicateur configuré",
+      "header": "Indicateurs KPI",
+      "activeCount": "{count} actif",
+      "activeCountPlural": "{count} actifs",
+      "kpiEnabled": "KPI activé",
+      "kpiDisabled": "KPI désactivé",
+      "thresholdPlaceholder": "Ex: > 80"
     }
   },
   "profile": {
@@ -451,6 +853,7 @@
     },
     "password": {
       "title": "Changer le mot de passe",
+      "forced": "Vous devez changer votre mot de passe avant d'accéder à l'application.",
       "current": "Mot de passe actuel",
       "new": "Nouveau mot de passe",
       "confirm": "Confirmer le mot de passe",
@@ -478,8 +881,228 @@
       "setupError": "Erreur lors de la configuration MFA",
       "enableSuccess": "MFA activé avec succès",
       "disableSuccess": "MFA désactivé",
-      "invalidCode": "Code invalide"
+      "invalidCode": "Code invalide",
+      "scanQr": "Scanner le QR code",
+      "scanQrHelp": "Ouvrez Google Authenticator, Authy ou Microsoft Authenticator et scannez ce code.",
+      "copySecret": "Copier",
+      "secretCopied": "Copié !"
     }
+  },
+  "categories": {
+    "title": "Catégories",
+    "subtitle": "Organisez vos produits et services par catégories hiérarchiques.",
+    "newCategory": "Nouvelle catégorie",
+    "count": "{count} catégorie",
+    "countPlural": "{count} catégories",
+    "columns": {
+      "name": "Nom",
+      "description": "Description",
+      "level": "Niveau",
+      "parent": "Parent",
+      "actions": "Actions"
+    },
+    "levels": {
+      "root": "Racine",
+      "sub": "Sous-catégorie"
+    },
+    "allLevels": "Tous les niveaux",
+    "form": {
+      "name": "Nom de la catégorie",
+      "description": "Description",
+      "parentId": "Catégorie parente",
+      "noParent": "Aucune (catégorie racine)"
+    },
+    "createTitle": "Nouvelle catégorie",
+    "editTitle": "Modifier la catégorie",
+    "messages": {
+      "created": "Catégorie créée avec succès",
+      "updated": "Catégorie modifiée avec succès",
+      "deleted": "Catégorie supprimée",
+      "deleteConfirm": "Supprimer la catégorie",
+      "deleteWarning": "Cette action supprimera également les sous-catégories."
+    },
+    "empty": "Aucune catégorie",
+    "emptyDescription": "Créez vos premières catégories pour organiser votre catalogue.",
+    "children": "Sous-catégories",
+    "noChildren": "Aucune sous-catégorie",
+    "features": {
+      "hierarchy": "Hiérarchie",
+      "hierarchyDesc": "Organisez vos catégories sur plusieurs niveaux.",
+      "classification": "Classification",
+      "classificationDesc": "Classez vos produits et services de manière structurée.",
+      "navigation": "Navigation",
+      "navigationDesc": "Facilitez la navigation dans votre catalogue.",
+      "flexibility": "Flexibilité",
+      "flexibilityDesc": "Ajoutez, modifiez ou réorganisez vos catégories à tout moment."
+    }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Suivez les indicateurs de performance de vos offres.",
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "apply": "Appliquer",
+    "stats": {
+      "totalEvents": "Total événements",
+      "avgDuration": "Durée moyenne",
+      "uniqueTypes": "Types uniques",
+      "offersTracked": "Offres suivies"
+    },
+    "columns": {
+      "event": "Événement",
+      "type": "Type",
+      "offerId": "Offre ID",
+      "actorId": "Acteur ID",
+      "duration": "Durée",
+      "date": "Date"
+    },
+    "eventTypes": {
+      "OFFER_CREATED": "Offre créée",
+      "STATUS_DRAFT": "Retour en brouillon",
+      "STATUS_IN_ENRICHMENT": "Mise en enrichissement",
+      "STATUS_IN_VALIDATION": "Soumise à validation",
+      "STATUS_VALIDATED": "Validée",
+      "STATUS_PLANNED": "Planifiée",
+      "STATUS_PUBLISHED": "Publiée",
+      "STATUS_SUSPENDED": "Suspendue",
+      "STATUS_OBSOLETE": "Rendue obsolète",
+      "STATUS_WITHDRAWN": "Retirée",
+      "STATUS_ARCHIVED": "Archivée",
+      "TIME_TO_MARKET": "Délai de mise sur le marché",
+      "CAMPAIGN_SENT": "Campagne diffusée"
+    },
+    "allTypes": "Tous les types",
+    "empty": "Aucun événement KPI",
+    "emptyDescription": "Aucun événement analytique pour la période sélectionnée.",
+    "pagination": {
+      "showing": "Affichage de {from} à {to} sur {total}",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "durationMs": "{ms} ms",
+    "durationSec": "{sec} s",
+    "durationMin": "{min} min"
+  },
+  "abTests": {
+    "title": "Tests A/B",
+    "subtitle": "Comparez différentes variantes de vos offres pour optimiser vos performances.",
+    "newTest": "Nouveau test",
+    "count": "{count} test",
+    "countPlural": "{count} tests",
+    "stats": {
+      "total": "Total des tests",
+      "running": "En cours",
+      "completed": "Terminés",
+      "cancelled": "Annulés"
+    },
+    "columns": {
+      "test": "Test",
+      "offer": "Offre",
+      "variantA": "Variante A",
+      "variantB": "Variante B",
+      "metric": "Métrique",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "RUNNING": "En cours",
+      "COMPLETED": "Terminé",
+      "CANCELLED": "Annulé"
+    },
+    "form": {
+      "offerId": "Offre à tester",
+      "selectOffer": "Sélectionner une offre",
+      "variantA": "Variante A",
+      "variantB": "Variante B",
+      "metric": "Métrique de mesure",
+      "metricPlaceholder": "Ex: taux de conversion, clics..."
+    },
+    "actions": {
+      "start": "Démarrer",
+      "complete": "Terminer",
+      "cancel": "Annuler",
+      "chooseWinner": "Choisir le gagnant"
+    },
+    "winner": "Gagnant",
+    "selectWinner": "Sélectionnez le gagnant",
+    "completeTitle": "Terminer le test A/B",
+    "createTitle": "Nouveau test A/B",
+    "messages": {
+      "created": "Test A/B créé avec succès",
+      "started": "Test démarré",
+      "completed": "Test terminé",
+      "cancelled": "Test annulé",
+      "error": "Une erreur est survenue"
+    },
+    "empty": "Aucun test A/B",
+    "emptyDescription": "Créez votre premier test A/B pour comparer les performances de vos offres.",
+    "features": {
+      "compare": "Comparaison",
+      "compareDesc": "Comparez deux variantes d'une offre côte à côte.",
+      "measure": "Mesure",
+      "measureDesc": "Mesurez les performances avec des métriques précises.",
+      "optimize": "Optimisation",
+      "optimizeDesc": "Identifiez la meilleure variante pour maximiser vos résultats.",
+      "data": "Data-driven",
+      "dataDesc": "Prenez des décisions basées sur les données réelles."
+    }
+  },
+  "exports": {
+    "title": "Exports & Intégrations",
+    "subtitle": "Gérez l'exportation de vos offres vers les systèmes externes.",
+    "triggerExport": "Déclencher un export",
+    "stats": {
+      "pending": "En attente",
+      "success": "Réussis",
+      "failed": "Échoués"
+    },
+    "columns": {
+      "system": "Système",
+      "offerId": "Offre ID",
+      "type": "Type",
+      "status": "Statut",
+      "retries": "Tentatives",
+      "createdAt": "Créé le",
+      "completedAt": "Terminé le"
+    },
+    "allStatuses": "Tous les statuts",
+    "allSystems": "Tous les systèmes",
+    "allTypes": "Tous les types",
+    "status": {
+      "PENDING": "En attente",
+      "SUCCESS": "Réussi",
+      "FAILED": "Échoué"
+    },
+    "targetSystem": {
+      "CRM": "CRM",
+      "CALL_CENTER": "Centre d'appels",
+      "WEBSITE": "Site web"
+    },
+    "exportType": {
+      "AUTO_PUBLISH": "Publication auto",
+      "MANUAL_EXPORT": "Export manuel",
+      "RESYNC": "Resynchronisation",
+      "CATALOG_EXPORT": "Export catalogue"
+    },
+    "form": {
+      "selectOffer": "Sélectionner une offre",
+      "selectSystem": "Système cible",
+      "selectType": "Type d'export"
+    },
+    "triggerTitle": "Déclencher un export",
+    "messages": {
+      "triggered": "Export déclenché avec succès",
+      "error": "Erreur lors du déclenchement"
+    },
+    "empty": "Aucun export",
+    "emptyDescription": "Aucun export n'a été déclenché pour le moment.",
+    "pagination": {
+      "showing": "Affichage de {from} à {to} sur {total}",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "notCompleted": "—"
   },
   "login": {
     "title": "Connexion",
@@ -498,7 +1121,12 @@
     "errorAuth": "Adresse email ou mot de passe incorrect.",
     "errorLocked": "Compte verrouillé. Contactez votre administrateur.",
     "errorForbidden": "Accès refusé. Vérifiez vos autorisations.",
-    "errorServer": "Impossible de contacter le serveur. Vérifiez que le backend est démarré."
+    "errorServer": "Impossible de contacter le serveur. Vérifiez que le backend est démarré.",
+    "totpLabel": "Code de vérification (2FA)",
+    "totpHint": "Saisissez le code à 6 chiffres de votre application d authentification.",
+    "totpRequired": "Code à 6 chiffres requis",
+    "mfaRequired": "Authentification à deux facteurs requise.",
+    "totpInvalid": "Code de vérification incorrect. Vérifiez le code affiché par votre application."
   },
   "notFound": {
     "title": "404",
@@ -509,5 +1137,86 @@
   "language": {
     "title": "Langue",
     "select": "Sélectionner la langue"
+  },
+  "ai": {
+    "title": "Intelligence Artificielle",
+    "subtitle": "Analyse du référentiel, génération de contenu et assistance — calculées sur vos données réelles",
+    "tabs": {
+      "assistant": "Assistant",
+      "generation": "Génération",
+      "insights": "Insights"
+    },
+    "assistant": {
+      "placeholder": "Posez une question sur vos données...",
+      "suggestion1": "Résume les offres actives",
+      "suggestion2": "Produits sans description ?",
+      "suggestion3": "État des campagnes actives",
+      "suggestion4": "Score qualité du catalogue",
+      "error": "L assistant n a pas pu répondre.",
+      "sources": "Chiffres utilisés"
+    },
+    "generation": {
+      "title": "Génération de contenu IA",
+      "type": "Type de contenu",
+      "types": {
+        "description": "Description",
+        "tags": "Tags",
+        "translation": "Traduction"
+      },
+      "product": "Nom du produit",
+      "productPlaceholder": "ex. Forfait Data 5Go",
+      "language": "Langue cible",
+      "tone": "Ton",
+      "tones": {
+        "professional": "Professionnel",
+        "creative": "Créatif"
+      },
+      "generate": "Générer avec l'IA",
+      "generating": "Génération en cours...",
+      "result": "Résultat",
+      "emptyState": "Configurez vos options puis cliquez sur Générer",
+      "copy": "Copier",
+      "copied": "Copié !",
+      "apply": "Appliquer la description",
+      "source": "Source",
+      "sourceCatalog": "Élément du catalogue",
+      "sourceFree": "Intitulé libre",
+      "selectPlaceholder": "Sélectionnez un élément",
+      "basedOn": "Généré à partir de",
+      "applied": "Description appliquée à l élément",
+      "applyError": "L application a échoué.",
+      "applyHint": "Disponible pour une description générée depuis un élément du catalogue.",
+      "error": "La génération a échoué."
+    },
+    "insights": {
+      "qualityScore": "Score qualité",
+      "anomalies": "Anomalies",
+      "noDescription": "Sans description",
+      "suggestions": "Suggestions",
+      "recommendations": "Recommandations",
+      "recommendationsDesc": "Problèmes détectés et suggestions d'amélioration par l'IA",
+      "priority": {
+        "high": "Haute",
+        "medium": "Moyenne",
+        "low": "Basse"
+      },
+      "breakdown": "Détail du score",
+      "noPenalty": "Aucun point retiré",
+      "snapshotTitle": "Référentiel",
+      "affected": "élément(s) concerné(s)",
+      "noIssues": "Aucun problème détecté sur le référentiel.",
+      "refresh": "Actualiser",
+      "snapshot": {
+        "catalogItems": "Éléments de catalogue",
+        "activeCatalogItems": "Actifs",
+        "categories": "Catégories",
+        "offers": "Offres",
+        "publishedOffers": "Offres publiées",
+        "campaigns": "Campagnes",
+        "mediaAssets": "Médias",
+        "businessRules": "Règles métier"
+      }
+    },
+    "poweredBy": "Calculé sur les données de la plateforme"
   }
 }
