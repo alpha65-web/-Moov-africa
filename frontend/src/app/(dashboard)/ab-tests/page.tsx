@@ -1,0 +1,481 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import api, { apiError } from "@/lib/api";
+import type { AbTest, Offer } from "@/lib/types";
+import toast from "react-hot-toast";
+import { useTranslations } from "next-intl";
+
+const STATUS_STYLES: Record<string, string> = {
+  DRAFT: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
+  RUNNING: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  COMPLETED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  CANCELLED: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+};
+
+const EMPTY_FORM = { offerId: "", variantA: "", variantB: "", metric: "" };
+
+const PER_PAGE = 10;
+
+function Skeleton({ className }: { className: string }) {
+  return <div className={`rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse ${className}`} />;
+}
+
+export default function AbTestsPage() {
+  const t = useTranslations("abTests");
+  const tc = useTranslations("common");
+
+  const [tests, setTests] = useState<AbTest[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+
+  const [showModal, setShowModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+
+  const [completeTarget, setCompleteTarget] = useState<AbTest | null>(null);
+  const [selectedWinner, setSelectedWinner] = useState<"A" | "B">("A");
+  const [completing, setCompleting] = useState(false);
+
+  const [detailTest, setDetailTest] = useState<AbTest | null>(null);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { loadTests(); loadOffers(); }, []);
+
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (completeTarget) { setCompleteTarget(null); return; }
+        if (detailTest) { setDetailTest(null); return; }
+        if (showModal) { setShowModal(false); resetForm(); }
+      }
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showModal, completeTarget, detailTest]);
+
+  useEffect(() => { setPage(1); }, [search, filterStatus]);
+
+  async function loadTests() {
+    try {
+      const { data } = await api.get("/ab-tests");
+      setTests(Array.isArray(data) ? data : data.content ?? []);
+    } catch (e) { toast.error(apiError(e, tc("errors.load"))); }
+    finally { setLoading(false); }
+  }
+
+  async function loadOffers() {
+    try { const { data } = await api.get("/offers"); setOffers(Array.isArray(data) ? data : data.content ?? []); }
+    catch { /* */ }
+  }
+
+  function resetForm() { setForm({ ...EMPTY_FORM }); }
+  function openCreateModal() { resetForm(); setShowModal(true); }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (creating) return;
+    setCreating(true);
+    try {
+      await api.post("/ab-tests", { offerId: form.offerId, variantA: form.variantA, variantB: form.variantB, metric: form.metric });
+      toast.success(t("messages.created"));
+      setShowModal(false); resetForm(); loadTests();
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.create")));
+    } finally { setCreating(false); }
+  }
+
+  async function handleStart(test: AbTest) {
+    try { await api.post(`/ab-tests/${test.id}/start`); toast.success(t("messages.started")); loadTests(); }
+    catch (e) { toast.error(apiError(e, tc("errors.action"))); }
+  }
+
+  async function handleComplete() {
+    if (!completeTarget || completing) return;
+    setCompleting(true);
+    try { await api.post(`/ab-tests/${completeTarget.id}/complete`, { winner: selectedWinner }); toast.success(t("messages.completed")); loadTests(); }
+    catch (e) { toast.error(apiError(e, tc("errors.action"))); }
+    finally { setCompleting(false); setCompleteTarget(null); }
+  }
+
+  async function handleCancel(test: AbTest) {
+    try { await api.post(`/ab-tests/${test.id}/cancel`); toast.success(t("messages.cancelled")); loadTests(); }
+    catch (e) { toast.error(apiError(e, tc("errors.action"))); }
+  }
+
+  function formatDate(date: string) {
+    return new Date(date).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  function offerName(offerId: string) {
+    return offers.find((o) => o.id === offerId)?.name ?? offerId.slice(0, 8) + "…";
+  }
+
+  const filtered = tests.filter((test) => {
+    if (search) {
+      const q = search.toLowerCase();
+      if (!test.variantA.toLowerCase().includes(q) && !test.variantB.toLowerCase().includes(q) && !test.metric.toLowerCase().includes(q)) return false;
+    }
+    if (filterStatus && test.status !== filterStatus) return false;
+    return true;
+  });
+
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const stats = {
+    total: tests.length,
+    running: tests.filter((t2) => t2.status === "RUNNING").length,
+    completed: tests.filter((t2) => t2.status === "COMPLETED").length,
+    cancelled: tests.filter((t2) => t2.status === "CANCELLED").length,
+  };
+
+  const cardData = [
+    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" /><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M7 15v6M17 15v6M12 18h-2M12 18h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M7 15a5 5 0 0110 0" stroke="currentColor" strokeWidth="1.5" /></svg>
+    ) },
+    { key: "running", count: stats.running, label: t("stats.running"), link: t("stats.viewRunning"), color: "text-primary", bg: "bg-primary/10", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    ) },
+    { key: "completed", count: stats.completed, label: t("stats.completed"), link: t("stats.viewCompleted"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M8 12l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    ) },
+    { key: "cancelled", count: stats.cancelled, label: t("stats.cancelled"), link: t("stats.viewCancelled"), color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+    ) },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 pb-8">
+
+      {/* ===== HEADER ===== */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
+          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
+        </div>
+        <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
+          <span className="flex items-center gap-2">
+            <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            <p className="text-sm font-medium">{t("newTest")}</p>
+          </span>
+        </button>
+      </div>
+
+      {/* ===== 4 STAT CARDS ===== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {cardData.map((s) => (
+          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
+              <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
+            </div>
+            {loading ? <Skeleton className="w-10 h-8 mb-2" /> : (
+              <span className="text-3xl font-bold text-black dark:text-white tabular-nums block mb-2">{s.count}</span>
+            )}
+            <span className="text-xs font-medium text-primary flex items-center gap-1">
+              {s.link}
+              <svg className="size-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ===== RECHERCHE + FILTRES ===== */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" viewBox="0 0 16 16" fill="none">
+            <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
+        </div>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[140px]">
+          <option value="">{t("filters.allStatuses")}</option>
+          <option value="DRAFT">{t("status.DRAFT")}</option>
+          <option value="RUNNING">{t("status.RUNNING")}</option>
+          <option value="COMPLETED">{t("status.COMPLETED")}</option>
+          <option value="CANCELLED">{t("status.CANCELLED")}</option>
+        </select>
+      </div>
+
+      {/* ===== TABLEAU ===== */}
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+        <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_0.8fr_80px_80px] gap-4 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
+          {[t("columns.test"), t("columns.offer"), t("columns.variantA"), t("columns.variantB"), t("columns.metric"), t("columns.status"), t("columns.actions")].map((col, i) => (
+            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1 ${i === 6 ? "justify-end" : ""}`}>
+              {col}
+            </span>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="px-6 py-4 flex flex-col gap-1">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_0.8fr_80px_80px] gap-4 items-center py-3.5">
+                <Skeleton className="w-20 h-4" /><Skeleton className="w-24 h-4" /><Skeleton className="w-20 h-4" /><Skeleton className="w-20 h-4" /><Skeleton className="w-16 h-4" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-6 h-6 ml-auto" />
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-6 py-16 text-center">
+            <div className="flex flex-col items-center gap-5">
+              <svg className="size-36" viewBox="0 0 160 140" fill="none">
+                <rect x="20" y="30" width="50" height="70" rx="6" className="fill-blue-100/60 dark:fill-blue-900/15 stroke-blue-300 dark:stroke-blue-700/50" strokeWidth="1.5" />
+                <rect x="90" y="30" width="50" height="70" rx="6" className="fill-emerald-100/60 dark:fill-emerald-900/15 stroke-emerald-300 dark:stroke-emerald-700/50" strokeWidth="1.5" />
+                <text x="45" y="70" textAnchor="middle" className="fill-blue-400 dark:fill-blue-500" fontSize="24" fontWeight="bold">A</text>
+                <text x="115" y="70" textAnchor="middle" className="fill-emerald-400 dark:fill-emerald-500" fontSize="24" fontWeight="bold">B</text>
+                <path d="M70 65h20" className="stroke-neutral-300 dark:stroke-neutral-600" strokeWidth="2" strokeDasharray="4 3" />
+                <circle cx="80" cy="65" r="8" className="fill-amber-100 dark:fill-amber-900/20 stroke-amber-400 dark:stroke-amber-600" strokeWidth="1.5" />
+                <text x="80" y="69" textAnchor="middle" className="fill-amber-600 dark:fill-amber-400" fontSize="10" fontWeight="bold">VS</text>
+                <path d="M32 110h96" className="stroke-neutral-200 dark:stroke-neutral-700" strokeWidth="1.5" />
+                <rect x="32" y="112" width="14" height="8" rx="2" className="fill-blue-200/60 dark:fill-blue-900/20" />
+                <rect x="50" y="108" width="14" height="12" rx="2" className="fill-blue-300/60 dark:fill-blue-900/30" />
+                <rect x="68" y="105" width="14" height="15" rx="2" className="fill-emerald-200/60 dark:fill-emerald-900/20" />
+                <rect x="86" y="110" width="14" height="10" rx="2" className="fill-emerald-300/60 dark:fill-emerald-900/30" />
+                <rect x="104" y="106" width="14" height="14" rx="2" className="fill-emerald-200/60 dark:fill-emerald-900/20" />
+                <circle cx="28" cy="25" r="2.5" className="fill-primary/20" />
+                <circle cx="140" cy="40" r="2" className="fill-emerald-400/25" />
+              </svg>
+              <div>
+                <p className="text-base font-bold text-black dark:text-white">{t("emptyTitle")}</p>
+                <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
+              </div>
+              <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">
+                <span className="flex items-center gap-2">
+                  <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                  <p className="text-sm font-medium">{t("createFirst")}</p>
+                </span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-border dark:divide-neutral-800">
+            {paginated.map((test) => (
+              <div key={test.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_0.8fr_80px_80px] gap-2 md:gap-4 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer" onClick={() => setDetailTest(test)}>
+                <p className="text-xs text-text-secondary dark:text-neutral-400 font-mono">{formatDate(test.createdAt)}</p>
+                <p className="text-sm font-semibold text-black dark:text-white truncate">{offerName(test.offerId)}</p>
+                <p className="text-sm text-black dark:text-white truncate">{test.variantA}</p>
+                <p className="text-sm text-black dark:text-white truncate">{test.variantB}</p>
+                <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400 w-fit" style={{ borderRadius: 4 }}>{test.metric}</span>
+                <div className="flex items-center gap-1">
+                  <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold w-fit ${STATUS_STYLES[test.status] ?? STATUS_STYLES.DRAFT} ${test.status === "RUNNING" ? "animate-pulse" : ""}`} style={{ borderRadius: 4 }}>
+                    {t(`status.${test.status}`)}
+                  </span>
+                  {test.status === "COMPLETED" && test.winner && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" style={{ borderRadius: 4 }}>{test.winner}</span>
+                  )}
+                </div>
+                <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  {test.status === "DRAFT" && (
+                    <button onClick={() => handleStart(test)} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title={t("actions.start")}>
+                      <svg className="size-4 text-blue-600 dark:text-blue-400" viewBox="0 0 16 16" fill="none"><path d="M5 3l8 5-8 5V3z" fill="currentColor" /></svg>
+                    </button>
+                  )}
+                  {test.status === "RUNNING" && (
+                    <button onClick={() => { setCompleteTarget(test); setSelectedWinner("A"); }} className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title={t("actions.complete")}>
+                      <svg className="size-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </button>
+                  )}
+                  {(test.status === "DRAFT" || test.status === "RUNNING") && (
+                    <button onClick={() => handleCancel(test)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title={t("actions.cancel")}>
+                      <svg className="size-4 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/20">
+            <span className="text-xs text-text-secondary dark:text-neutral-500">
+              {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filtered.length)} / {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="size-8 rounded-lg flex items-center justify-center border border-border dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                <svg className="size-3.5 text-neutral-600 dark:text-neutral-300" viewBox="0 0 12 12" fill="none"><path d="M7.5 2.5L4 6l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button key={p} onClick={() => setPage(p)} className={`size-8 rounded-lg flex items-center justify-center text-xs font-medium transition-colors cursor-pointer ${page === p ? "bg-primary text-white" : "border border-border dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"}`}>{p}</button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="size-8 rounded-lg flex items-center justify-center border border-border dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                <svg className="size-3.5 text-neutral-600 dark:text-neutral-300" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ===== 4 FEATURE CARDS ===== */}
+      {tests.length === 0 && !loading && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { icon: "compare", title: t("features.compare"), desc: t("features.compareDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
+            { icon: "metrics", title: t("features.metrics"), desc: t("features.metricsDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
+            { icon: "winner", title: t("features.winner"), desc: t("features.winnerDesc"), color: "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30" },
+            { icon: "optimize", title: t("features.optimize"), desc: t("features.optimizeDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
+          ].map((f) => (
+            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-3">
+              <div className={`rounded-xl p-3 w-fit ${f.color}`}>
+                {f.icon === "compare" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="7" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" /><rect x="11" y="3" width="7" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M5.5 7h0M14.5 7h0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>}
+                {f.icon === "metrics" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M5 14l3-4 3 2 4-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                {f.icon === "winner" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><path d="M10 2l2 4h4l-3 3 1 5-4-2-4 2 1-5-3-3h4l2-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>}
+                {f.icon === "optimize" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M15 3l2 2M3 15l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ===== MODAL CRÉATION ===== */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
+              <h2 className="text-base font-bold text-black dark:text-white">{t("createTitle")}</h2>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreate}>
+              <div className="px-6 py-5 flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.offer")}</label>
+                  <select required value={form.offerId} onChange={(e) => setForm({ ...form, offerId: e.target.value })} className="input w-full h-10">
+                    <option value="">{t("form.selectOffer")}</option>
+                    {offers.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.variantA")}</label>
+                    <input required value={form.variantA} onChange={(e) => setForm({ ...form, variantA: e.target.value })} className="input w-full h-10" placeholder={t("form.variantAPlaceholder")} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.variantB")}</label>
+                    <input required value={form.variantB} onChange={(e) => setForm({ ...form, variantB: e.target.value })} className="input w-full h-10" placeholder={t("form.variantBPlaceholder")} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.metric")}</label>
+                  <input required value={form.metric} onChange={(e) => setForm({ ...form, metric: e.target.value })} className="input w-full h-10" placeholder={t("form.metricPlaceholder")} />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="tertiary-icon px-4 py-2 active-scale">
+                  <p className="text-sm font-medium">{tc("cancel")}</p>
+                </button>
+                <button type="submit" disabled={creating} className="primary-icon px-5 py-2 active-scale disabled:opacity-60">
+                  <span className="flex items-center gap-2">
+                    {creating && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                    <p className="text-sm font-medium">{creating ? tc("saving") : tc("save")}</p>
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL COMPLÉTER (choisir gagnant) ===== */}
+      {completeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setCompleteTarget(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="px-6 py-6 flex flex-col items-center gap-4 text-center">
+              <div className="size-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+                <svg className="size-7 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none"><path d="M12 2l3 6h6l-5 4 2 6-6-3-6 3 2-6-5-4h6l3-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-black dark:text-white">{t("completeTitle")}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1.5">{t("completeDescription")}</p>
+              </div>
+              <div className="flex gap-3 w-full">
+                <button type="button" onClick={() => setSelectedWinner("A")} className={`flex-1 p-4 rounded-xl border-2 transition-all cursor-pointer ${selectedWinner === "A" ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-border dark:border-neutral-700 hover:border-neutral-300"}`}>
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">A</p>
+                  <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 truncate">{completeTarget.variantA}</p>
+                </button>
+                <button type="button" onClick={() => setSelectedWinner("B")} className={`flex-1 p-4 rounded-xl border-2 transition-all cursor-pointer ${selectedWinner === "B" ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20" : "border-border dark:border-neutral-700 hover:border-neutral-300"}`}>
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">B</p>
+                  <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 truncate">{completeTarget.variantB}</p>
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => setCompleteTarget(null)} className="tertiary-icon px-4 py-2 active-scale"><p className="text-sm font-medium">{tc("cancel")}</p></button>
+              <button onClick={handleComplete} disabled={completing} className="primary-icon px-5 py-2 active-scale disabled:opacity-60">
+                <span className="flex items-center gap-2">
+                  {completing && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                  <p className="text-sm font-medium">{completing ? tc("saving") : t("actions.confirmWinner")}</p>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DÉTAIL ===== */}
+      {detailTest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setDetailTest(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <svg className="size-5" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="6" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><rect x="9" y="3" width="6" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" /></svg>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-black dark:text-white">{t("detailTitle")}</h2>
+                  <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLES[detailTest.status]}`} style={{ borderRadius: 4 }}>
+                    {t(`status.${detailTest.status}`)}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setDetailTest(null)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.offer")}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">{offerName(detailTest.offerId)}</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.metric")}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">{detailTest.metric}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`p-4 rounded-xl border-2 ${detailTest.winner === "A" ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-border dark:border-neutral-700"}`}>
+                  <p className="text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider mb-1">{t("form.variantA")}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">{detailTest.variantA}</p>
+                  {detailTest.winner === "A" && <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 mt-2" style={{ borderRadius: 4 }}>{t("winner")}</span>}
+                </div>
+                <div className={`p-4 rounded-xl border-2 ${detailTest.winner === "B" ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20" : "border-border dark:border-neutral-700"}`}>
+                  <p className="text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider mb-1">{t("form.variantB")}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">{detailTest.variantB}</p>
+                  {detailTest.winner === "B" && <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 mt-2" style={{ borderRadius: 4 }}>{t("winner")}</span>}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.test")}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(detailTest.createdAt)}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => setDetailTest(null)} className="tertiary-icon px-4 py-2 active-scale">
+                <p className="text-sm font-medium">{tc("close")}</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
