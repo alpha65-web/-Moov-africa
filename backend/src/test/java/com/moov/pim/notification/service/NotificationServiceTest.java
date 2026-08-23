@@ -60,14 +60,15 @@ class NotificationServiceTest {
     @Test
     void markAsRead_shouldSetReadTrue() {
         UUID notifId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
         Notification notification = new Notification(
-                UUID.randomUUID(), NotificationType.CAMPAIGN_READY, "Titre", "Msg", null);
+                userId, NotificationType.CAMPAIGN_READY, "Titre", "Msg", null);
         setField(notification, "id", notifId);
 
         when(notificationRepository.findById(notifId)).thenReturn(Optional.of(notification));
         when(notificationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        notificationService.markAsRead(notifId);
+        notificationService.markAsRead(notifId, userId);
 
         assertTrue(notification.isRead());
         verify(notificationRepository).save(notification);
@@ -76,9 +77,25 @@ class NotificationServiceTest {
     @Test
     void markAsRead_shouldThrowIfNotFound() {
         UUID fakeId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
         when(notificationRepository.findById(fakeId)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> notificationService.markAsRead(fakeId));
+        assertThrows(IllegalArgumentException.class, () -> notificationService.markAsRead(fakeId, userId));
+    }
+
+    @Test
+    void markAsRead_shouldThrowIfNotOwner() {
+        UUID notifId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID attackerId = UUID.randomUUID();
+        Notification notification = new Notification(
+                ownerId, NotificationType.CAMPAIGN_READY, "Titre", "Msg", null);
+        setField(notification, "id", notifId);
+
+        when(notificationRepository.findById(notifId)).thenReturn(Optional.of(notification));
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> notificationService.markAsRead(notifId, attackerId));
     }
 
     @Test
@@ -100,12 +117,33 @@ class NotificationServiceTest {
     }
 
     @Test
-    void delete_shouldCallDeleteById() {
+    void delete_shouldDeleteOwnNotification() {
         UUID notifId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Notification notification = new Notification(
+                userId, NotificationType.CAMPAIGN_READY, "T", "M", null);
+        setField(notification, "id", notifId);
 
-        notificationService.delete(notifId);
+        when(notificationRepository.findById(notifId)).thenReturn(Optional.of(notification));
 
-        verify(notificationRepository).deleteById(notifId);
+        notificationService.delete(notifId, userId);
+
+        verify(notificationRepository).delete(notification);
+    }
+
+    @Test
+    void delete_shouldThrowIfNotOwner() {
+        UUID notifId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID attackerId = UUID.randomUUID();
+        Notification notification = new Notification(
+                ownerId, NotificationType.CAMPAIGN_READY, "T", "M", null);
+        setField(notification, "id", notifId);
+
+        when(notificationRepository.findById(notifId)).thenReturn(Optional.of(notification));
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> notificationService.delete(notifId, attackerId));
     }
 
     private static void setField(Object target, String fieldName, Object value) {

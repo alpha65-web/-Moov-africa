@@ -29,7 +29,9 @@ public class ClamAvScanService {
 
     public ScanResult scan(InputStream inputStream) {
         if (!enabled) {
-            return new ScanResult(true, "AV scanning disabled");
+            log.warn("SECURITY: ClamAV is disabled — file accepted WITHOUT antivirus scan. "
+                    + "Set PIM_CLAMAV_ENABLED=true in production.");
+            return new ScanResult(true, "AV scanning disabled (dev mode)");
         }
 
         try (Socket socket = new Socket(clamavHost, clamavPort)) {

@@ -7,13 +7,25 @@ import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class RateLimitFilterTest {
 
-    private final RateLimitFilter filter = new RateLimitFilter();
+    private final RateLimitFilter filter = createFilter();
+
+    private static RateLimitFilter createFilter() {
+        RateLimitFilter f = new RateLimitFilter();
+        try {
+            Field tp = RateLimitFilter.class.getDeclaredField("trustedProxies");
+            tp.setAccessible(true);
+            tp.set(f, "");
+        } catch (Exception ignored) {}
+        f.init();
+        return f;
+    }
 
     @Test
     void doFilter_shouldPassStaticPaths() throws Exception {
@@ -57,7 +69,7 @@ class RateLimitFilterTest {
 
         filter.doFilterInternal(request, response, chain);
 
-        verify(response).setHeader(eq("X-RateLimit-Limit"), eq("10"));
+        verify(response).setHeader(eq("X-RateLimit-Limit"), eq("5"));
     }
 
     @Test
@@ -70,7 +82,7 @@ class RateLimitFilterTest {
         when(request.getRemoteAddr()).thenReturn("1.2.3.4");
         when(request.getHeader("X-Forwarded-For")).thenReturn(null);
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
             var resp = mock(HttpServletResponse.class);
             filter.doFilterInternal(request, resp, chain);
         }

@@ -53,7 +53,7 @@ pim:
   jwt:
     secret: ${JWT_SECRET}
     access-token-expiration: 900000
-    refresh-token-expiration: 604800000
+    refresh-token-expiration: 86400000
   minio:
     endpoint: ${PIM_MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY}
@@ -66,7 +66,7 @@ pim:
   clamav:
     host: ${PIM_CLAMAV_HOST:clamav}
     port: ${PIM_CLAMAV_PORT:3310}
-    enabled: ${PIM_CLAMAV_ENABLED:false}
+    enabled: ${PIM_CLAMAV_ENABLED:true}
   encryption:
     key: ${PIM_ENCRYPTION_KEY:}
   dlp:
@@ -87,6 +87,11 @@ pim:
     master-key-max-age-days: ${PIM_KEY_ROTATION_MASTER_DAYS:365}
   certificate-monitor:
     endpoints: ${PIM_CERT_MONITOR_ENDPOINTS:}
+  ai:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${PIM_AI_MODEL:claude-sonnet-4-20250514}
+    max-tokens: ${PIM_AI_MAX_TOKENS:4096}
+    daily-limit-per-user: ${PIM_AI_DAILY_LIMIT:50}
 
 management:
   endpoints:

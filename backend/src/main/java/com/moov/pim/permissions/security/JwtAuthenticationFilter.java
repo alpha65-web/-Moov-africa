@@ -52,8 +52,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
+            boolean isSseStream = request.getServletPath().endsWith("/notifications/stream");
             String expectedFpHash = jwtTokenProvider.getFingerprintHashFromToken(token);
-            if (expectedFpHash != null) {
+            if (expectedFpHash != null && !isSseStream) {
                 String fingerprint = extractFingerprint(request);
                 if (fingerprint == null || !expectedFpHash.equals(JwtTokenProvider.hashToken(fingerprint))) {
                     response.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -98,6 +99,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7);
+        }
+        String queryToken = request.getParameter("token");
+        if (queryToken != null && !queryToken.isBlank()
+                && request.getServletPath().endsWith("/notifications/stream")) {
+            return queryToken;
         }
         return null;
     }

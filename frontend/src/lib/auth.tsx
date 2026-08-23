@@ -14,7 +14,7 @@ import type { User } from "./types";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -38,21 +38,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const { data } = await api.post("/auth/login", { email, password });
+  const login = async (email: string, password: string, totpCode?: string) => {
+    const body: Record<string, string> = { email, password };
+    if (totpCode) body.totpCode = totpCode;
+    const { data } = await api.post("/auth/login", body);
     localStorage.setItem("accessToken", data.accessToken);
     localStorage.setItem("refreshToken", data.refreshToken);
     if (data.fingerprint) {
       localStorage.setItem("fingerprint", data.fingerprint);
     }
     localStorage.setItem("user", JSON.stringify(data.user));
+    document.cookie = "pim-session=1; path=/; max-age=86400; SameSite=Lax";
     setUser(data.user);
   };
 
-  const logout = () => {
-    localStorage.clear();
-    setUser(null);
-    router.push("/login");
+  const logout = async () => {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        await api.post("/auth/logout", { refreshToken });
+      }
+    } catch {
+      // ignore
+    } finally {
+      localStorage.clear();
+      document.cookie = "pim-session=; path=/; max-age=0";
+      setUser(null);
+      router.push("/login");
+    }
   };
 
   return (

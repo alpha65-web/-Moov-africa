@@ -88,7 +88,8 @@ public class SecurityConfig {
                 if (swaggerEnabled) {
                     auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll();
                 }
-                auth.requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll();
+                auth.requestMatchers("/actuator/health").permitAll();
+                auth.requestMatchers("/actuator/info", "/actuator/prometheus").hasRole("ADMIN_SYSTEME");
                 auth.anyRequest().authenticated();
             })
             .exceptionHandling(ex -> ex

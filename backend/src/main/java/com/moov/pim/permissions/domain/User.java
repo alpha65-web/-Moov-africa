@@ -72,6 +72,9 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "avatar_key", length = 500)
+    private String avatarKey;
+
     @Column(name = "anonymized_at")
     private LocalDateTime anonymizedAt;
 
@@ -130,6 +133,8 @@ public class User {
     public void setTotpEnabled(boolean totpEnabled) { this.totpEnabled = totpEnabled; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public String getAvatarKey() { return avatarKey; }
+    public void setAvatarKey(String avatarKey) { this.avatarKey = avatarKey; }
     public LocalDateTime getAnonymizedAt() { return anonymizedAt; }
     public void setAnonymizedAt(LocalDateTime anonymizedAt) { this.anonymizedAt = anonymizedAt; }
 }

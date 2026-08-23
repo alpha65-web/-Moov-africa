@@ -151,10 +151,30 @@ public class OfferService {
 
     @Transactional(readOnly = true)
     public Page<OfferResponse> search(OfferStatus status, String search, Pageable pageable) {
+        Page<Offer> page;
         if (isAdmin()) {
-            return offerRepository.search(status, search, pageable).map(OfferResponse::from);
+            if (status != null && search != null) {
+                page = offerRepository.searchWithStatusAndText(status, search, pageable);
+            } else if (status != null) {
+                page = offerRepository.findByStatus(status, pageable);
+            } else if (search != null) {
+                page = offerRepository.searchByText(search, pageable);
+            } else {
+                page = offerRepository.findAll(pageable);
+            }
+        } else {
+            UUID userId = currentUserId();
+            if (status != null && search != null) {
+                page = offerRepository.searchByOwnerWithStatusAndText(status, search, userId, pageable);
+            } else if (status != null) {
+                page = offerRepository.findByStatusAndCreatedById(status, userId, pageable);
+            } else if (search != null) {
+                page = offerRepository.searchByOwnerWithText(search, userId, pageable);
+            } else {
+                page = offerRepository.findByCreatedById(userId, pageable);
+            }
         }
-        return offerRepository.searchByOwner(status, search, currentUserId(), pageable).map(OfferResponse::from);
+        return page.map(OfferResponse::from);
     }
 
     @Transactional(readOnly = true)

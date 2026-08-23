@@ -7,11 +7,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,11 +36,14 @@ class NotificationControllerTest {
     @Test
     void markAsRead_shouldReturn204() {
         UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        var principal = mock(CustomUserDetails.class);
+        when(principal.getUserId()).thenReturn(userId);
 
-        var result = controller.markAsRead(id);
+        var result = controller.markAsRead(id, principal);
 
         assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
-        verify(notificationService).markAsRead(id);
+        verify(notificationService).markAsRead(id, userId);
     }
 
     @Test
@@ -61,10 +61,13 @@ class NotificationControllerTest {
     @Test
     void delete_shouldReturn204() {
         UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        var principal = mock(CustomUserDetails.class);
+        when(principal.getUserId()).thenReturn(userId);
 
-        var result = controller.delete(id);
+        var result = controller.delete(id, principal);
 
         assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
-        verify(notificationService).delete(id);
+        verify(notificationService).delete(id, userId);
     }
 }

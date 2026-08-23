@@ -18,7 +18,7 @@ class ClamAvScanServiceTest {
                 new ByteArrayInputStream("test content".getBytes()));
 
         assertTrue(result.clean());
-        assertEquals("AV scanning disabled", result.message());
+        assertEquals("AV scanning disabled (dev mode)", result.message());
     }
 
     @Test

@@ -98,7 +98,6 @@ class MediaAssetServiceTest {
         MultipartFile file = mock(MultipartFile.class);
         when(file.isEmpty()).thenReturn(false);
         when(file.getOriginalFilename()).thenReturn("doc.txt");
-        when(file.getContentType()).thenReturn("text/plain");
         when(file.getInputStream()).thenReturn(new ByteArrayInputStream("content".getBytes()));
 
         assertThrows(IllegalArgumentException.class, () -> mediaAssetService.upload(file));

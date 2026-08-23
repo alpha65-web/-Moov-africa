@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -33,9 +33,19 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
+function ShieldIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <path d="M12 2l8 4v6c0 5.5-3.8 9.7-8 11-4.2-1.3-8-5.5-8-11V6l8-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,8 +54,11 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
+  const [mfaStep, setMfaStep] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
 
   const lottieRef = useRef<HTMLDivElement>(null);
+  const totpInputRef = useRef<HTMLInputElement>(null);
 
   const playLottie = async (path: string) => {
     if (!lottieRef.current) return;
@@ -65,13 +78,51 @@ export default function LoginPage() {
     }
   };
 
+  useEffect(() => {
+    if (mfaStep && totpInputRef.current) {
+      totpInputRef.current.focus();
+    }
+  }, [mfaStep]);
+
   const emailEmpty = touched.email && email.trim() === "";
   const passwordEmpty = touched.password && password.trim() === "";
 
+  const handleLoginSuccess = () => {
+    setSuccess(true);
+    playLottie("/lottie/success.json");
+    const redirectTo = searchParams.get("from") || "/";
+    setTimeout(() => router.push(redirectTo), 1200);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ email: true, password: true });
 
+    if (mfaStep) {
+      if (!totpCode.trim() || totpCode.length !== 6) {
+        setError(t("totpRequired"));
+        return;
+      }
+      if (loading) return;
+      setError(null);
+      setLoading(true);
+      try {
+        await login(email, password, totpCode);
+        handleLoginSuccess();
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+        if (axiosErr.response?.data?.message === "Code MFA invalide") {
+          setError(t("totpInvalid"));
+        } else {
+          setError(t("errorServer"));
+        }
+        setTotpCode("");
+        playLottie("/lottie/error.json");
+        setLoading(false);
+      }
+      return;
+    }
+
+    setTouched({ email: true, password: true });
     if (!email.trim() || !password.trim()) return;
     if (loading) return;
 
@@ -80,26 +131,39 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      setSuccess(true);
-      playLottie("/lottie/success.json");
-      setTimeout(() => router.push("/"), 1200);
+      handleLoginSuccess();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
       const status = axiosErr.response?.status;
+      const message = axiosErr.response?.data?.message;
+
+      if (status === 403 && message === "MFA_REQUIRED") {
+        setMfaStep(true);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
       if (status === 401) {
         setError(t("errorAuth"));
       } else if (status === 423) {
         setError(t("errorLocked"));
       } else if (status === 403) {
         setError(t("errorForbidden"));
-      } else if (axiosErr.response?.data?.message) {
-        setError(axiosErr.response.data.message);
+      } else if (message) {
+        setError(message);
       } else {
         setError(t("errorServer"));
       }
       playLottie("/lottie/error.json");
       setLoading(false);
     }
+  };
+
+  const handleBackToLogin = () => {
+    setMfaStep(false);
+    setTotpCode("");
+    setError(null);
   };
 
   const emailRef = useRef<HTMLInputElement>(null);
@@ -113,7 +177,7 @@ export default function LoginPage() {
       noValidate
       className="relative z-30 flex flex-col w-full mx-4 sm:mx-0 my-auto max-w-[420px] lg:max-w-[380px] overflow-hidden bg-white dark:bg-neutral-900 border rounded-2xl border-border dark:border-neutral-700 shadow-lg"
     >
-      {/* ===== EN-TÊTE ===== */}
+      {/* ===== EN-TETE ===== */}
       <div className="flex flex-col items-center gap-4 px-6 sm:px-8 pt-6 sm:pt-8 pb-2">
         <div className="flex items-center justify-center">
           <Image
@@ -134,10 +198,10 @@ export default function LoginPage() {
 
         <div className="flex flex-col items-center gap-1">
           <h1 className="text-lg sm:text-xl font-bold text-secondary dark:text-white tracking-tight">
-            {success ? t("successTitle") : t("heading")}
+            {success ? t("successTitle") : mfaStep ? t("totpTitle") : t("heading")}
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary dark:text-neutral-400 text-center leading-relaxed">
-            {success ? t("successSubtitle") : t("subtitle")}
+            {success ? t("successSubtitle") : mfaStep ? t("totpSubtitle") : t("subtitle")}
           </p>
         </div>
 
@@ -152,8 +216,73 @@ export default function LoginPage() {
         />
       </div>
 
+      {/* ===== MFA STEP ===== */}
+      {!success && mfaStep && (
+        <div className="flex flex-col gap-3.5 px-6 sm:px-8 pb-6 sm:pb-8">
+          <div className="flex flex-col items-center gap-3">
+            <div className="size-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+              <ShieldIcon className="size-6 text-blue-500" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-text-secondary dark:text-neutral-400 text-center">
+              {t("totpLabel")}
+            </label>
+            <input
+              ref={totpInputRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={totpCode}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setTotpCode(v);
+              }}
+              placeholder={t("totpPlaceholder")}
+              autoComplete="one-time-code"
+              className="input w-full h-12 text-center text-lg tracking-[0.3em] font-semibold tabular-nums"
+            />
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-danger/5 border border-danger/20">
+              <svg className="w-4 h-4 text-danger shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M8 4.5v4M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <p className="text-xs text-danger font-medium leading-relaxed">{error}</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || totpCode.length !== 6}
+            className="primary-icon w-full h-10 active-scale disabled:opacity-60 disabled:cursor-not-allowed mt-1"
+          >
+            <span className="flex items-center justify-center gap-2 w-full">
+              {loading && (
+                <LoaderIcon className="w-4 h-4 text-white animate-spin" />
+              )}
+              <p className="whitespace-nowrap text-sm font-medium">
+                {loading ? t("submitting") : t("totpSubmit")}
+              </p>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors text-center py-1"
+          >
+            {t("totpBack")}
+          </button>
+        </div>
+      )}
+
       {/* ===== FORMULAIRE ===== */}
-      {!success && (
+      {!success && !mfaStep && (
         <div className="flex flex-col gap-3.5 px-6 sm:px-8 pb-6 sm:pb-8">
           {/* Email */}
           <div className="flex flex-col gap-1.5">
