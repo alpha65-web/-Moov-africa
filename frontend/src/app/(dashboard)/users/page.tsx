@@ -59,7 +59,7 @@ const EMPTY_FORM = {
   lastName: "",
   phone: "",
   pseudo: "",
-  gender: "",
+  sex: "",
   address: "",
   roleName: "CHEF_PRODUIT",
 };
@@ -286,7 +286,7 @@ export default function UsersPage() {
         email: form.email,
         firstName: form.firstName,
         lastName: form.lastName,
-        gender: form.gender || null,
+        sex: form.sex || null,
         phone: form.phone || null,
         pseudo: form.pseudo || null,
         avatarUrl: avatarPreview,
@@ -316,7 +316,7 @@ export default function UsersPage() {
       lastName: user.lastName,
       phone: user.phone || "",
       pseudo: user.pseudo || "",
-      gender: user.gender || "",
+      sex: user.sex || "",
       address: "",
       roleName: user.role,
     });
@@ -332,15 +332,11 @@ export default function UsersPage() {
     setCreating(true);
     try {
       const payload: Record<string, string> = {
-        email: form.email,
         firstName: form.firstName,
         lastName: form.lastName,
-        phone: form.phone,
-        pseudo: form.pseudo,
-        gender: form.gender,
+        sex: form.sex,
         roleName: form.roleName,
       };
-      if (form.password) payload.password = form.password;
       await api.put(`/users/${editingUser.id}`, payload);
       if (avatarFile) {
         const fd = new FormData();
@@ -402,7 +398,7 @@ export default function UsersPage() {
   return (
     <div className="max-w-7xl">
       {/* ===== EN-TÊTE ===== */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between animate-enter-up stagger-1">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-secondary dark:text-white">
             Gestion des utilisateurs
@@ -444,7 +440,7 @@ export default function UsersPage() {
       </div>
 
       {/* ===== FILTRES ===== */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3 animate-enter-up stagger-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
@@ -481,7 +477,7 @@ export default function UsersPage() {
       </div>
 
       {/* ===== TABLEAU ===== */}
-      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden animate-enter-up stagger-3">
         <div className="grid grid-cols-[48px_1fr_1fr_80px_1.3fr_150px_100px_100px] gap-3 px-6 py-3 border-b border-blue-600 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
           <span className="text-xs font-semibold uppercase tracking-wider text-white">Profil</span>
           <span className="text-xs font-semibold uppercase tracking-wider text-white">Nom</span>
@@ -539,7 +535,7 @@ export default function UsersPage() {
 
                 {/* Sexe */}
                 <span className="text-xs font-bold text-black dark:text-white">
-                  {GENDER_LABELS[u.gender || ""] || ""}
+                  {GENDER_LABELS[u.sex || ""] || ""}
                 </span>
 
                 {/* Email */}
@@ -572,7 +568,7 @@ export default function UsersPage() {
 
                   {openMenuId === u.id && (
                     <div
-                      className="absolute right-0 bottom-8 z-40 bg-white dark:bg-neutral-800 border-2 border-black dark:border-white shadow-[0_4px_16px_rgba(0,0,0,0.25)] p-1.5 flex gap-1" style={{ borderRadius: 6, width: "auto" }}
+                      className="absolute right-0 bottom-8 z-40 bg-white dark:bg-neutral-800 border-2 border-black dark:border-white shadow-[0_4px_16px_rgba(0,0,0,0.25)] p-1.5 flex gap-1 animate-enter-scale" style={{ borderRadius: 6, width: "auto" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
@@ -638,12 +634,12 @@ export default function UsersPage() {
       {/* ===== MODAL CRÉATION / ÉDITION ===== */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}
         >
           <div
             ref={modalRef}
-            className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden"
+            className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden animate-modal"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
@@ -752,8 +748,8 @@ export default function UsersPage() {
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Sexe</label>
                       <select
-                        value={form.gender}
-                        onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                        value={form.sex}
+                        onChange={(e) => setForm({ ...form, sex: e.target.value })}
                         className="input w-full h-9"
                       >
                         <option value="">Sélectionner</option>
@@ -982,10 +978,10 @@ export default function UsersPage() {
       {/* ===== MODAL DÉTAIL UTILISATEUR ===== */}
       {detailUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) setDetailUser(null); }}
         >
-          <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden">
+          <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden animate-modal">
             <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
               <h2 className="text-base font-bold text-secondary dark:text-white">Profil utilisateur</h2>
               <button
@@ -1022,7 +1018,7 @@ export default function UsersPage() {
             </div>
             <div className="px-5 pb-5 grid grid-cols-2 gap-3">
               {[
-                { label: "Sexe", value: GENDER_LABELS[detailUser.gender || ""] || "Non renseigné" },
+                { label: "Sexe", value: GENDER_LABELS[detailUser.sex || ""] || "Non renseigné" },
                 { label: "Téléphone", value: detailUser.phone || "Non renseigné" },
                 { label: "Pseudo", value: detailUser.pseudo || "Non renseigné" },
                 { label: "Dernière connexion", value: formatDate(detailUser.lastLoginAt) },
@@ -1055,10 +1051,10 @@ export default function UsersPage() {
       {/* ===== MODAL CONFIRMATION SUPPRESSION ===== */}
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) setDeleteTarget(null); }}
         >
-          <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden">
+          <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden animate-modal">
             <div className="px-5 py-5 flex flex-col items-center gap-3 text-center">
               <div className="size-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                 <svg className="size-6 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
@@ -1092,10 +1088,10 @@ export default function UsersPage() {
       {/* ===== MODAL BROUILLONS ===== */}
       {showDrafts && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) setShowDrafts(false); }}
         >
-          <div className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden">
+          <div className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-700 shadow-2xl overflow-hidden animate-modal">
             <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
               <div>
                 <h2 className="text-base font-bold text-secondary dark:text-white">Brouillons</h2>

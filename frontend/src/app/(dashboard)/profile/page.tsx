@@ -102,7 +102,7 @@ export default function ProfilePage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 animate-enter-up stagger-1">
         <div className="flex items-center justify-center size-16 rounded-2xl bg-primary text-white text-2xl font-bold">
           {user.firstName?.[0]}{user.lastName?.[0]}
         </div>
@@ -117,7 +117,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit">
+      <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit animate-enter-up stagger-2">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -135,7 +135,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Content */}
-      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden animate-enter-up stagger-3">
         {tab === "info" && (
           <div className="p-6">
             <h2 className="text-lg font-bold text-black dark:text-white mb-6">Informations personnelles</h2>

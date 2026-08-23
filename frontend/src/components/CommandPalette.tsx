@@ -82,7 +82,8 @@ export default function CommandPalette() {
           api.get("/catalog").catch(() => ({ data: [] })),
         ]).then(([offersRes, catalogRes]) => {
           setOffers(offersRes.data.content ?? offersRes.data ?? []);
-          setCatalogItems(Array.isArray(catalogRes.data) ? catalogRes.data : []);
+          const catData = catalogRes.data.content ?? catalogRes.data;
+          setCatalogItems(Array.isArray(catData) ? catData : []);
           setLoaded(true);
         });
       }

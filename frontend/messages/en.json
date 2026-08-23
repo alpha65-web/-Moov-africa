@@ -67,6 +67,7 @@
     "rules": "Business Rules",
     "users": "Users",
     "notifications": "Notifications",
+    "ai": "AI Assistant",
     "audit": "Audit",
     "settings": "Settings",
     "theme": "Theme",
@@ -568,6 +569,109 @@
       "invalidCode": "Invalid code"
     }
   },
+  "ai": {
+    "title": "AI Assistant",
+    "subtitle": "Assist your offers with artificial intelligence",
+    "tabs": {
+      "generate": "Generate",
+      "quality": "Quality",
+      "pricing": "Pricing",
+      "anomalies": "Anomalies",
+      "translate": "Translate",
+      "usage": "Usage"
+    },
+    "generate": {
+      "title": "Content Generation",
+      "description": "Automatically generate descriptions, SEO and legal mentions for your offers.",
+      "selectOffer": "Select an offer",
+      "tone": "Tone",
+      "tones": {
+        "professionnel": "Professional",
+        "commercial": "Commercial",
+        "jeune": "Young and dynamic",
+        "premium": "Premium"
+      },
+      "audience": "Target audience",
+      "language": "Language",
+      "submit": "Generate content",
+      "generating": "Generating...",
+      "applyTitle": "Apply",
+      "applyDescription": "Apply this content to the offer",
+      "applied": "Content applied successfully",
+      "result": "Generated content"
+    },
+    "quality": {
+      "title": "Quality Score",
+      "description": "Evaluate the completeness and quality of your offer sheets.",
+      "selectOffer": "Select an offer",
+      "submit": "Analyze quality",
+      "analyzing": "Analyzing...",
+      "overallScore": "Overall score",
+      "grade": "Grade",
+      "criteria": "Criteria",
+      "suggestions": "Improvement suggestions"
+    },
+    "pricing": {
+      "title": "Pricing Suggestion",
+      "description": "Get pricing recommendations based on the West African telecom market.",
+      "selectOffer": "Select an offer",
+      "submit": "Analyze pricing",
+      "analyzing": "Analyzing...",
+      "suggestedPrice": "Suggested price",
+      "priceRange": "Price range",
+      "rationale": "Rationale",
+      "pricePoints": "Price points"
+    },
+    "anomalies": {
+      "title": "Anomaly Detection",
+      "description": "Detect inconsistencies, duplicates and abnormal prices in your catalog.",
+      "submit": "Run detection",
+      "detecting": "Detecting...",
+      "totalChecked": "Offers analyzed",
+      "anomalyCount": "Anomalies detected",
+      "noAnomalies": "No anomalies detected",
+      "severity": {
+        "CRITICAL": "Critical",
+        "HIGH": "High",
+        "MEDIUM": "Medium",
+        "LOW": "Low"
+      }
+    },
+    "translate": {
+      "title": "Translation",
+      "description": "Translate your offer content into other languages.",
+      "selectOffer": "Select an offer",
+      "targetLanguage": "Target language",
+      "languages": {
+        "en": "English",
+        "ar": "Arabic",
+        "de": "German",
+        "es": "Spanish",
+        "pt": "Portuguese",
+        "sw": "Swahili"
+      },
+      "submit": "Translate",
+      "translating": "Translating...",
+      "result": "Translation result"
+    },
+    "usage": {
+      "title": "AI Usage",
+      "description": "AI module usage statistics.",
+      "totalRequests": "Total requests",
+      "successRate": "Success rate",
+      "totalTokens": "Tokens used",
+      "avgLatency": "Average latency",
+      "byTask": "By task type",
+      "byDay": "By day"
+    },
+    "errors": {
+      "noOffer": "Please select an offer",
+      "failed": "AI call failed",
+      "dailyLimit": "Daily limit reached"
+    },
+    "chatBanner": "Chat with AI",
+    "chatBannerSub": "Ask your questions by text or voice"
+  },
   "login": {
     "title": "Login",
     "heading": "PIM Moov Africa",
@@ -585,13 +689,38 @@
     "errorAuth": "Incorrect email address or password.",
     "errorLocked": "Account locked. Contact your administrator.",
     "errorForbidden": "Access denied. Check your permissions.",
-    "errorServer": "Unable to reach the server. Make sure the backend is running."
+    "errorServer": "Unable to reach the server. Make sure the backend is running.",
+    "totpTitle": "Two-step verification",
+    "totpSubtitle": "Enter the code from your authenticator app.",
+    "totpPlaceholder": "000000",
+    "totpRequired": "The 6-digit code is required.",
+    "totpInvalid": "Invalid MFA code. Try again.",
+    "totpBack": "Back",
+    "totpSubmit": "Verify",
+    "totpLabel": "Authentication code"
   },
   "notFound": {
     "title": "404",
     "message": "This page does not exist or has been moved.",
     "dashboard": "Dashboard",
     "login": "Log in"
+  },
+  "aiChat": {
+    "title": "AI Chat",
+    "subtitle": "Chat with Moov Africa's AI assistant",
+    "placeholder": "Type your message...",
+    "send": "Send",
+    "newConversation": "New conversation",
+    "clearConfirm": "Do you want to clear the conversation history?",
+    "emptyTitle": "Welcome to AI Chat",
+    "emptySubtitle": "Ask about offers, catalog, marketing strategies, or telecom market analysis.",
+    "recording": "Listening...",
+    "micUnsupported": "Speech recognition not supported by this browser",
+    "thinking": "Thinking...",
+    "errorSend": "Error sending message",
+    "voiceInput": "Voice input",
+    "playAudio": "Listen",
+    "stopAudio": "Stop"
   },
   "language": {
     "title": "Language",

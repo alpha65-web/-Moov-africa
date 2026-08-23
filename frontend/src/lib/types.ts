@@ -3,10 +3,10 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  gender: string | null;
-  phone: string | null;
-  pseudo: string | null;
-  avatarUrl: string | null;
+  sex: string | null;
+  phone?: string | null;
+  pseudo?: string | null;
+  avatarUrl?: string | null;
   role: string;
   status: string;
   forcePasswordChange: boolean;

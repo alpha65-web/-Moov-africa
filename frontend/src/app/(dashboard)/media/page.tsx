@@ -170,7 +170,7 @@ export default function MediaPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-enter-up stagger-1">
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-white">Médiathèque</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
@@ -212,7 +212,7 @@ export default function MediaPage() {
       </div>
 
       {/* Recherche + Filtre */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 animate-enter-up stagger-2">
         <div className="relative flex-1 max-w-sm">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
@@ -238,7 +238,7 @@ export default function MediaPage() {
       </div>
 
       {/* Tableau */}
-      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden animate-enter-up stagger-3">
         <div className="grid grid-cols-[1.5fr_80px_80px_60px_100px_100px_80px] gap-3 px-6 py-3 border-b border-blue-600 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
           <span className="text-xs font-semibold uppercase tracking-wider text-white">Fichier</span>
           <span className="text-xs font-semibold uppercase tracking-wider text-white">Type</span>
@@ -319,7 +319,7 @@ export default function MediaPage() {
 
                   {openMenuId === m.id && (
                     <div
-                      className="absolute right-0 bottom-8 z-40 bg-white dark:bg-neutral-800 border-2 border-black dark:border-white shadow-[0_4px_16px_rgba(0,0,0,0.25)] p-1.5 flex gap-1"
+                      className="absolute right-0 bottom-8 z-40 bg-white dark:bg-neutral-800 border-2 border-black dark:border-white shadow-[0_4px_16px_rgba(0,0,0,0.25)] p-1.5 flex gap-1 animate-enter-scale"
                       style={{ borderRadius: 6 }}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -378,10 +378,10 @@ export default function MediaPage() {
       {/* ===== MODAL DÉTAIL ===== */}
       {detailMedia && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) setDetailMedia(null); }}
         >
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-modal">
             <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
               <h2 className="text-base font-bold text-black dark:text-white">Détails du média</h2>
               <button
@@ -464,10 +464,10 @@ export default function MediaPage() {
       {/* ===== MODAL SUPPRESSION ===== */}
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) setDeleteTarget(null); }}
         >
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-modal">
             <div className="px-5 py-5 flex flex-col items-center gap-3 text-center">
               <div className="size-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
                 <svg className="size-6 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useTranslations } from "next-intl";
+import { useNotifications } from "@/lib/notifications";
 
 /* ===== ICÔNES SVG CUSTOM ===== */
 
@@ -95,6 +96,17 @@ function AuditIcon({ className }: { className?: string }) {
   );
 }
 
+function AiIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M10 2a8 8 0 100 16 8 8 0 000-16z" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 8h.01M13 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7 12c1 1.5 5 1.5 6 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M10 2V0M15 4l1.5-1.5M18 10h2M15 16l1.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function SettingsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none">
@@ -119,6 +131,7 @@ const NAV_ITEMS = [
   { href: "/campaigns", key: "campaigns", icon: CampaignIcon },
   { href: "/media", key: "media", icon: MediaIcon },
   { href: "/rules", key: "rules", icon: RulesIcon },
+  { href: "/ai", key: "ai", icon: AiIcon },
   { href: "/users", key: "users", icon: UsersIcon },
   { href: "/notifications", key: "notifications", icon: BellIcon },
   { href: "/audit", key: "audit", icon: AuditIcon },
@@ -130,6 +143,7 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const t = useTranslations("sidebar");
   const tu = useTranslations("users.roles");
+  const { unreadCount } = useNotifications();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-dvh w-[260px] flex-col border-r border-border dark:border-neutral-800 bg-white dark:bg-neutral-900">
@@ -163,14 +177,19 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                  className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ease-out ${
                     active
                       ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light"
-                      : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                      : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:translate-x-0.5"
                   }`}
                 >
-                  <item.icon className="size-[18px] shrink-0" />
+                  <item.icon className={`size-[18px] shrink-0 transition-transform duration-200 ${active ? "" : "group-hover:scale-110"}`} />
                   {t(item.key)}
+                  {item.key === "notifications" && unreadCount > 0 && (
+                    <span className="ml-auto min-w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

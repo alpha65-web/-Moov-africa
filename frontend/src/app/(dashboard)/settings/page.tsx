@@ -144,7 +144,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit">
+      <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 dark:bg-neutral-800/50 border border-border dark:border-neutral-800 w-fit animate-enter-up stagger-1">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -169,7 +169,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Content */}
-      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden animate-enter-up stagger-2">
         {tab === "appearance" && (
           <div>
             <div className="flex items-center justify-between px-6 py-3 border-b border-primary bg-primary dark:bg-primary rounded-t-2xl">

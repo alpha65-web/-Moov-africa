@@ -104,7 +104,7 @@ export default function AppBar() {
 
           {/* Dropdown menu */}
           {profileOpen && (
-            <div className="absolute right-0 top-full mt-1.5 w-56 rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200/80 dark:ring-white/[0.08] shadow-lg overflow-hidden animate-fade-in">
+            <div className="absolute right-0 top-full mt-1.5 w-56 rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200/80 dark:ring-white/[0.08] shadow-lg overflow-hidden animate-enter-scale">
               {/* User info */}
               <div className="px-4 py-3 border-b border-neutral-100 dark:border-white/[0.06]">
                 <p className="text-[13px] font-semibold text-neutral-900 dark:text-white truncate">

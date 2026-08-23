@@ -67,6 +67,7 @@
     "rules": "Règles métier",
     "users": "Utilisateurs",
     "notifications": "Notifications",
+    "ai": "Intelligence IA",
     "audit": "Audit",
     "settings": "Paramètres",
     "theme": "Thème",
@@ -568,6 +569,109 @@
       "invalidCode": "Code invalide"
     }
   },
+  "ai": {
+    "title": "Intelligence IA",
+    "subtitle": "Assistez vos offres avec l'intelligence artificielle",
+    "tabs": {
+      "generate": "Generer",
+      "quality": "Qualite",
+      "pricing": "Tarification",
+      "anomalies": "Anomalies",
+      "translate": "Traduire",
+      "usage": "Utilisation"
+    },
+    "generate": {
+      "title": "Generation de contenu",
+      "description": "Generez automatiquement les descriptions, SEO et mentions legales pour vos offres.",
+      "selectOffer": "Selectionner une offre",
+      "tone": "Ton",
+      "tones": {
+        "professionnel": "Professionnel",
+        "commercial": "Commercial",
+        "jeune": "Jeune et dynamique",
+        "premium": "Premium"
+      },
+      "audience": "Public cible",
+      "language": "Langue",
+      "submit": "Generer le contenu",
+      "generating": "Generation en cours...",
+      "applyTitle": "Appliquer",
+      "applyDescription": "Appliquer ce contenu a l'offre",
+      "applied": "Contenu applique avec succes",
+      "result": "Contenu genere"
+    },
+    "quality": {
+      "title": "Score qualite",
+      "description": "Evaluez la completude et la qualite de vos fiches offres.",
+      "selectOffer": "Selectionner une offre",
+      "submit": "Analyser la qualite",
+      "analyzing": "Analyse en cours...",
+      "overallScore": "Score global",
+      "grade": "Note",
+      "criteria": "Criteres",
+      "suggestions": "Suggestions d'amelioration"
+    },
+    "pricing": {
+      "title": "Suggestion tarifaire",
+      "description": "Obtenez des recommandations de prix basees sur le marche telecom ouest-africain.",
+      "selectOffer": "Selectionner une offre",
+      "submit": "Analyser le prix",
+      "analyzing": "Analyse en cours...",
+      "suggestedPrice": "Prix suggere",
+      "priceRange": "Fourchette de prix",
+      "rationale": "Justification",
+      "pricePoints": "Points de prix"
+    },
+    "anomalies": {
+      "title": "Detection d'anomalies",
+      "description": "Detectez les incoherences, doublons et prix aberrants dans votre catalogue.",
+      "submit": "Lancer la detection",
+      "detecting": "Detection en cours...",
+      "totalChecked": "Offres analysees",
+      "anomalyCount": "Anomalies detectees",
+      "noAnomalies": "Aucune anomalie detectee",
+      "severity": {
+        "CRITICAL": "Critique",
+        "HIGH": "Haute",
+        "MEDIUM": "Moyenne",
+        "LOW": "Basse"
+      }
+    },
+    "translate": {
+      "title": "Traduction",
+      "description": "Traduisez le contenu de vos offres dans d'autres langues.",
+      "selectOffer": "Selectionner une offre",
+      "targetLanguage": "Langue cible",
+      "languages": {
+        "en": "Anglais",
+        "ar": "Arabe",
+        "de": "Allemand",
+        "es": "Espagnol",
+        "pt": "Portugais",
+        "sw": "Swahili"
+      },
+      "submit": "Traduire",
+      "translating": "Traduction en cours...",
+      "result": "Resultat de la traduction"
+    },
+    "usage": {
+      "title": "Utilisation IA",
+      "description": "Statistiques d'utilisation du module IA.",
+      "totalRequests": "Requetes totales",
+      "successRate": "Taux de succes",
+      "totalTokens": "Tokens utilises",
+      "avgLatency": "Latence moyenne",
+      "byTask": "Par type de tache",
+      "byDay": "Par jour"
+    },
+    "errors": {
+      "noOffer": "Veuillez selectionner une offre",
+      "failed": "Erreur lors de l'appel IA",
+      "dailyLimit": "Limite quotidienne atteinte"
+    },
+    "chatBanner": "Discutez avec l'IA",
+    "chatBannerSub": "Posez vos questions en texte ou en vocal"
+  },
   "login": {
     "title": "Connexion",
     "heading": "PIM Moov Africa",
@@ -585,13 +689,38 @@
     "errorAuth": "Adresse email ou mot de passe incorrect.",
     "errorLocked": "Compte verrouillé. Contactez votre administrateur.",
     "errorForbidden": "Accès refusé. Vérifiez vos autorisations.",
-    "errorServer": "Impossible de contacter le serveur. Vérifiez que le backend est démarré."
+    "errorServer": "Impossible de contacter le serveur. Vérifiez que le backend est démarré.",
+    "totpTitle": "Vérification en deux étapes",
+    "totpSubtitle": "Entrez le code généré par votre application d'authentification.",
+    "totpPlaceholder": "000000",
+    "totpRequired": "Le code à 6 chiffres est requis.",
+    "totpInvalid": "Code MFA invalide. Reessayez.",
+    "totpBack": "Retour",
+    "totpSubmit": "Verifier",
+    "totpLabel": "Code d'authentification"
   },
   "notFound": {
     "title": "404",
     "message": "Cette page n'existe pas ou a été déplacée.",
     "dashboard": "Tableau de bord",
     "login": "Se connecter"
+  },
+  "aiChat": {
+    "title": "Chat IA",
+    "subtitle": "Discutez avec l'assistant IA de Moov Africa",
+    "placeholder": "Ecrivez votre message...",
+    "send": "Envoyer",
+    "newConversation": "Nouvelle conversation",
+    "clearConfirm": "Voulez-vous effacer l'historique de conversation ?",
+    "emptyTitle": "Bienvenue dans le Chat IA",
+    "emptySubtitle": "Posez vos questions sur les offres, le catalogue, les strategies marketing ou l'analyse du marche telecom.",
+    "recording": "Ecoute en cours...",
+    "micUnsupported": "Reconnaissance vocale non supportee par ce navigateur",
+    "thinking": "Reflexion en cours...",
+    "errorSend": "Erreur lors de l'envoi du message",
+    "voiceInput": "Saisie vocale",
+    "playAudio": "Ecouter",
+    "stopAudio": "Arreter"
   },
   "language": {
     "title": "Langue",

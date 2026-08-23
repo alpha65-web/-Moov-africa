@@ -114,7 +114,7 @@ export default function AuditPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div>
+      <div className="animate-enter-up stagger-1">
         <h1 className="text-2xl font-bold text-black dark:text-white">Audit</h1>
         <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
           {logs.length} entrée{logs.length > 1 ? "s" : ""} enregistrée{logs.length > 1 ? "s" : ""}
@@ -122,7 +122,7 @@ export default function AuditPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 animate-enter-up stagger-2">
         <div className="flex items-center gap-3 flex-wrap">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -177,7 +177,7 @@ export default function AuditPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden animate-enter-up stagger-3">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

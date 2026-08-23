@@ -197,7 +197,7 @@ export default function RulesPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-enter-up stagger-1">
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-white">Règles métier</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
@@ -215,7 +215,7 @@ export default function RulesPage() {
       </div>
 
       {/* Filtres */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap animate-enter-up stagger-2">
         <div className="relative flex-1 max-w-xs">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-neutral-400" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
@@ -244,7 +244,7 @@ export default function RulesPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden animate-enter-up stagger-3">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-blue-600 dark:bg-blue-700 text-white rounded-t-2xl">
@@ -331,7 +331,7 @@ export default function RulesPage() {
 
                       {openMenuId === rule.id && (
                         <div
-                          className="absolute right-0 bottom-8 z-50 border-2 border-black dark:border-white bg-white dark:bg-neutral-900 animate-fade-in p-1.5 flex gap-1"
+                          className="absolute right-0 bottom-8 z-50 border-2 border-black dark:border-white bg-white dark:bg-neutral-900 animate-modal p-1.5 flex gap-1"
                           style={{ borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -399,8 +399,8 @@ export default function RulesPage() {
 
       {/* Modal Créer/Modifier */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div ref={modalRef} className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-xl w-full max-w-md mx-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-overlay">
+          <div ref={modalRef} className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-xl w-full max-w-md mx-4 animate-modal">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
               <h2 className="text-lg font-bold text-black dark:text-white">
                 {isEditing ? "Modifier la règle" : "Nouvelle règle"}
@@ -492,8 +492,8 @@ export default function RulesPage() {
 
       {/* Modal Détails */}
       {detailRule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-xl w-full max-w-md mx-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-overlay">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-xl w-full max-w-md mx-4 animate-modal">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
               <h2 className="text-lg font-bold text-black dark:text-white">Détails de la règle</h2>
               <button
@@ -556,8 +556,8 @@ export default function RulesPage() {
 
       {/* Modal Supprimer */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-xl w-full max-w-sm mx-4 animate-fade-in p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-overlay">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-xl w-full max-w-sm mx-4 animate-modal p-6">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="size-12 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
                 <svg className="size-6 text-red-500" viewBox="0 0 16 16" fill="none">

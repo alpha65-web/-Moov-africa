@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 import Link from "next/link";
@@ -13,15 +13,44 @@ import {
   LineChart, Line,
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
 } from "recharts";
+import Reveal, { RevealGroup } from "@/components/Reveal";
+
+/* ── Animated count hook ── */
+function useCountUp(target: number, duration = 800) {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef<number>(0);
+  const startRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (target === 0) { setValue(0); return; }
+    startRef.current = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - (startRef.current || now);
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target));
+      if (progress < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [target, duration]);
+
+  return value;
+}
 
 /* ── Micro components ── */
 
 function ProgressBar({ value, color }: { value: number; color: string }) {
   return (
     <div className="h-[5px] w-full rounded-full bg-neutral-100 dark:bg-white/[0.06] overflow-hidden">
-      <div className={`h-full rounded-full transition-all duration-700 ease-out ${color}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+      <div className={`h-full rounded-full animate-bar-grow ${color}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
   );
+}
+
+function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
+  const animated = useCountUp(value);
+  return <>{animated}{suffix}</>;
 }
 
 function Skeleton({ className = "" }: { className?: string }) {
@@ -165,13 +194,14 @@ export default function DashboardPage() {
           api.get("/catalog").catch(() => ({ data: [] })),
           api.get("/users").catch(() => ({ data: [] })),
           api.get("/campaigns/mine").catch(() => ({ data: [] })),
-          api.get("/audit-logs?size=8").catch(() => ({ data: { content: [] } })),
-          api.get("/notifications").catch(() => ({ data: [] })),
+          api.get("/audit?size=8").catch(() => ({ data: { content: [] } })),
+          api.get("/notifications").catch(() => ({ data: { content: [] } })),
           api.get("/rules").catch(() => ({ data: [] })),
-          api.get("/media").catch(() => ({ data: [] })),
+          api.get("/media/pending").catch(() => ({ data: [] })),
         ]);
         setOffers(offersRes.data.content ?? offersRes.data ?? []);
-        setCatalogItems(Array.isArray(catalogRes.data) ? catalogRes.data : []);
+        const catalogData = catalogRes.data.content ?? catalogRes.data;
+        setCatalogItems(Array.isArray(catalogData) ? catalogData : []);
         setCampaigns(Array.isArray(campaignsRes.data) ? campaignsRes.data : []);
         const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
         setUsers(usersData);
@@ -330,7 +360,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6 max-w-[1360px] mx-auto pb-10">
 
       {/* ═══ GREETING ═══ */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-enter-up stagger-1">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-white">{greeting}, {user?.firstName}</h2>
           <p className="text-[13px] text-neutral-500 dark:text-neutral-500 mt-0.5">
@@ -344,7 +374,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ═══ FILTERS ═══ */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-enter-up stagger-2">
         <div className="flex h-8 rounded-lg bg-neutral-100 dark:bg-white/[0.04] p-0.5 w-fit">
           {(["all", "7d", "30d", "90d"] as const).map(p => (
             <button key={p} onClick={() => setPeriodFilter(p)}
@@ -378,12 +408,12 @@ export default function DashboardPage() {
       </div>
 
       {/* ═══ KPIs ═══ */}
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+      <RevealGroup stagger={80} className="grid grid-cols-2 xl:grid-cols-5 gap-4">
         <div className="surface p-5 flex flex-col justify-between">
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("catalogItems")}</p>
           <div className="mt-3 flex items-end justify-between gap-3">
             <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
-              {loading ? <Skeleton className="w-10 h-7" /> : catalogItems.length}
+              {loading ? <Skeleton className="w-10 h-7" /> : <AnimatedNumber value={catalogItems.length} />}
             </span>
             {!loading && (
               <div className="flex items-center gap-2 pb-1">
@@ -397,7 +427,7 @@ export default function DashboardPage() {
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("activeOffers")}</p>
           <div className="mt-3 flex items-end justify-between gap-3">
             <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
-              {loading ? <Skeleton className="w-10 h-7" /> : filteredOffers.filter(o => o.status === "PUBLISHED").length}
+              {loading ? <Skeleton className="w-10 h-7" /> : <AnimatedNumber value={filteredOffers.filter(o => o.status === "PUBLISHED").length} />}
             </span>
             {!loading && <Sparkline data={sparklineData} className="w-20 h-8 text-emerald-500 pb-1" />}
           </div>
@@ -406,7 +436,7 @@ export default function DashboardPage() {
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("activeCampaigns")}</p>
           <div className="mt-3 flex items-end justify-between gap-3">
             <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
-              {loading ? <Skeleton className="w-10 h-7" /> : activeCampaigns.length}
+              {loading ? <Skeleton className="w-10 h-7" /> : <AnimatedNumber value={activeCampaigns.length} />}
             </span>
             {!loading && channelTypes.length > 0 && (
               <p className="text-[11px] text-neutral-400 dark:text-neutral-500 pb-1 truncate">{channelTypes.join(" · ")}</p>
@@ -417,7 +447,7 @@ export default function DashboardPage() {
           <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("enrichmentRate")}</p>
           <div className="mt-3">
             <span className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
-              {loading ? <Skeleton className="w-10 h-7" /> : `${enrichmentRate}%`}
+              {loading ? <Skeleton className="w-10 h-7" /> : <AnimatedNumber value={enrichmentRate} suffix="%" />}
             </span>
             {!loading && <div className="mt-3"><ProgressBar value={enrichmentRate} color="bg-amber-500" /></div>}
           </div>
@@ -433,11 +463,11 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
+      </RevealGroup>
 
       {/* ═══ PIPELINE ═══ */}
       {!loading && totalPipeline > 0 && (
-        <div className="flex items-center gap-4">
+        <Reveal><div className="flex items-center gap-4">
           <div className="flex h-[6px] flex-1 rounded-full overflow-hidden gap-[1px]">
             {PIPELINE.map(s => {
               const count = pipelineCounts[s.key] || 0;
@@ -446,11 +476,11 @@ export default function DashboardPage() {
             })}
           </div>
           <span className="text-[11px] text-neutral-400 dark:text-neutral-500 tabular-nums shrink-0">{totalPipeline + archivedCount} {t("totalOffers").toLowerCase()}</span>
-        </div>
+        </div></Reveal>
       )}
 
       {/* ═══ CHARTS ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <Reveal delay={60}><div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Activity chart */}
         <div className="surface lg:col-span-3">
           <div className="flex items-center justify-between px-5 pt-5">
@@ -583,10 +613,10 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
+      </div></Reveal>
 
       {/* ═══ PLATFORM MODULES ═══ */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <RevealGroup stagger={100} className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Users */}
         <Link href="/users" className="surface p-5 group hover:ring-1 hover:ring-neutral-200/60 dark:hover:ring-white/[0.08] transition-all">
           <div className="flex items-center justify-between mb-3">
@@ -665,10 +695,10 @@ export default function DashboardPage() {
             )}
           </div>
         </Link>
-      </div>
+      </RevealGroup>
 
       {/* ═══ ACTION CENTER + CATALOG HEALTH + CHANNELS ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <RevealGroup stagger={120} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Action Center */}
         <div className="surface flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -738,10 +768,10 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           )}
         </div>
-      </div>
+      </RevealGroup>
 
       {/* ═══ RECENT OFFERS + ACTIVITY ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <Reveal><div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Recent Offers */}
         <div className="surface lg:col-span-3 overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -787,7 +817,7 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div></Reveal>
     </div>
   );
 }
