@@ -1,23 +1,16 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import api from "@/lib/api";
+import api, { apiError } from "@/lib/api";
 import type { Campaign, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
+import { useTranslations } from "next-intl";
 
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Brouillon",
-  SCHEDULED: "Planifiée",
-  PUBLISHED: "Publiée",
-  CANCELLED: "Annulée",
-};
-
-const CHANNEL_LABELS: Record<string, string> = {
-  SMS: "SMS",
-  EMAIL: "Email",
-  PUSH_NOTIFICATION: "Push",
-  SOCIAL_MEDIA: "Réseaux sociaux",
-  USSD: "USSD",
+const STATUS_STYLES: Record<string, string> = {
+  DRAFT: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
+  SCHEDULED: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  PUBLISHED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  CANCELLED: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
 };
 
 const CHANNEL_LIST = ["SMS", "EMAIL", "PUSH_NOTIFICATION", "SOCIAL_MEDIA", "USSD"];
@@ -30,12 +23,24 @@ const EMPTY_FORM = {
   scheduledAt: "",
 };
 
+const PER_PAGE = 10;
+
+function Skeleton({ className }: { className: string }) {
+  return <div className={`rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse ${className}`} />;
+}
+
 export default function CampaignsPage() {
+  const t = useTranslations("campaigns");
+  const tc = useTranslations("common");
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterChannel, setFilterChannel] = useState("");
+  const [page, setPage] = useState(1);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -50,10 +55,7 @@ export default function CampaignsPage() {
 
   const isEditing = !!editingCampaign;
 
-  useEffect(() => {
-    loadCampaigns();
-    loadOffers();
-  }, []);
+  useEffect(() => { loadCampaigns(); loadOffers(); }, []);
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -70,50 +72,41 @@ export default function CampaignsPage() {
   useEffect(() => {
     function handleClickOutside() {
       if (openMenuId) setOpenMenuId(null);
+      if (showCreateMenu) setShowCreateMenu(false);
     }
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [openMenuId]);
+  }, [openMenuId, showCreateMenu]);
+
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterChannel]);
 
   async function loadCampaigns() {
-    try {
-      const { data } = await api.get("/campaigns/mine");
-      setCampaigns(data);
-    } catch {
-      /* API pas disponible */
-    } finally {
-      setLoading(false);
-    }
+    try { const { data } = await api.get("/campaigns/mine"); setCampaigns(data); }
+    catch (e) { toast.error(apiError(e, tc("errors.load"))); }
+    finally { setLoading(false); }
   }
 
   async function loadOffers() {
     try {
-      const { data } = await api.get("/offers");
-      setOffers(data);
-    } catch { /* */ }
+      // GET /offers renvoie un Page<OfferResponse>, pas un tableau nu.
+      const { data } = await api.get("/offers", { params: { size: 500 } });
+      setOffers(Array.isArray(data) ? data : data.content ?? []);
+    }
+    catch { /* */ }
   }
 
-  function resetForm() {
-    setForm({ ...EMPTY_FORM });
-    setEditingCampaign(null);
-  }
-
-  function openCreateModal() {
-    resetForm();
-    setShowModal(true);
-  }
+  function resetForm() { setForm({ ...EMPTY_FORM }); setEditingCampaign(null); }
+  function openCreateModal() { resetForm(); setShowModal(true); setShowCreateMenu(false); }
 
   function openEditModal(c: Campaign) {
     setEditingCampaign(c);
     setForm({
-      name: c.name,
-      offerId: c.offerId || "",
+      name: c.name, offerId: c.offerId || "",
       message: c.channels?.[0]?.message || "",
       channelType: c.channels?.[0]?.channelType || "SMS",
       scheduledAt: c.scheduledAt || "",
     });
-    setShowModal(true);
-    setOpenMenuId(null);
+    setShowModal(true); setOpenMenuId(null);
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -122,254 +115,247 @@ export default function CampaignsPage() {
     setCreating(true);
     try {
       const payload = {
-        name: form.name,
-        offerId: form.offerId || null,
+        name: form.name, offerId: form.offerId || null,
         scheduledAt: form.scheduledAt || null,
-        channels: [{
-          channelType: form.channelType,
-          message: form.message,
-        }],
+        channels: [{ channelType: form.channelType, message: form.message }],
       };
-
       if (isEditing) {
         await api.put(`/campaigns/${editingCampaign!.id}`, payload);
-        toast.success("Campagne modifiée avec succès");
+        toast.success(t("messages.updated"));
       } else {
         await api.post("/campaigns", payload);
-        toast.success("Campagne créée avec succès");
+        toast.success(t("messages.created"));
       }
-      setShowModal(false);
-      resetForm();
-      loadCampaigns();
-    } catch {
-      const newCampaign: Campaign = {
-        id: Date.now().toString(),
-        name: form.name,
-        offerId: form.offerId || "",
-        status: "DRAFT",
-        scheduledAt: form.scheduledAt || null,
-        createdById: "",
-        createdAt: new Date().toISOString(),
-        channels: [{
-          id: Date.now().toString() + "-ch",
-          channelType: form.channelType,
-          message: form.message,
-          status: "DRAFT",
-          sentAt: null,
-        }],
-      };
-
-      if (isEditing) {
-        setCampaigns((prev) => prev.map((c) => c.id === editingCampaign!.id
-          ? { ...c, name: form.name, channels: newCampaign.channels }
-          : c
-        ));
-        toast.success("Campagne modifiée");
-      } else {
-        setCampaigns((prev) => [newCampaign, ...prev]);
-        toast.success("Campagne enregistrée");
-      }
-      setShowModal(false);
-      resetForm();
-    } finally {
-      setCreating(false);
-    }
+      setShowModal(false); resetForm(); loadCampaigns();
+    } catch (e) {
+      toast.error(apiError(e, isEditing ? tc("errors.update") : tc("errors.create")));
+    } finally { setCreating(false); }
   }
 
   async function handleDelete() {
     if (!deleteTarget || deleting) return;
     setDeleting(true);
-    try {
-      await api.delete(`/campaigns/${deleteTarget.id}`);
-      toast.success("Campagne supprimée");
-      loadCampaigns();
-    } catch {
-      setCampaigns((prev) => prev.filter((c) => c.id !== deleteTarget.id));
-      toast.success("Campagne supprimée");
-    } finally {
-      setDeleting(false);
-      setDeleteTarget(null);
-    }
+    try { await api.delete(`/campaigns/${deleteTarget.id}`); toast.success(t("messages.deleted")); loadCampaigns(); }
+    catch (e) { toast.error(apiError(e, tc("errors.delete"))); }
+    finally { setDeleting(false); setDeleteTarget(null); }
   }
 
   function formatDate(date: string | null) {
-    if (!date) return "Non planifiée";
-    return new Date(date).toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
   }
 
   const filtered = campaigns.filter((c) => {
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus && c.status !== filterStatus) return false;
+    if (filterChannel && !c.channels.some((ch) => ch.channelType === filterChannel)) return false;
     return true;
   });
 
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const stats = {
+    total: campaigns.length,
+    scheduled: campaigns.filter((c) => c.status === "SCHEDULED").length,
+    published: campaigns.filter((c) => c.status === "PUBLISHED").length,
+    done: campaigns.filter((c) => c.status === "CANCELLED").length,
+  };
+
+  const cardData = [
+    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M3 11V9a1 1 0 01.6-.9l8-4a1 1 0 01.8 0l8 4a1 1 0 01.6.9v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M3 11v4l9 5 9-5v-4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M21 11l-9 5-9-5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+    ) },
+    { key: "scheduled", count: stats.scheduled, label: t("stats.scheduled"), link: t("stats.viewScheduled"), color: "text-primary", bg: "bg-primary/10", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M3 9h18" stroke="currentColor" strokeWidth="1.5" /><path d="M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="16" cy="16" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M16 14.5v2l1 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    ) },
+    { key: "published", count: stats.published, label: t("stats.active"), link: t("stats.viewActive"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+    ) },
+    { key: "done", count: stats.done, label: t("stats.done"), link: t("stats.viewDone"), color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 2a5 5 0 015 5v1H7V7a5 5 0 015-5z" stroke="currentColor" strokeWidth="1.5" /><path d="M4 8h16v11a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    ) },
+  ];
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6 pb-8">
+
+      {/* ===== HEADER ===== */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">Campagnes</h1>
-          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
-            {campaigns.length} campagne{campaigns.length > 1 ? "s" : ""}
-          </p>
+          <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
+          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
-        <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
-          <span className="flex items-center gap-2">
-            <svg className="size-4" viewBox="0 0 16 16" fill="none">
-              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <p className="text-sm font-medium">Nouvelle campagne</p>
-          </span>
-        </button>
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="flex">
+            <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 rounded-r-none active-scale">
+              <span className="flex items-center gap-2">
+                <svg className="size-4" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <p className="text-sm font-medium">{t("newCampaign")}</p>
+              </span>
+            </button>
+            <button onClick={() => setShowCreateMenu(!showCreateMenu)} className="primary-icon px-2 py-2.5 rounded-l-none border-l border-white/20 active-scale">
+              <svg className={`size-4 transition-transform ${showCreateMenu ? "rotate-180" : ""}`} viewBox="0 0 16 16" fill="none">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+          {showCreateMenu && (
+            <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[200px] animate-fade-in">
+              <button onClick={openCreateModal} className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                {t("newCampaign")}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Recherche + Filtre */}
+      {/* ===== 4 STAT CARDS ===== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {cardData.map((s) => (
+          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
+              <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
+            </div>
+            {loading ? <Skeleton className="w-10 h-8 mb-2" /> : (
+              <span className="text-3xl font-bold text-black dark:text-white tabular-nums block mb-2">{s.count}</span>
+            )}
+            <span className="text-xs font-medium text-primary flex items-center gap-1">
+              {s.link}
+              <svg className="size-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ===== RECHERCHE + FILTRES ===== */}
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher par nom..."
-            className="input w-full h-9 pl-9"
-          />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="input h-9"
-        >
-          <option value="">Tous les statuts</option>
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>{label}</option>
-          ))}
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[140px]">
+          <option value="">{t("filters.allStatuses")}</option>
+          <option value="DRAFT">{t("status.DRAFT")}</option>
+          <option value="SCHEDULED">{t("status.SCHEDULED")}</option>
+          <option value="PUBLISHED">{t("status.PUBLISHED")}</option>
+          <option value="CANCELLED">{t("status.CANCELLED")}</option>
         </select>
+        <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} className="input h-10 min-w-[140px]">
+          <option value="">{t("filters.allChannels")}</option>
+          {CHANNEL_LIST.map((ch) => <option key={ch} value={ch}>{t(`channels.${ch}`)}</option>)}
+        </select>
+        <div className="flex items-center gap-2 input h-10 min-w-[110px] cursor-pointer">
+          <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M2 6h12M6 2v12M10 2v12M2 10h12" stroke="currentColor" strokeWidth="0.8" strokeOpacity="0.4" />
+          </svg>
+          <span className="text-sm text-text-secondary dark:text-neutral-400">{t("filters.period")}</span>
+        </div>
+        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
+          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+          <p className="text-sm font-medium">{t("filters.filters")}</p>
+        </button>
       </div>
 
-      {/* Tableau */}
+      {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="grid grid-cols-[1.2fr_1fr_100px_120px_100px_80px] gap-3 px-6 py-3 border-b border-blue-600 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Nom</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Canal</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Statut</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Planifiée</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Créée le</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white text-right">Actions</span>
+        <div className="hidden md:grid grid-cols-[1.3fr_1fr_100px_120px_110px_60px] gap-4 px-6 py-3 bg-primary dark:bg-primary/90 rounded-t-2xl">
+          {[t("columns.name"), t("columns.channel"), t("columns.status"), t("columns.scheduled"), t("columns.created"), t("columns.actions")].map((col, i) => (
+            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1 ${i === 5 ? "justify-end" : ""}`}>
+              {col}
+              {i < 5 && <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M4 5l2-2 2 2M4 7l2 2 2-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+            </span>
+          ))}
         </div>
 
         {loading ? (
-          <div className="px-6 py-4 flex flex-col gap-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="flex-1 flex flex-col gap-1.5">
-                  <div className="w-40 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-                  <div className="w-24 h-3 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-                </div>
+          <div className="px-6 py-4 flex flex-col gap-1">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="hidden md:grid grid-cols-[1.3fr_1fr_100px_120px_110px_60px] gap-4 items-center py-3.5">
+                <Skeleton className="w-32 h-4" /><Skeleton className="w-14 h-5 !rounded-md" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-20 h-4" /><Skeleton className="w-16 h-4" /><Skeleton className="w-6 h-6 ml-auto" />
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="size-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                <svg className="size-6 text-neutral-400" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 3l6 4 6-4M2 3v10h12V3H2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-                </svg>
+          <div className="px-6 py-16 text-center">
+            <div className="flex flex-col items-center gap-5">
+              <svg className="size-36" viewBox="0 0 160 140" fill="none">
+                {/* Nuages décoratifs */}
+                <ellipse cx="30" cy="45" rx="12" ry="5" className="fill-blue-100/60 dark:fill-blue-900/15" />
+                <ellipse cx="135" cy="35" rx="10" ry="4" className="fill-blue-100/50 dark:fill-blue-900/10" />
+                {/* Enveloppe - corps */}
+                <path d="M35 65h90v50a5 5 0 01-5 5H40a5 5 0 01-5-5V65z" className="fill-sky-100 dark:fill-sky-900/20 stroke-sky-300 dark:stroke-sky-700/50" strokeWidth="1.5" />
+                {/* Enveloppe - rabat arrière */}
+                <path d="M35 65l45 28 45-28" className="fill-sky-50 dark:fill-sky-900/10 stroke-sky-300 dark:stroke-sky-700/50" strokeWidth="1.5" strokeLinejoin="round" />
+                {/* Lettre qui sort */}
+                <rect x="50" y="38" width="60" height="42" rx="4" className="fill-white dark:fill-neutral-800 stroke-sky-200 dark:stroke-sky-800/40" strokeWidth="1.5" />
+                <path d="M58 50h44M58 58h30M58 66h20" className="stroke-sky-200 dark:stroke-sky-700/40" strokeWidth="2" strokeLinecap="round" />
+                {/* Avion en papier */}
+                <g className="text-blue-500 dark:text-blue-400">
+                  <path d="M105 30l-18 12 5 3 13-15z" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M87 42l3 8 4-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M105 30l-15 20" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 2" />
+                </g>
+                {/* Petits éléments déco */}
+                <circle cx="28" cy="80" r="2.5" className="fill-primary/20" />
+                <circle cx="132" cy="55" r="2" className="fill-emerald-400/25" />
+                <circle cx="118" cy="25" r="1.5" className="fill-amber-400/30" />
+                <path d="M42 30l1.5 3 3 .5-2 2.5.3 3.2-2.8-1.5-2.8 1.5.3-3.2-2-2.5 3-.5L42 30z" className="fill-amber-300/30 dark:fill-amber-400/15" />
+              </svg>
+              <div>
+                <p className="text-base font-bold text-black dark:text-white">{t("emptyTitle")}</p>
+                <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
               </div>
-              <p className="text-sm text-text-secondary dark:text-neutral-500">
-                {campaigns.length === 0 ? "Aucune campagne pour le moment" : "Aucun résultat"}
-              </p>
-              {campaigns.length === 0 && (
-                <button onClick={openCreateModal} className="primary-icon px-3 py-1.5 active-scale text-xs font-medium mt-1">
-                  Créer la première
-                </button>
-              )}
+              <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">
+                <span className="flex items-center gap-2">
+                  <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                  <p className="text-sm font-medium">{t("createFirst")}</p>
+                </span>
+              </button>
             </div>
           </div>
         ) : (
           <div className="divide-y divide-border dark:divide-neutral-800">
-            {filtered.map((c) => (
-              <div
-                key={c.id}
-                className="grid grid-cols-[1.2fr_1fr_100px_120px_100px_80px] gap-3 items-center px-6 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
-              >
-                <p className="text-sm font-bold text-black dark:text-white truncate">{c.name}</p>
-
+            {paginated.map((c) => (
+              <div key={c.id} className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr_100px_120px_110px_60px] gap-2 md:gap-4 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer" onClick={() => setDetailCampaign(c)}>
+                <p className="text-sm font-semibold text-black dark:text-white truncate">{c.name}</p>
                 <div className="flex flex-wrap gap-1">
                   {c.channels.map((ch, i) => (
-                    <span key={i} className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                      {CHANNEL_LABELS[ch.channelType] || ch.channelType}
+                    <span key={i} className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                      {t(`channels.${ch.channelType}`)}
                     </span>
                   ))}
                 </div>
-
-                <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                  {STATUS_LABELS[c.status] || c.status}
+                <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[c.status] ?? STATUS_STYLES.DRAFT}`}>
+                  {t(`status.${c.status}`)}
                 </span>
-
-                <p className="text-xs font-bold text-black dark:text-white truncate">
-                  {formatDate(c.scheduledAt)}
-                </p>
-
-                <p className="text-xs font-bold text-black dark:text-white truncate">
-                  {formatDate(c.createdAt)}
-                </p>
-
-                {/* Actions */}
-                <div className="flex justify-end relative">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}
-                    className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <svg className="size-5 text-black dark:text-white" viewBox="0 0 16 16" fill="none">
-                      <circle cx="8" cy="3" r="1.5" fill="currentColor" />
-                      <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-                      <circle cx="8" cy="13" r="1.5" fill="currentColor" />
-                    </svg>
+                <p className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(c.scheduledAt)}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(c.createdAt)}</p>
+                <div className="flex justify-end relative" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
+                    <svg className="size-5 text-neutral-500 dark:text-neutral-400" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" /></svg>
                   </button>
-
                   {openMenuId === c.id && (
-                    <div
-                      className="absolute right-0 bottom-8 z-40 bg-white dark:bg-neutral-800 border-2 border-black dark:border-white shadow-[0_4px_16px_rgba(0,0,0,0.25)] p-1.5 flex gap-1"
-                      style={{ borderRadius: 6 }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => { setDetailCampaign(c); setOpenMenuId(null); }}
-                        title="Voir les détails"
-                        className="flex items-center justify-center size-8 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                      >
-                        <svg className="size-4 text-black dark:text-white" viewBox="0 0 16 16" fill="none">
-                          <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
-                          <path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
+                    <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[150px] animate-fade-in">
+                      <button onClick={() => { setDetailCampaign(c); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                        <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                        {tc("status")}
                       </button>
-                      <button
-                        onClick={() => openEditModal(c)}
-                        title="Modifier"
-                        className="flex items-center justify-center size-8 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                      >
-                        <svg className="size-4 text-black dark:text-white" viewBox="0 0 16 16" fill="none">
-                          <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                        </svg>
+                      <button onClick={() => openEditModal(c)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                        <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+                        {tc("edit")}
                       </button>
-                      <button
-                        onClick={() => { setDeleteTarget(c); setOpenMenuId(null); }}
-                        title="Supprimer"
-                        className="flex items-center justify-center size-8 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                      >
-                        <svg className="size-4 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                      <button onClick={() => { setDeleteTarget(c); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        {tc("delete")}
                       </button>
                     </div>
                   )}
@@ -378,119 +364,100 @@ export default function CampaignsPage() {
             ))}
           </div>
         )}
+
+        {filtered.length > PER_PAGE && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/20">
+            <span className="text-xs text-text-secondary dark:text-neutral-500 tabular-nums">
+              {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filtered.length)} / {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="size-8 rounded-lg border border-border dark:border-neutral-700 flex items-center justify-center text-xs text-text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed">
+                <svg className="size-3.5" viewBox="0 0 12 12" fill="none"><path d="M7.5 2.5l-4 3.5 4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button key={p} onClick={() => setPage(p)} className={`size-8 rounded-lg text-xs font-medium transition-colors cursor-pointer ${page === p ? "bg-primary text-white" : "border border-border dark:border-neutral-700 text-text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>{p}</button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="size-8 rounded-lg border border-border dark:border-neutral-700 flex items-center justify-center text-xs text-text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed">
+                <svg className="size-3.5" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ===== 4 FEATURE CARDS ===== */}
+      {campaigns.length === 0 && !loading && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { icon: "plan", title: t("features.planning"), desc: t("features.planningDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
+            { icon: "target", title: t("features.targeting"), desc: t("features.targetingDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
+            { icon: "realtime", title: t("features.realtime"), desc: t("features.realtimeDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
+            { icon: "multi", title: t("features.multichannel"), desc: t("features.multichannelDesc"), color: "text-primary bg-primary/10" },
+          ].map((f) => (
+            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-3">
+              <div className={`rounded-xl p-3 w-fit ${f.color}`}>
+                {f.icon === "plan" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M3 8h14" stroke="currentColor" strokeWidth="1.5" /><path d="M7 2v4M13 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M7 11l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                {f.icon === "target" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="1.5" /><circle cx="10" cy="10" r="1.5" fill="currentColor" /><path d="M10 3v2M10 15v2M3 10h2M15 10h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>}
+                {f.icon === "realtime" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M6 17h8M10 14v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M6 9h2l1.5-3 2 6 1.5-3H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                {f.icon === "multi" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" /><circle cx="4" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="16" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="4" cy="16" r="1.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="16" cy="16" r="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M5.5 5.5l3 3M14.5 5.5l-3 3M5.5 14.5l3-3M14.5 14.5l-3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ===== MODAL CRÉATION / ÉDITION ===== */}
       {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-          onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}
-        >
-          <div ref={modalRef} className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
-              <div>
-                <h2 className="text-base font-bold text-black dark:text-white">
-                  {isEditing ? "Modifier la campagne" : "Nouvelle campagne"}
-                </h2>
-                <p className="text-[11px] text-text-secondary dark:text-neutral-500 mt-0.5">
-                  {isEditing ? "Modifier les informations" : "Configurez votre campagne"}
-                </p>
-              </div>
-              <button
-                onClick={() => { setShowModal(false); resetForm(); }}
-                className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-              >
-                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}>
+          <div ref={modalRef} className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
+              <h2 className="text-base font-bold text-black dark:text-white">{isEditing ? t("editTitle") : t("createTitle")}</h2>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
               </button>
             </div>
-
             <form onSubmit={handleCreate}>
-              <div className="px-5 py-4 flex flex-col gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Nom de la campagne</label>
-                  <input
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Ex: Promo Data Été 2026"
-                    className="input w-full h-9"
-                  />
+              <div className="px-6 py-5 flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.name")}</label>
+                  <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input w-full h-10" />
                 </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Offre associée</label>
-                  <select
-                    value={form.offerId}
-                    onChange={(e) => setForm({ ...form, offerId: e.target.value })}
-                    className="input w-full h-9"
-                  >
-                    <option value="">Sélectionner une offre</option>
-                    {offers.map((o) => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
-                    ))}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.offer")}</label>
+                  <select value={form.offerId} onChange={(e) => setForm({ ...form, offerId: e.target.value })} className="input w-full h-10">
+                    <option value="">{t("form.selectOffer")}</option>
+                    {offers.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Canal de diffusion</label>
-                    <select
-                      value={form.channelType}
-                      onChange={(e) => setForm({ ...form, channelType: e.target.value })}
-                      className="input w-full h-9"
-                    >
-                      {CHANNEL_LIST.map((ch) => (
-                        <option key={ch} value={ch}>{CHANNEL_LABELS[ch]}</option>
-                      ))}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.channel")}</label>
+                    <select value={form.channelType} onChange={(e) => setForm({ ...form, channelType: e.target.value })} className="input w-full h-10">
+                      {CHANNEL_LIST.map((ch) => <option key={ch} value={ch}>{t(`channels.${ch}`)}</option>)}
                     </select>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Date de planification</label>
-                    <input
-                      type="datetime-local"
-                      value={form.scheduledAt}
-                      onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-                      className="input w-full h-9"
-                    />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.scheduledAt")}</label>
+                    <input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} className="input w-full h-10" />
                   </div>
                 </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">Message</label>
-                  <textarea
-                    value={form.message}
-                    onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    placeholder="Contenu du message à envoyer..."
-                    rows={3}
-                    className="input w-full resize-none"
-                  />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.message")}</label>
+                  <textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={3} className="input w-full resize-none" />
                 </div>
               </div>
-
-              <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); resetForm(); }}
-                  className="tertiary-icon px-3 py-2 active-scale"
-                >
-                  <p className="text-sm font-medium">Annuler</p>
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="tertiary-icon px-4 py-2 active-scale">
+                  <p className="text-sm font-medium">{tc("cancel")}</p>
                 </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="primary-icon px-5 py-2 active-scale disabled:opacity-60"
-                >
+                <button type="submit" disabled={creating} className="primary-icon px-5 py-2 active-scale disabled:opacity-60">
                   <span className="flex items-center gap-2">
-                    {creating && (
-                      <svg className="size-4 animate-spin" viewBox="0 0 16 16" fill="none">
-                        <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2.12 2.12M10.48 10.48l2.12 2.12M3.4 12.6l2.12-2.12M10.48 5.52l2.12-2.12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                    )}
-                    <p className="text-sm font-medium">
-                      {creating ? "Enregistrement..." : "Enregistrer"}
-                    </p>
+                    {creating && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                    <p className="text-sm font-medium">{creating ? tc("saving") : tc("save")}</p>
                   </span>
                 </button>
               </div>
@@ -501,86 +468,63 @@ export default function CampaignsPage() {
 
       {/* ===== MODAL DÉTAIL ===== */}
       {detailCampaign && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setDetailCampaign(null); }}
-        >
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
-              <h2 className="text-base font-bold text-black dark:text-white">Détails de la campagne</h2>
-              <button
-                onClick={() => setDetailCampaign(null)}
-                className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-              >
-                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-            <div className="px-5 py-4 flex flex-col gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setDetailCampaign(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
               <div className="flex items-center gap-3">
-                <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <svg className="size-5 text-primary" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 3l6 4 6-4M2 3v10h12V3H2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                  </svg>
+                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <svg className="size-5" viewBox="0 0 16 16" fill="none"><path d="M2 3l6 4 6-4M2 3v10h12V3H2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-black dark:text-white">{detailCampaign.name}</p>
-                  <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black mt-0.5" style={{ borderRadius: 4 }}>
-                    {STATUS_LABELS[detailCampaign.status] || detailCampaign.status}
+                  <h2 className="text-base font-bold text-black dark:text-white">{detailCampaign.name}</h2>
+                  <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[detailCampaign.status]}`}>
+                    {t(`status.${detailCampaign.status}`)}
                   </span>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Planifiée le</p>
+              <button onClick={() => setDetailCampaign(null)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.scheduled")}</p>
                   <p className="text-sm font-bold text-black dark:text-white">{formatDate(detailCampaign.scheduledAt)}</p>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Créée le</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.created")}</p>
                   <p className="text-sm font-bold text-black dark:text-white">{formatDate(detailCampaign.createdAt)}</p>
                 </div>
               </div>
-
               {detailCampaign.channels.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Canaux</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.channel")}</p>
                   {detailCampaign.channels.map((ch, i) => (
-                    <div key={i} className="p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-border dark:border-neutral-700">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                          {CHANNEL_LABELS[ch.channelType] || ch.channelType}
+                    <div key={i} className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-border dark:border-neutral-700">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          {t(`channels.${ch.channelType}`)}
                         </span>
                         <span className="text-[10px] text-text-secondary dark:text-neutral-500">
-                          {ch.sentAt ? `Envoyé ${formatDate(ch.sentAt)}` : "Non envoyé"}
+                          {ch.sentAt ? formatDate(ch.sentAt) : t("notSent")}
                         </span>
                       </div>
-                      {ch.message && (
-                        <p className="text-xs text-black dark:text-white mt-1">{ch.message}</p>
-                      )}
+                      {ch.message && <p className="text-xs text-black dark:text-white leading-relaxed">{ch.message}</p>}
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
-              <button
-                onClick={() => { openEditModal(detailCampaign); setDetailCampaign(null); }}
-                className="secondary-icon px-3 py-2 active-scale"
-              >
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => { openEditModal(detailCampaign); setDetailCampaign(null); }} className="secondary-icon px-4 py-2 active-scale">
                 <span className="flex items-center gap-1.5">
-                  <svg className="size-3.5" viewBox="0 0 16 16" fill="none">
-                    <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                  </svg>
-                  <p className="text-sm font-medium">Modifier</p>
+                  <svg className="size-3.5" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+                  <p className="text-sm font-medium">{tc("edit")}</p>
                 </span>
               </button>
-              <button
-                onClick={() => setDetailCampaign(null)}
-                className="tertiary-icon px-3 py-2 active-scale"
-              >
-                <p className="text-sm font-medium">Fermer</p>
+              <button onClick={() => setDetailCampaign(null)} className="tertiary-icon px-4 py-2 active-scale">
+                <p className="text-sm font-medium">{tc("close")}</p>
               </button>
             </div>
           </div>
@@ -589,35 +533,23 @@ export default function CampaignsPage() {
 
       {/* ===== MODAL SUPPRESSION ===== */}
       {deleteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setDeleteTarget(null); }}
-        >
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-5 flex flex-col items-center gap-3 text-center">
-              <div className="size-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                <svg className="size-6 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setDeleteTarget(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="px-6 py-6 flex flex-col items-center gap-4 text-center">
+              <div className="size-14 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                <svg className="size-7 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-black dark:text-white">Supprimer cette campagne ?</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1">
-                  <span className="font-semibold text-black dark:text-white">{deleteTarget.name}</span> sera supprimée définitivement.
+                <p className="text-sm font-bold text-black dark:text-white">{t("messages.deleteConfirm")}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1.5">
+                  <span className="font-semibold text-black dark:text-white">{deleteTarget.name}</span> — {t("messages.deleteWarning")}
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-2 px-5 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
-              <button onClick={() => setDeleteTarget(null)} className="tertiary-icon px-4 py-2 active-scale">
-                <p className="text-sm font-medium">Annuler</p>
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium active-scale disabled:opacity-60 transition-colors cursor-pointer"
-                style={{ borderRadius: 7 }}
-              >
-                {deleting ? "Suppression..." : "Supprimer"}
+            <div className="flex items-center justify-center gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => setDeleteTarget(null)} className="tertiary-icon px-4 py-2 active-scale"><p className="text-sm font-medium">{tc("cancel")}</p></button>
+              <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg active-scale disabled:opacity-60 transition-colors cursor-pointer">
+                {deleting ? tc("deleting") : tc("delete")}
               </button>
             </div>
           </div>

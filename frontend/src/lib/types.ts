@@ -3,11 +3,13 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  gender: string | null;
+  sex: string | null;
   phone: string | null;
   pseudo: string | null;
   avatarUrl: string | null;
   role: string;
+  /** Codes de permission du role, tels que renvoyes par le backend. */
+  permissions: string[];
   status: string;
   forcePasswordChange: boolean;
   totpEnabled: boolean;
@@ -177,6 +179,38 @@ export interface KpiConfig {
   thresholdExpression: string | null;
   updatedById: string;
   updatedAt: string;
+}
+
+export interface KpiEvent {
+  id: string;
+  offerId: string;
+  eventType: string;
+  actorId: string;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface AbTest {
+  id: string;
+  offerId: string;
+  variantA: string;
+  variantB: string;
+  metric: string;
+  status: string;
+  winner: string | null;
+  createdById: string;
+  createdAt: string;
+}
+
+export interface IntegrationExport {
+  id: string;
+  targetSystem: string;
+  offerId: string;
+  exportType: string;
+  status: string;
+  retryCount: number;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 export const ROLE_LABELS: Record<string, string> = {

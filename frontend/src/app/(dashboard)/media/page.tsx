@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import api from "@/lib/api";
+import api, { apiError } from "@/lib/api";
 import toast from "react-hot-toast";
+import { useTranslations } from "next-intl";
 
 interface MediaAsset {
   id: string;
@@ -15,10 +16,10 @@ interface MediaAsset {
   createdAt: string;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "En attente",
-  APPROVED: "Approuvé",
-  REJECTED: "Rejeté",
+const STATUS_STYLES: Record<string, string> = {
+  PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  COMPLIANT: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  NON_COMPLIANT: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
 };
 
 const MIME_LABELS: Record<string, string> = {
@@ -31,11 +32,32 @@ const MIME_LABELS: Record<string, string> = {
   "video/mp4": "MP4",
 };
 
+const PER_PAGE = 10;
+
+/**
+ * Correspondance vers l'enum AssetMediaType du backend (IMAGE, VIDEO, PDF).
+ * Les autres types acceptes a l'upload (documents bureautiques) sont rattaches
+ * a PDF, seule valeur documentaire disponible cote circuit de validation.
+ */
+function assetMediaType(mimeType: string): "IMAGE" | "VIDEO" | "PDF" {
+  if (mimeType?.startsWith("image/")) return "IMAGE";
+  if (mimeType?.startsWith("video/")) return "VIDEO";
+  return "PDF";
+}
+
+function Skeleton({ className }: { className: string }) {
+  return <div className={`rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse ${className}`} />;
+}
+
 export default function MediaPage() {
+  const t = useTranslations("media");
+  const tc = useTranslations("common");
+
   const [media, setMedia] = useState<MediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [page, setPage] = useState(1);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,9 +66,7 @@ export default function MediaPage() {
   const [deleting, setDeleting] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadMedia();
-  }, []);
+  useEffect(() => { loadMedia(); }, []);
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -67,82 +87,66 @@ export default function MediaPage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openMenuId]);
 
+  useEffect(() => { setPage(1); }, [search, filterStatus]);
+
   async function loadMedia() {
     try {
-      const { data } = await api.get("/media/pending");
-      setMedia(data);
-    } catch {
-      /* API pas disponible */
-    } finally {
-      setLoading(false);
+      // GET /media renvoie toute la mediatheque. L'ecran ne chargeait que
+      // /media/pending : un media valide disparaissait de la liste, et les
+      // compteurs Approuves / Rejetes restaient bloques a zero.
+      const { data } = await api.get("/media");
+      setMedia(Array.isArray(data) ? data : data.content ?? []);
     }
+    catch (e) { toast.error(apiError(e, tc("errors.load"))); }
+    finally { setLoading(false); }
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      toast.error("Le fichier ne doit pas dépasser 10 Mo");
+      toast.error(t("messages.fileTooLarge"));
       return;
     }
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      await api.post("/media", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Média uploadé avec succès");
+      await api.post("/media", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success(t("messages.uploaded"));
       loadMedia();
-    } catch {
-      const newMedia: MediaAsset = {
-        id: Date.now().toString(),
-        fileName: file.name,
-        mimeType: file.type,
-        fileSize: file.size,
-        storageKey: "",
-        conformityStatus: "PENDING",
-        mediaVersion: 1,
-        createdAt: new Date().toISOString(),
-      };
-      setMedia((prev) => [newMedia, ...prev]);
-      toast.success("Média ajouté");
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.create")));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
-  async function handleValidate(id: string, approved: boolean) {
+  /**
+   * Le circuit graphique attend { status, mediaType, annotation } et non un simple
+   * booleen : l'ecran envoyait { approved } et l'appel echouait systematiquement en 400.
+   */
+  async function handleValidate(media: MediaAsset, approved: boolean) {
     try {
-      await api.post(`/media/${id}/validate`, {
-        approved,
-        annotation: approved ? "Conforme" : "Non conforme",
+      await api.post(`/media/${media.id}/validate`, {
+        status: approved ? "APPROVED" : "REJECTED",
+        mediaType: assetMediaType(media.mimeType),
+        annotation: approved ? t("messages.approved") : t("messages.rejected"),
       });
-      toast.success(approved ? "Média approuvé" : "Média rejeté");
+      toast.success(approved ? t("messages.approved") : t("messages.rejected"));
       loadMedia();
-    } catch {
-      setMedia((prev) => prev.map((m) =>
-        m.id === id ? { ...m, conformityStatus: approved ? "APPROVED" : "REJECTED" } : m
-      ));
-      toast.success(approved ? "Média approuvé" : "Média rejeté");
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
     }
   }
 
   async function handleDelete() {
     if (!deleteTarget || deleting) return;
     setDeleting(true);
-    try {
-      await api.delete(`/media/${deleteTarget.id}`);
-      toast.success("Média supprimé");
-      loadMedia();
-    } catch {
-      setMedia((prev) => prev.filter((m) => m.id !== deleteTarget.id));
-      toast.success("Média supprimé");
-    } finally {
-      setDeleting(false);
-      setDeleteTarget(null);
-    }
+    try { await api.delete(`/media/${deleteTarget.id}`); toast.success(t("messages.deleted")); loadMedia(); }
+    catch (e) { toast.error(apiError(e, tc("errors.delete"))); }
+    finally { setDeleting(false); setDeleteTarget(null); }
   }
 
   function formatSize(bytes: number): string {
@@ -152,11 +156,7 @@ export default function MediaPage() {
   }
 
   function formatDate(date: string) {
-    return new Date(date).toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return new Date(date).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
   }
 
   const filtered = media.filter((m) => {
@@ -165,30 +165,48 @@ export default function MediaPage() {
     return true;
   });
 
-  const pendingCount = media.filter((m) => m.conformityStatus === "PENDING").length;
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const stats = {
+    total: media.length,
+    pending: media.filter((m) => m.conformityStatus === "PENDING").length,
+    approved: media.filter((m) => m.conformityStatus === "COMPLIANT").length,
+    rejected: media.filter((m) => m.conformityStatus === "NON_COMPLIANT").length,
+  };
+
+  const cardData = [
+    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /></svg>
+    ) },
+    { key: "pending", count: stats.pending, label: t("stats.pending"), link: t("stats.viewPending"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    ) },
+    { key: "approved", count: stats.approved, label: t("stats.approved"), link: t("stats.viewApproved"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 2a5 5 0 015 5v1H7V7a5 5 0 015-5z" stroke="currentColor" strokeWidth="1.5" /><path d="M4 8h16v11a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M9 13l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    ) },
+    { key: "rejected", count: stats.rejected, label: t("stats.rejected"), link: t("stats.viewRejected"), color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M15 9l-6 6M9 9l6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+    ) },
+  ];
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6 pb-8">
+
+      {/* ===== HEADER ===== */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">Médiathèque</h1>
-          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">
-            {media.length} fichier{media.length > 1 ? "s" : ""}
-            {pendingCount > 0 && `, ${pendingCount} en attente`}
-          </p>
+          <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
+          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={loadMedia}
-            className="secondary-icon px-3 py-2.5 active-scale"
-          >
+          <button onClick={loadMedia} className="secondary-icon px-4 py-2.5 active-scale">
             <span className="flex items-center gap-2">
               <svg className="size-4" viewBox="0 0 16 16" fill="none">
                 <path d="M2 8a6 6 0 0111.5-2.3M14 8a6 6 0 01-11.5 2.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                 <path d="M13.5 2v3.7h-3.7M2.5 14v-3.7h3.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <p className="text-sm font-medium">Actualiser</p>
+              <p className="text-sm font-medium">{t("refresh")}</p>
             </span>
           </button>
           <label className="primary-icon px-4 py-2.5 active-scale cursor-pointer">
@@ -197,174 +215,155 @@ export default function MediaPage() {
                 <path d="M8 10V3M8 3l3 3M8 3L5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <p className="text-sm font-medium">{uploading ? "Upload..." : "Uploader"}</p>
+              <p className="text-sm font-medium">{uploading ? t("uploadForm.uploading") : t("upload")}</p>
             </span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*,application/pdf,video/mp4"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
+            <input ref={fileInputRef} type="file" className="hidden" accept="image/*,application/pdf,video/mp4" onChange={handleUpload} disabled={uploading} />
           </label>
         </div>
       </div>
 
-      {/* Recherche + Filtre */}
+      {/* ===== 4 STAT CARDS ===== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {cardData.map((s) => (
+          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
+              <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
+            </div>
+            {loading ? <Skeleton className="w-10 h-8 mb-2" /> : (
+              <span className="text-3xl font-bold text-black dark:text-white tabular-nums block mb-2">{s.count}</span>
+            )}
+            <span className="text-xs font-medium text-primary flex items-center gap-1">
+              {s.link}
+              <svg className="size-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ===== RECHERCHE + FILTRES ===== */}
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher par nom de fichier..."
-            className="input w-full h-9 pl-9"
-          />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="input h-9"
-        >
-          <option value="">Tous les statuts</option>
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>{label}</option>
-          ))}
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[140px]">
+          <option value="">{t("filters.allStatuses")}</option>
+          <option value="PENDING">{t("status.PENDING")}</option>
+          <option value="COMPLIANT">{t("status.COMPLIANT")}</option>
+          <option value="NON_COMPLIANT">{t("status.NON_COMPLIANT")}</option>
         </select>
+        <select className="input h-10 min-w-[120px]">
+          <option>{t("filters.allTypes")}</option>
+        </select>
+        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
+          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+          <p className="text-sm font-medium">{t("filters.filters")}</p>
+        </button>
       </div>
 
-      {/* Tableau */}
+      {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="grid grid-cols-[1.5fr_80px_80px_60px_100px_100px_80px] gap-3 px-6 py-3 border-b border-blue-600 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Fichier</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Type</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Taille</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">V.</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Statut</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">Date</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white text-right">Actions</span>
+        <div className="hidden md:grid grid-cols-[1.5fr_80px_80px_50px_100px_100px_60px] gap-3 px-6 py-3 bg-primary dark:bg-primary/90 rounded-t-2xl">
+          {[t("columns.file"), t("columns.type"), t("columns.size"), t("columns.version"), t("columns.status"), t("columns.date"), t("columns.actions")].map((col, i) => (
+            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1 ${i === 6 ? "justify-end" : ""}`}>
+              {col}
+              {i < 6 && <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M4 5l2-2 2 2M4 7l2 2 2-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+            </span>
+          ))}
         </div>
 
         {loading ? (
-          <div className="px-6 py-4 flex flex-col gap-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="size-10 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-                <div className="flex-1 flex flex-col gap-1.5">
-                  <div className="w-36 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-                  <div className="w-20 h-3 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-                </div>
+          <div className="px-6 py-4 flex flex-col gap-1">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="hidden md:grid grid-cols-[1.5fr_80px_80px_50px_100px_100px_60px] gap-3 items-center py-3.5">
+                <Skeleton className="w-36 h-4" /><Skeleton className="w-10 h-4" /><Skeleton className="w-14 h-4" /><Skeleton className="w-8 h-4" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-16 h-4" /><Skeleton className="w-6 h-6 ml-auto" />
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="size-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                <svg className="size-6 text-neutral-400" viewBox="0 0 16 16" fill="none">
-                  <rect x="3" y="2" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-                  <path d="M6 6h4M6 8.5h3M6 11h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                </svg>
+          <div className="px-6 py-16 text-center">
+            <div className="flex flex-col items-center gap-5">
+              <svg className="size-36" viewBox="0 0 160 140" fill="none">
+                {/* Nuages décoratifs */}
+                <ellipse cx="28" cy="40" rx="12" ry="5" className="fill-blue-100/60 dark:fill-blue-900/15" />
+                <ellipse cx="138" cy="30" rx="9" ry="4" className="fill-blue-100/50 dark:fill-blue-900/10" />
+                {/* Dossier */}
+                <path d="M30 50h100a5 5 0 015 5v55a5 5 0 01-5 5H30a5 5 0 01-5-5V55a5 5 0 015-5z" className="fill-sky-50 dark:fill-sky-900/10 stroke-sky-200 dark:stroke-sky-800/40" strokeWidth="1.5" />
+                <path d="M25 55V48a5 5 0 015-5h25l5 7h65a5 5 0 015 5v0" className="stroke-sky-300 dark:stroke-sky-700/50" strokeWidth="1.5" strokeLinejoin="round" />
+                {/* Image placeholder 1 */}
+                <rect x="42" y="62" width="32" height="26" rx="3" className="fill-white dark:fill-neutral-800 stroke-sky-200 dark:stroke-sky-700/40" strokeWidth="1.2" />
+                <circle cx="50" cy="70" r="3" className="fill-amber-300/50" />
+                <path d="M42 82l8-6 5 4 7-8 12 10" className="stroke-emerald-400/50" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Document placeholder 2 */}
+                <rect x="82" y="62" width="32" height="26" rx="3" className="fill-white dark:fill-neutral-800 stroke-sky-200 dark:stroke-sky-700/40" strokeWidth="1.2" />
+                <path d="M88 70h20M88 75h14M88 80h8" className="stroke-sky-200 dark:stroke-sky-700/40" strokeWidth="1.5" strokeLinecap="round" />
+                {/* Icone upload */}
+                <circle cx="108" cy="42" r="14" className="fill-primary/10 stroke-primary/30" strokeWidth="1.5" />
+                <path d="M108 48V36M108 36l4 4M108 36l-4 4" className="stroke-primary" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Petits éléments déco */}
+                <circle cx="22" cy="70" r="2.5" className="fill-primary/20" />
+                <circle cx="142" cy="60" r="2" className="fill-emerald-400/25" />
+                <path d="M40 35l1.5 3 3 .5-2 2.5.3 3.2-2.8-1.5-2.8 1.5.3-3.2-2-2.5 3-.5L40 35z" className="fill-amber-300/30 dark:fill-amber-400/15" />
+              </svg>
+              <div>
+                <p className="text-base font-bold text-black dark:text-white">{t("emptyTitle")}</p>
+                <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
               </div>
-              <p className="text-sm text-text-secondary dark:text-neutral-500">
-                {media.length === 0 ? "Aucun média pour le moment" : "Aucun résultat"}
-              </p>
+              <label className="primary-icon px-5 py-2.5 active-scale mt-1 cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <svg className="size-4" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 10V3M8 3l3 3M8 3L5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <p className="text-sm font-medium">{t("uploadFirst")}</p>
+                </span>
+                <input ref={fileInputRef} type="file" className="hidden" accept="image/*,application/pdf,video/mp4" onChange={handleUpload} disabled={uploading} />
+              </label>
             </div>
           </div>
         ) : (
           <div className="divide-y divide-border dark:divide-neutral-800">
-            {filtered.map((m) => (
-              <div
-                key={m.id}
-                className="grid grid-cols-[1.5fr_80px_80px_60px_100px_100px_80px] gap-3 items-center px-6 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
-              >
-                <p className="text-sm font-bold text-black dark:text-white truncate">{m.fileName}</p>
-
-                <span className="text-xs font-bold text-black dark:text-white">
+            {paginated.map((m) => (
+              <div key={m.id} className="grid grid-cols-1 md:grid-cols-[1.5fr_80px_80px_50px_100px_100px_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer" onClick={() => setDetailMedia(m)}>
+                <p className="text-sm font-semibold text-black dark:text-white truncate">{m.fileName}</p>
+                <span className="text-xs font-semibold text-black dark:text-white">
                   {MIME_LABELS[m.mimeType] || m.mimeType.split("/")[1]?.toUpperCase() || m.mimeType}
                 </span>
-
-                <span className="text-xs font-bold text-black dark:text-white tabular-nums">
-                  {formatSize(m.fileSize)}
+                <span className="text-xs text-text-secondary dark:text-neutral-400 tabular-nums">{formatSize(m.fileSize)}</span>
+                <span className="text-xs text-text-secondary dark:text-neutral-400 tabular-nums">v{m.mediaVersion}</span>
+                <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[m.conformityStatus] ?? STATUS_STYLES.PENDING}`}>
+                  {t(`status.${m.conformityStatus}`)}
                 </span>
-
-                <span className="text-xs font-bold text-black dark:text-white tabular-nums">
-                  v{m.mediaVersion}
-                </span>
-
-                <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                  {STATUS_LABELS[m.conformityStatus] || m.conformityStatus}
-                </span>
-
-                <span className="text-xs font-bold text-black dark:text-white">
-                  {formatDate(m.createdAt)}
-                </span>
-
-                {/* Actions */}
-                <div className="flex justify-end relative">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === m.id ? null : m.id); }}
-                    className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <svg className="size-5 text-black dark:text-white" viewBox="0 0 16 16" fill="none">
-                      <circle cx="8" cy="3" r="1.5" fill="currentColor" />
-                      <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-                      <circle cx="8" cy="13" r="1.5" fill="currentColor" />
-                    </svg>
+                <span className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(m.createdAt)}</span>
+                <div className="flex justify-end relative" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
+                    <svg className="size-5 text-neutral-500 dark:text-neutral-400" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" /></svg>
                   </button>
-
                   {openMenuId === m.id && (
-                    <div
-                      className="absolute right-0 bottom-8 z-40 bg-white dark:bg-neutral-800 border-2 border-black dark:border-white shadow-[0_4px_16px_rgba(0,0,0,0.25)] p-1.5 flex gap-1"
-                      style={{ borderRadius: 6 }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => { setDetailMedia(m); setOpenMenuId(null); }}
-                        title="Voir les détails"
-                        className="flex items-center justify-center size-8 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                      >
-                        <svg className="size-4 text-black dark:text-white" viewBox="0 0 16 16" fill="none">
-                          <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
-                          <path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
+                    <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
+                      <button onClick={() => { setDetailMedia(m); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                        <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                        {t("actions.details")}
                       </button>
                       {m.conformityStatus === "PENDING" && (
                         <>
-                          <button
-                            onClick={() => { handleValidate(m.id, true); setOpenMenuId(null); }}
-                            title="Approuver"
-                            className="flex items-center justify-center size-8 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
-                          >
-                            <svg className="size-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 16 16" fill="none">
-                              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
-                              <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                          <button onClick={() => { handleValidate(m, true); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
+                            <svg className="size-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                            {t("actions.approve")}
                           </button>
-                          <button
-                            onClick={() => { handleValidate(m.id, false); setOpenMenuId(null); }}
-                            title="Rejeter"
-                            className="flex items-center justify-center size-8 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                          >
-                            <svg className="size-4 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
-                              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
-                              <path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            </svg>
+                          <button onClick={() => { handleValidate(m, false); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                            <svg className="size-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                            {t("actions.reject")}
                           </button>
                         </>
                       )}
-                      <button
-                        onClick={() => { setDeleteTarget(m); setOpenMenuId(null); }}
-                        title="Supprimer"
-                        className="flex items-center justify-center size-8 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                      >
-                        <svg className="size-4 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                      <button onClick={() => { setDeleteTarget(m); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        {tc("delete")}
                       </button>
                     </div>
                   )}
@@ -373,88 +372,105 @@ export default function MediaPage() {
             ))}
           </div>
         )}
+
+        {filtered.length > PER_PAGE && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/20">
+            <span className="text-xs text-text-secondary dark:text-neutral-500 tabular-nums">
+              {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filtered.length)} / {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="size-8 rounded-lg border border-border dark:border-neutral-700 flex items-center justify-center text-xs text-text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed">
+                <svg className="size-3.5" viewBox="0 0 12 12" fill="none"><path d="M7.5 2.5l-4 3.5 4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button key={p} onClick={() => setPage(p)} className={`size-8 rounded-lg text-xs font-medium transition-colors cursor-pointer ${page === p ? "bg-primary text-white" : "border border-border dark:border-neutral-700 text-text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>{p}</button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="size-8 rounded-lg border border-border dark:border-neutral-700 flex items-center justify-center text-xs text-text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed">
+                <svg className="size-3.5" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ===== 4 FEATURE CARDS ===== */}
+      {media.length === 0 && !loading && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { icon: "formats", title: t("features.formats"), desc: t("features.formatsDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
+            { icon: "validation", title: t("features.validation"), desc: t("features.validationDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
+            { icon: "versioning", title: t("features.versioning"), desc: t("features.versioningDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
+            { icon: "organization", title: t("features.organization"), desc: t("features.organizationDesc"), color: "text-primary bg-primary/10" },
+          ].map((f) => (
+            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-3">
+              <div className={`rounded-xl p-3 w-fit ${f.color}`}>
+                {f.icon === "formats" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" /><circle cx="6.5" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.2" /><path d="M2 14l4-4 3 3 4-5 5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                {f.icon === "validation" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><path d="M10 2a5 5 0 015 5v1H5V7a5 5 0 015-5z" stroke="currentColor" strokeWidth="1.5" /><path d="M3 8h14v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M7 13l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                {f.icon === "versioning" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><path d="M10 6v4l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M4 4l2 2M16 4l-2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+                {f.icon === "organization" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><path d="M2 5a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M7 11h6M7 14h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ===== MODAL DÉTAIL ===== */}
       {detailMedia && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setDetailMedia(null); }}
-        >
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-neutral-800">
-              <h2 className="text-base font-bold text-black dark:text-white">Détails du média</h2>
-              <button
-                onClick={() => setDetailMedia(null)}
-                className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-              >
-                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-            <div className="px-5 py-4 flex flex-col gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setDetailMedia(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
               <div className="flex items-center gap-3">
-                <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <svg className="size-5 text-primary" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-                    <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1" />
-                    <path d="M2 11l3-3 2 2 3-3 4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <svg className="size-5" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" /><circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1" /><path d="M2 11l3-3 2 2 3-3 4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-black dark:text-white truncate">{detailMedia.fileName}</p>
+                  <h2 className="text-base font-bold text-black dark:text-white truncate">{detailMedia.fileName}</h2>
                   <p className="text-xs text-text-secondary dark:text-neutral-500">Version {detailMedia.mediaVersion}</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Type</p>
-                  <p className="text-sm font-bold text-black dark:text-white">
-                    {MIME_LABELS[detailMedia.mimeType] || detailMedia.mimeType}
-                  </p>
+              <button onClick={() => setDetailMedia(null)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.type")}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">{MIME_LABELS[detailMedia.mimeType] || detailMedia.mimeType}</p>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Taille</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.size")}</p>
                   <p className="text-sm font-bold text-black dark:text-white">{formatSize(detailMedia.fileSize)}</p>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Statut</p>
-                  <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-medium bg-black text-white dark:bg-white dark:text-black" style={{ borderRadius: 4 }}>
-                    {STATUS_LABELS[detailMedia.conformityStatus] || detailMedia.conformityStatus}
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.status")}</p>
+                  <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[detailMedia.conformityStatus]}`}>
+                    {t(`status.${detailMedia.conformityStatus}`)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">Uploadé le</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.date")}</p>
                   <p className="text-sm font-bold text-black dark:text-white">{formatDate(detailMedia.createdAt)}</p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
               {detailMedia.conformityStatus === "PENDING" && (
                 <>
-                  <button
-                    onClick={() => { handleValidate(detailMedia.id, true); setDetailMedia(null); }}
-                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium active-scale transition-colors cursor-pointer"
-                    style={{ borderRadius: 7 }}
-                  >
-                    Approuver
+                  <button onClick={() => { handleValidate(detailMedia, true); setDetailMedia(null); }} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer">
+                    {t("actions.approve")}
                   </button>
-                  <button
-                    onClick={() => { handleValidate(detailMedia.id, false); setDetailMedia(null); }}
-                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium active-scale transition-colors cursor-pointer"
-                    style={{ borderRadius: 7 }}
-                  >
-                    Rejeter
+                  <button onClick={() => { handleValidate(detailMedia, false); setDetailMedia(null); }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer">
+                    {t("actions.reject")}
                   </button>
                 </>
               )}
-              <button
-                onClick={() => setDetailMedia(null)}
-                className="tertiary-icon px-3 py-2 active-scale"
-              >
-                <p className="text-sm font-medium">Fermer</p>
+              <button onClick={() => setDetailMedia(null)} className="tertiary-icon px-4 py-2 active-scale">
+                <p className="text-sm font-medium">{tc("close")}</p>
               </button>
             </div>
           </div>
@@ -463,35 +479,23 @@ export default function MediaPage() {
 
       {/* ===== MODAL SUPPRESSION ===== */}
       {deleteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setDeleteTarget(null); }}
-        >
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-5 flex flex-col items-center gap-3 text-center">
-              <div className="size-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                <svg className="size-6 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setDeleteTarget(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="px-6 py-6 flex flex-col items-center gap-4 text-center">
+              <div className="size-14 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                <svg className="size-7 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-black dark:text-white">Supprimer ce média ?</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1">
-                  <span className="font-semibold text-black dark:text-white">{deleteTarget.fileName}</span> sera supprimé définitivement.
+                <p className="text-sm font-bold text-black dark:text-white">{t("messages.deleteConfirm")}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1.5">
+                  <span className="font-semibold text-black dark:text-white">{deleteTarget.fileName}</span> — {t("messages.deleteWarning")}
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-2 px-5 py-3 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
-              <button onClick={() => setDeleteTarget(null)} className="tertiary-icon px-4 py-2 active-scale">
-                <p className="text-sm font-medium">Annuler</p>
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium active-scale disabled:opacity-60 transition-colors cursor-pointer"
-                style={{ borderRadius: 7 }}
-              >
-                {deleting ? "Suppression..." : "Supprimer"}
+            <div className="flex items-center justify-center gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => setDeleteTarget(null)} className="tertiary-icon px-4 py-2 active-scale"><p className="text-sm font-medium">{tc("cancel")}</p></button>
+              <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg active-scale disabled:opacity-60 transition-colors cursor-pointer">
+                {deleting ? tc("deleting") : tc("delete")}
               </button>
             </div>
           </div>

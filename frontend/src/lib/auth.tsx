@@ -2,20 +2,24 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import api from "./api";
-import type { User } from "./types";
+import api, { registerSessionHandlers, storeSession } from "./api";
+import type { LoginResponse, User } from "./types";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => void;
+  applySession: (data: LoginResponse) => void;
+  /** Recharge le profil depuis /users/me (role, permissions, etat de la 2FA). */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -28,35 +32,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     const saved = localStorage.getItem("user");
-    if (token && saved) {
-      try {
-        setUser(JSON.parse(saved));
-      } catch {
-        localStorage.clear();
-      }
+    if (!token || !saved) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      setUser(JSON.parse(saved));
+    } catch {
+      localStorage.clear();
+      setLoading(false);
+      return;
+    }
+
+    // La copie en localStorage peut dater : role, statut et permissions ont pu
+    // changer depuis la derniere connexion. On resynchronise sur /users/me, dont
+    // depend notamment le filtrage du menu par permission.
+    api
+      .get<User>("/users/me")
+      .then(({ data }) => {
+        setUser(data);
+        localStorage.setItem("user", JSON.stringify(data));
+      })
+      .catch(() => {
+        // L'intercepteur gere deja 401 et changement de mot de passe force :
+        // on conserve la copie locale plutot que de deconnecter l'utilisateur.
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("refreshToken", data.refreshToken);
-    if (data.fingerprint) {
-      localStorage.setItem("fingerprint", data.fingerprint);
-    }
-    localStorage.setItem("user", JSON.stringify(data.user));
-    setUser(data.user);
-  };
+  // Permet au client axios de naviguer sans toucher a window.location.
+  useEffect(() => {
+    registerSessionHandlers({
+      onSessionExpired: () => {
+        setUser(null);
+        router.replace("/login");
+      },
+      onMfaSetupRequired: () => {
+        router.replace("/profile");
+      },
+      onPasswordChangeRequired: () => {
+        setUser((prev) =>
+          prev && !prev.forcePasswordChange
+            ? { ...prev, forcePasswordChange: true }
+            : prev
+        );
+        router.replace("/profile");
+      },
+    });
+  }, [router]);
 
-  const logout = () => {
+  const refreshUser = useCallback(async () => {
+    const { data } = await api.get<User>("/users/me");
+    setUser(data);
+    localStorage.setItem("user", JSON.stringify(data));
+  }, []);
+
+  const applySession = useCallback((data: LoginResponse) => {
+    storeSession(data);
+    setUser(data.user);
+  }, []);
+
+  const login = useCallback(
+    async (email: string, password: string, totpCode?: string) => {
+      const { data } = await api.post<LoginResponse>("/auth/login", {
+        email,
+        password,
+        // Le backend refuse un totpCode vide : on ne l'envoie que s'il est saisi.
+        ...(totpCode ? { totpCode } : {}),
+      });
+      applySession(data);
+    },
+    [applySession]
+  );
+
+  const logout = useCallback(async () => {
+    // Doit partir AVANT le nettoyage : l'endpoint exige le jeton d'acces,
+    // et c'est lui qui revoque le refresh token cote serveur.
+    const refreshToken = localStorage.getItem("refreshToken");
+    try {
+      await api.post("/auth/logout", refreshToken ? { refreshToken } : undefined);
+    } catch {
+      // Une deconnexion locale doit aboutir meme si le serveur ne repond pas.
+    }
     localStorage.clear();
     setUser(null);
     router.push("/login");
-  };
+  }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, applySession, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

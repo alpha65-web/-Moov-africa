@@ -44,6 +44,10 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
+  // Les comptes administrateurs ont la double authentification obligatoire :
+  // le backend repond 403 MFA_REQUIRED tant que le code n'accompagne pas la connexion.
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
 
   const lottieRef = useRef<HTMLDivElement>(null);
 
@@ -73,13 +77,17 @@ export default function LoginPage() {
     setTouched({ email: true, password: true });
 
     if (!email.trim() || !password.trim()) return;
+    if (mfaRequired && totpCode.trim().length !== 6) {
+      setError(t("totpRequired"));
+      return;
+    }
     if (loading) return;
 
     setError(null);
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, mfaRequired ? totpCode.trim() : undefined);
       setSuccess(true);
       playLottie("/lottie/success.json");
       setTimeout(() => router.push("/"), 1200);
@@ -90,6 +98,14 @@ export default function LoginPage() {
         setError(t("errorAuth"));
       } else if (status === 423) {
         setError(t("errorLocked"));
+      } else if (status === 401 && axiosErr.response?.data?.message === "MFA_INVALID") {
+        // Le mot de passe est bon : seul le code a six chiffres est errone.
+        setMfaRequired(true);
+        setTotpCode("");
+        setError(t("totpInvalid"));
+      } else if (status === 403 && axiosErr.response?.data?.message === "MFA_REQUIRED") {
+        setMfaRequired(true);
+        setError(t("mfaRequired"));
       } else if (status === 403) {
         setError(t("errorForbidden"));
       } else if (axiosErr.response?.data?.message) {
@@ -227,6 +243,27 @@ export default function LoginPage() {
               </p>
             )}
           </div>
+
+          {/* Code 2FA — affiche uniquement lorsque le backend le reclame */}
+          {mfaRequired && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-text-secondary dark:text-neutral-400">
+                {t("totpLabel")}
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="123456"
+                className="input w-full h-10 tracking-[0.4em] text-center"
+                autoFocus
+              />
+              <p className="text-[11px] text-text-secondary dark:text-neutral-400">{t("totpHint")}</p>
+            </div>
+          )}
 
           {/* Message d'erreur API */}
           {error && (

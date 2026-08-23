@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -104,6 +105,52 @@ function SettingsIcon({ className }: { className?: string }) {
   );
 }
 
+function CategoriesIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M2 4a2 2 0 012-2h4l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AnalyticsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 14V10M10 14V6M14 14V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AbTestIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M10 2v6M10 8l-5 5M10 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="5" cy="15" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="15" cy="15" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function ExportsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M4 13v3a2 2 0 002 2h8a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M10 3v10M7 6l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AiIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5L10 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M15 13l.75 2.25L18 16l-2.25.75L15 19l-.75-2.25L12 16l2.25-.75L15 13z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none">
@@ -112,112 +159,160 @@ function LogoutIcon({ className }: { className?: string }) {
   );
 }
 
-const NAV_ITEMS = [
+/**
+ * Chaque entree porte les permissions exigees par les endpoints qu'elle consomme.
+ * `anyOf` : au moins une des permissions suffit. Une entree sans `anyOf` est
+ * ouverte a tous les comptes authentifies (le backend ne la protege pas non plus).
+ * Les codes sont ceux renvoyes par le backend dans `user.permissions`.
+ */
+const NAV_ITEMS: { href: string; key: string; icon: (p: { className?: string }) => React.ReactElement; anyOf?: string[] }[] = [
   { href: "/", key: "dashboard", icon: DashboardIcon },
-  { href: "/catalog", key: "catalog", icon: CatalogIcon },
-  { href: "/offers", key: "offers", icon: OffersIcon },
-  { href: "/campaigns", key: "campaigns", icon: CampaignIcon },
-  { href: "/media", key: "media", icon: MediaIcon },
-  { href: "/rules", key: "rules", icon: RulesIcon },
-  { href: "/users", key: "users", icon: UsersIcon },
+  { href: "/catalog", key: "catalog", icon: CatalogIcon, anyOf: ["CATALOG_READ"] },
+  { href: "/categories", key: "categories", icon: CategoriesIcon, anyOf: ["CATALOG_READ"] },
+  { href: "/offers", key: "offers", icon: OffersIcon, anyOf: ["CATALOG_READ"] },
+  { href: "/campaigns", key: "campaigns", icon: CampaignIcon, anyOf: ["CAMPAIGN_MANAGE"] },
+  { href: "/media", key: "media", icon: MediaIcon, anyOf: ["MEDIA_UPLOAD", "MEDIA_VALIDATE"] },
+  { href: "/ab-tests", key: "abTests", icon: AbTestIcon, anyOf: ["CATALOG_READ"] },
+  { href: "/rules", key: "rules", icon: RulesIcon, anyOf: ["RULE_MANAGE"] },
+  { href: "/users", key: "users", icon: UsersIcon, anyOf: ["USER_MANAGE"] },
   { href: "/notifications", key: "notifications", icon: BellIcon },
-  { href: "/audit", key: "audit", icon: AuditIcon },
-  { href: "/settings", key: "settings", icon: SettingsIcon },
+  { href: "/analytics", key: "analytics", icon: AnalyticsIcon, anyOf: ["ANALYTICS_VIEW"] },
+  { href: "/exports", key: "exports", icon: ExportsIcon, anyOf: ["EXPORT_MANAGE"] },
+  { href: "/ai", key: "ai", icon: AiIcon, anyOf: ["CATALOG_READ"] },
+  { href: "/audit", key: "audit", icon: AuditIcon, anyOf: ["AUDIT_VIEW"] },
+  { href: "/settings", key: "settings", icon: SettingsIcon, anyOf: ["CONFIG_MANAGE"] },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const t = useTranslations("sidebar");
   const tu = useTranslations("users.roles");
 
+  // Le menu ne propose que les pages reellement accessibles : sans ce filtre,
+  // un role non administrateur atterrissait sur des ecrans en erreur 403.
+  const granted = new Set(user?.permissions ?? []);
+  const navItems = NAV_ITEMS.filter(
+    (item) => !item.anyOf || item.anyOf.some((code) => granted.has(code))
+  );
+
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape" && open) onClose();
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, onClose]);
+
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-dvh w-[260px] flex-col border-r border-border dark:border-neutral-800 bg-white dark:bg-neutral-900">
-      {/* ===== EN-TÊTE — Logo ===== */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-border dark:border-neutral-800">
-        <Image
-          src="/img/logo-light.jpeg"
-          alt="Moov Africa"
-          width={100}
-          height={28}
-          className="h-7 w-auto dark:hidden"
+    <>
+      {/* Backdrop mobile */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+          onClick={onClose}
         />
-        <Image
-          src="/img/logo-dark.jpeg"
-          alt="Moov Africa"
-          width={100}
-          height={28}
-          className="h-7 w-auto hidden dark:block"
-        />
-      </div>
+      )}
 
-      {/* ===== NAVIGATION ===== */}
-      <nav className="flex-1 overflow-y-auto hide-scrollbar px-3 py-3">
-        <ul className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => {
-            const active =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href);
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
-                    active
-                      ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light"
-                      : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                  }`}
-                >
-                  <item.icon className="size-[18px] shrink-0" />
-                  {t(item.key)}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      {/* ===== BAS — Profil + actions ===== */}
-      {user && (
-        <div className="border-t border-border dark:border-neutral-800 px-3 py-3 flex flex-col gap-2">
-          {/* Langue */}
-          <LanguageSwitcher />
-
-          {/* Toggle thème */}
-          <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-xs text-neutral-500 dark:text-neutral-400">{t("theme")}</span>
-            <ThemeToggle />
+      <aside className={`fixed left-0 top-0 z-50 flex h-dvh w-[260px] flex-col border-r border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+        {/* ===== EN-TÊTE — Logo ===== */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border dark:border-neutral-800">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/img/logo-light.jpeg"
+              alt="Moov Africa"
+              width={100}
+              height={28}
+              className="h-7 w-auto dark:hidden"
+            />
+            <Image
+              src="/img/logo-dark.jpeg"
+              alt="Moov Africa"
+              width={100}
+              height={28}
+              className="h-7 w-auto hidden dark:block"
+            />
           </div>
-
-          {/* Infos utilisateur */}
-          <Link
-            href="/profile"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-          >
-            <div className="flex items-center justify-center size-8 rounded-full bg-primary text-white text-xs font-bold shrink-0">
-              {user.firstName?.[0]}{user.lastName?.[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-secondary dark:text-white truncate">
-                {user.firstName} {user.lastName}
-              </p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                {tu.has(user.role) ? tu(user.role) : user.role}
-              </p>
-            </div>
-          </Link>
-
-          {/* Bouton déconnexion */}
           <button
-            onClick={logout}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            onClick={onClose}
+            className="lg:hidden size-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
           >
-            <LogoutIcon className="size-4" />
-            {t("logout")}
+            <svg className="size-4 text-neutral-600 dark:text-neutral-400" viewBox="0 0 16 16" fill="none">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
-      )}
-    </aside>
+
+        {/* ===== NAVIGATION ===== */}
+        <nav className="flex-1 overflow-y-auto hide-scrollbar px-3 py-3">
+          <ul className="flex flex-col gap-0.5">
+            {navItems.map((item) => {
+              const active =
+                item.href === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(item.href);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={onClose}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                      active
+                        ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light"
+                        : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    }`}
+                  >
+                    <item.icon className="size-[18px] shrink-0" />
+                    {t(item.key)}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* ===== BAS — Profil + actions ===== */}
+        {user && (
+          <div className="border-t border-border dark:border-neutral-800 px-3 py-3 flex flex-col gap-2">
+            {/* Langue */}
+            <LanguageSwitcher />
+
+            {/* Toggle thème */}
+            <div className="flex items-center justify-between px-3 py-1">
+              <span className="text-xs text-neutral-500 dark:text-neutral-400">{t("theme")}</span>
+              <ThemeToggle />
+            </div>
+
+            {/* Infos utilisateur */}
+            <Link
+              href="/profile"
+              onClick={onClose}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            >
+              <div className="flex items-center justify-center size-8 rounded-full bg-primary text-white text-xs font-bold shrink-0">
+                {user.firstName?.[0]}{user.lastName?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-secondary dark:text-white truncate">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+                  {tu.has(user.role) ? tu(user.role) : user.role}
+                </p>
+              </div>
+            </Link>
+
+            {/* Bouton déconnexion */}
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              <LogoutIcon className="size-4" />
+              {t("logout")}
+            </button>
+          </div>
+        )}
+      </aside>
+    </>
   );
 }

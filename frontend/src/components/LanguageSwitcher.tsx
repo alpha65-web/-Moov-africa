@@ -52,6 +52,13 @@ const LANGUAGES: { code: string; label: string; flag: string }[] = [
   { code: "zu", label: "isiZulu", flag: "🇿🇦" },
 ];
 
+// Seuls fr et en disposent de 100% des cles (messages/*.json). Les 44 autres
+// locales ont environ 180 cles manquantes chacune, ce qui casse le rendu des
+// pages users, notifications, settings, rules, audit, login et offers.
+// Retirer un code de cette liste des que sa traduction est complete.
+const COMPLETE_LOCALES = new Set(["fr", "en"]);
+const AVAILABLE_LANGUAGES = LANGUAGES.filter((l) => COMPLETE_LOCALES.has(l.code));
+
 export default function LanguageSwitcher() {
   const locale = useLocale();
   const t = useTranslations("language");
@@ -78,8 +85,8 @@ export default function LanguageSwitcher() {
     window.location.reload();
   }
 
-  const current = LANGUAGES.find((l) => l.code === locale) || LANGUAGES[0];
-  const filtered = LANGUAGES.filter(
+  const current = AVAILABLE_LANGUAGES.find((l) => l.code === locale) || AVAILABLE_LANGUAGES[0];
+  const filtered = AVAILABLE_LANGUAGES.filter(
     (l) =>
       l.label.toLowerCase().includes(search.toLowerCase()) ||
       l.code.toLowerCase().includes(search.toLowerCase())
