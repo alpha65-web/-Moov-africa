@@ -371,7 +371,7 @@
       "ANALYSTE_MARKETING": "마케팅 분석가",
       "CHEF_SERVICE": "서비스 관리자",
       "CHEF_DEPARTEMENT": "부서장",
-      "COMMUNITY_MANAGER": "커뮤니티 매니저"
+      "COMMUNITY_MANAGER": "Community Manager"
     },
     "status": {
       "ACTIVE": "활성",
@@ -437,7 +437,7 @@
       "LOGIN_FAILED": "로그인 실패",
       "EXPORT": "내보내기",
       "DATA_ANONYMIZED": "익명화",
-      "DATA_EXPORT_REQUESTED": "GDPR 내보내기"
+      "DATA_EXPORT_REQUESTED": "RGPD 내보내기"
     },
     "filterByAction": "작업별 필터",
     "filterByEntity": "엔티티별 필터",
