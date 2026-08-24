@@ -318,6 +318,7 @@
       "DRAFT": "Brouillon",
       "SCHEDULED": "Planifiée",
       "PUBLISHED": "Publiée",
+      "COMPLETED": "Terminée",
       "CANCELLED": "Annulée"
     },
     "messages": {

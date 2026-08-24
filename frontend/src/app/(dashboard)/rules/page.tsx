@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
-import type { BusinessRule } from "@/lib/types";
+import { searchKeyHandler } from "@/lib/search";
+import type { BusinessRule, CatalogItem } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
@@ -27,10 +28,15 @@ export default function RulesPage() {
   const tc = useTranslations("common");
 
   const [rules, setRules] = useState<BusinessRule[]>([]);
+  // Les regles ne portent que les identifiants de leurs elements. Sans le
+  // catalogue, l'ecran affichait des UUID tronques et le formulaire exigeait
+  // qu'ils soient saisis a la main.
+  const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterSource, setFilterSource] = useState("");
   const [showCreateMenu, setShowCreateMenu] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
@@ -47,7 +53,7 @@ export default function RulesPage() {
 
   const isEditing = !!editingRule;
 
-  useEffect(() => { loadRules(); }, []);
+  useEffect(() => { loadRules(); loadItems(); }, []);
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -70,7 +76,7 @@ export default function RulesPage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openMenuId, showCreateMenu]);
 
-  useEffect(() => { setPage(1); }, [search, filterType, filterStatus]);
+  useEffect(() => { setPage(1); }, [search, filterType, filterStatus, filterSource]);
 
   async function loadRules() {
     try {
@@ -78,6 +84,18 @@ export default function RulesPage() {
       setRules(data);
     } catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
+  }
+
+  async function loadItems() {
+    try {
+      const { data } = await api.get("/catalog", { params: { size: 500 } });
+      setItems(data.content ?? data);
+    } catch (e) { toast.error(apiError(e, tc("errors.load"))); }
+  }
+
+  function itemName(id: string | null): string {
+    if (!id) return "—";
+    return items.find((i) => i.id === id)?.name ?? id.slice(0, 8) + "...";
   }
 
   function resetForm() { setForm({ ...EMPTY_FORM }); setEditingRule(null); }
@@ -150,31 +168,36 @@ export default function RulesPage() {
     if (filterType && r.ruleType !== filterType) return false;
     if (filterStatus === "active" && !r.active) return false;
     if (filterStatus === "inactive" && r.active) return false;
+    if (filterSource && r.sourceItemId !== filterSource) return false;
     return true;
   });
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
+  // La table business_rules ne connait que l'etat actif/inactif : aucune regle
+  // n'y est archivee. La quatrieme carte annoncait donc un zero definitif tout
+  // en affichant l'integralite des regles au clic. Elle compte desormais les
+  // incompatibilites, la categorie la plus surveillee.
   const stats = {
     total: rules.length,
     active: rules.filter((r) => r.active).length,
     draft: rules.filter((r) => !r.active).length,
-    archived: 0,
+    incompatibilities: rules.filter((r) => r.ruleType === "INCOMPATIBILITY").length,
   };
 
   const cardData = [
-    { key: "total", count: stats.total, label: t("stats.totalRules"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", filterValue: "", icon: (
+    { key: "total", count: stats.total, label: t("stats.totalRules"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", filterStatus: "", filterType: "", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /></svg>
     ) },
-    { key: "active", count: stats.active, label: t("stats.activeRules"), link: t("stats.viewActive"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", filterValue: "active", icon: (
+    { key: "active", count: stats.active, label: t("stats.activeRules"), link: t("stats.viewActive"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", filterStatus: "active", filterType: "", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
-    { key: "draft", count: stats.draft, label: t("stats.draftRules"), link: t("stats.viewDrafts"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", filterValue: "inactive", icon: (
+    { key: "draft", count: stats.draft, label: t("stats.draftRules"), link: t("stats.viewDrafts"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", filterStatus: "inactive", filterType: "", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M12 8v4M12 14.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
-    { key: "archived", count: stats.archived, label: t("stats.archivedRules"), link: t("stats.viewArchived"), color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", filterValue: "archived", icon: (
-      <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><path d="M5 8v11a2 2 0 002 2h10a2 2 0 002-2V8" stroke="currentColor" strokeWidth="1.5" /><path d="M10 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+    { key: "incompatibilities", count: stats.incompatibilities, label: t("types.INCOMPATIBILITY"), link: t("stats.viewAll"), color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", filterStatus: "", filterType: "INCOMPATIBILITY", icon: (
+      <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
   ];
 
@@ -227,7 +250,7 @@ export default function RulesPage() {
         {cardData.map((s) => (
           <button
             key={s.key}
-            onClick={() => setFilterStatus(s.filterValue)}
+            onClick={() => { setFilterStatus(s.filterStatus); setFilterType(s.filterType); setFilterSource(""); }}
             className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
           >
             <div className="flex items-center gap-3 mb-3">
@@ -259,6 +282,7 @@ export default function RulesPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={searchKeyHandler(setSearch)}
             placeholder={t("filters.searchPlaceholder")}
             className="input w-full h-10 pl-9"
           />
@@ -274,15 +298,12 @@ export default function RulesPage() {
           <option value="active">{t("statusLabels.active")}</option>
           <option value="inactive">{t("statusLabels.inactive")}</option>
         </select>
-        <select className="input h-10 min-w-[110px]">
-          <option>{t("filters.source")}</option>
+        <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} className="input h-10 min-w-[180px]">
+          <option value="">{t("filters.source")}</option>
+          {[...new Set(rules.map((r) => r.sourceItemId))].map((id) => (
+            <option key={id} value={id}>{itemName(id)}</option>
+          ))}
         </select>
-        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
-          <svg className="size-4" viewBox="0 0 16 16" fill="none">
-            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <p className="text-sm font-medium">{t("filters.filters")}</p>
-        </button>
       </div>
 
       {/* ===== TABLEAU ===== */}
@@ -358,8 +379,8 @@ export default function RulesPage() {
                 <span className="inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md bg-black text-white dark:bg-white dark:text-black">
                   {t(`types.${rule.ruleType}`)}
                 </span>
-                <p className="text-xs font-mono text-black dark:text-white truncate">{rule.sourceItemId?.slice(0, 8)}...</p>
-                <p className="text-xs font-mono text-black dark:text-white truncate">{rule.targetItemId?.slice(0, 8)}...</p>
+                <p className="text-xs text-black dark:text-white truncate">{itemName(rule.sourceItemId)}</p>
+                <p className="text-xs text-black dark:text-white truncate">{itemName(rule.targetItemId)}</p>
                 <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md ${
                   rule.active
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
@@ -506,12 +527,18 @@ export default function RulesPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.sourceItemId")}</label>
-                  <input required value={form.sourceItemId} onChange={(e) => setForm({ ...form, sourceItemId: e.target.value })} placeholder="UUID" className="input w-full h-10" />
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.source")}</label>
+                  <select required value={form.sourceItemId} onChange={(e) => setForm({ ...form, sourceItemId: e.target.value })} className="input w-full h-10">
+                    <option value="">{t("columns.source")}</option>
+                    {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.targetItemId")}</label>
-                  <input required value={form.targetItemId} onChange={(e) => setForm({ ...form, targetItemId: e.target.value })} placeholder="UUID" className="input w-full h-10" />
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.target")}</label>
+                  <select required value={form.targetItemId} onChange={(e) => setForm({ ...form, targetItemId: e.target.value })} className="input w-full h-10">
+                    <option value="">{t("columns.target")}</option>
+                    {items.filter((i) => i.id !== form.sourceItemId).map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
@@ -576,12 +603,12 @@ export default function RulesPage() {
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.sourceItemId")}</p>
-                <p className="text-xs font-mono text-black dark:text-white break-all">{detailRule.sourceItemId}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.source")}</p>
+                <p className="text-sm font-medium text-black dark:text-white break-words">{itemName(detailRule.sourceItemId)}</p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.targetItemId")}</p>
-                <p className="text-xs font-mono text-black dark:text-white break-all">{detailRule.targetItemId}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.target")}</p>
+                <p className="text-sm font-medium text-black dark:text-white break-words">{itemName(detailRule.targetItemId)}</p>
               </div>
               <div className="flex flex-col gap-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.lastModified")}</p>

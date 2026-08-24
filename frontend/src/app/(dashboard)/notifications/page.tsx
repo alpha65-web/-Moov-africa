@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import api, { apiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { searchKeyHandler } from "@/lib/search";
 import type { Notification } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -79,6 +82,8 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  const { user } = useAuth();
+  const canManageConfig = (user?.permissions ?? []).includes("CONFIG_MANAGE");
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
   const [sortOrder, setSortOrder] = useState<"recent" | "oldest">("recent");
@@ -96,7 +101,7 @@ export default function NotificationsPage() {
   useEffect(() => { setPage(1); }, [filter, search, filterType]);
 
   async function loadNotifications() {
-    try { const { data } = await api.get("/notifications"); setNotifications(data.content ?? data); }
+    try { const { data } = await api.get("/notifications", { params: { size: 500 } }); setNotifications(data.content ?? data); }
     catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
   }
@@ -174,12 +179,14 @@ export default function NotificationsPage() {
             </button>
           ))}
         </div>
-        <button className="secondary-icon px-4 py-2.5 active-scale">
-          <span className="flex items-center gap-2">
-            <svg className="size-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" /><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" /><path d="M8 2v2M8 12v2M2 8h2M12 8h2M3.8 3.8l1.4 1.4M10.8 10.8l1.4 1.4M12.2 3.8l-1.4 1.4M5.2 10.8l-1.4 1.4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" /></svg>
-            <p className="text-sm font-medium">{t("settings")}</p>
-          </span>
-        </button>
+        {canManageConfig && (
+          <Link href="/settings" className="secondary-icon px-4 py-2.5 active-scale">
+            <span className="flex items-center gap-2">
+              <svg className="size-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" /><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" /><path d="M8 2v2M8 12v2M2 8h2M12 8h2M3.8 3.8l1.4 1.4M10.8 10.8l1.4 1.4M12.2 3.8l-1.4 1.4M5.2 10.8l-1.4 1.4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" /></svg>
+              <p className="text-sm font-medium">{t("settings")}</p>
+            </span>
+          </Link>
+        )}
       </div>
 
       {/* ===== RECHERCHE + FILTRES ===== */}
@@ -189,7 +196,7 @@ export default function NotificationsPage() {
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search")} className="input w-full h-10 pl-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("search")} className="input w-full h-10 pl-9" />
         </div>
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400 pointer-events-none" viewBox="0 0 16 16" fill="none">
@@ -346,6 +353,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* ===== BANNIÈRE EMAIL ===== */}
+      {canManageConfig && (
       <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800/30 p-6 flex items-center gap-5">
         <div className="size-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
           <svg className="size-7 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none">
@@ -358,13 +366,14 @@ export default function NotificationsPage() {
           <p className="text-sm font-bold text-black dark:text-white">{t("banner.title")}</p>
           <p className="text-xs text-text-secondary dark:text-neutral-400 mt-1 leading-relaxed">{t("banner.description")}</p>
         </div>
-        <button className="primary-icon px-5 py-2.5 active-scale shrink-0">
+        <Link href="/settings" className="primary-icon px-5 py-2.5 active-scale shrink-0">
           <span className="flex items-center gap-2">
             <svg className="size-4" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3" width="13" height="10" rx="2" stroke="currentColor" strokeWidth="1.2" /><path d="M1.5 5.5L8 9.5l6.5-4" stroke="currentColor" strokeWidth="1.2" /></svg>
             <p className="text-sm font-medium whitespace-nowrap">{t("banner.cta")}</p>
           </span>
-        </button>
+        </Link>
       </div>
+      )}
     </div>
   );
 }

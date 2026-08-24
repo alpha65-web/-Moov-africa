@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { KpiEvent } from "@/lib/types";
 import { useTranslations } from "next-intl";
 
@@ -232,7 +233,7 @@ export default function AnalyticsPage() {
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("columns.offerId") + ", " + t("columns.actorId") + "..."} className="input w-full h-10 pl-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("columns.offerId") + ", " + t("columns.actorId") + "..."} className="input w-full h-10 pl-9" />
         </div>
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400 pointer-events-none" viewBox="0 0 16 16" fill="none">

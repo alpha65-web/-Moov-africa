@@ -153,8 +153,8 @@ export default function DashboardPage() {
     async function load() {
       try {
         const [offersRes, catalogRes, usersRes, campaignsRes] = await Promise.all([
-          api.get("/offers").catch(() => ({ data: [] })),
-          api.get("/catalog").catch(() => ({ data: [] })),
+          api.get("/offers", { params: { size: 500 } }).catch(() => ({ data: [] })),
+          api.get("/catalog", { params: { size: 500 } }).catch(() => ({ data: [] })),
           api.get("/users").catch(() => ({ data: [] })),
           api.get("/campaigns/mine").catch(() => ({ data: [] })),
         ]);
@@ -193,6 +193,8 @@ export default function DashboardPage() {
     { label: ts.has("IN_VALIDATION") ? ts("IN_VALIDATION") : "In Validation", value: stats.inValidation, color: STATUS_COLORS.IN_VALIDATION },
   ], [stats, ts]);
 
+  const canManageUsers = (user?.permissions ?? []).includes("USER_MANAGE");
+
   const statCards = [
     {
       label: t("totalOffers"),
@@ -228,7 +230,7 @@ export default function DashboardPage() {
         </svg>
       ),
     },
-    {
+    ...(canManageUsers ? [{
       label: t("users"),
       value: stats.totalUsers,
       accent: "text-purple-600 dark:text-purple-400 bg-purple-500/10",
@@ -238,7 +240,7 @@ export default function DashboardPage() {
           <path d="M3 18c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       ),
-    },
+    }] : []),
   ];
 
   const formatDate = (dateStr: string) => {

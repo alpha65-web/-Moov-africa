@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api, { apiError } from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { Category } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -236,7 +237,7 @@ export default function CategoriesPage() {
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
         <select value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)} className="input h-10 min-w-[140px]">
           <option value="">{t("allLevels")}</option>

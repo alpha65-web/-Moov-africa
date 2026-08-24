@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api, { apiError } from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { AbTest, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -67,7 +68,7 @@ export default function AbTestsPage() {
   }
 
   async function loadOffers() {
-    try { const { data } = await api.get("/offers"); setOffers(Array.isArray(data) ? data : data.content ?? []); }
+    try { const { data } = await api.get("/offers", { params: { size: 500 } }); setOffers(Array.isArray(data) ? data : data.content ?? []); }
     catch { /* */ }
   }
 
@@ -133,16 +134,16 @@ export default function AbTestsPage() {
   };
 
   const cardData = [
-    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
+    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), filterValue: "", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" /><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M7 15v6M17 15v6M12 18h-2M12 18h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M7 15a5 5 0 0110 0" stroke="currentColor" strokeWidth="1.5" /></svg>
     ) },
-    { key: "running", count: stats.running, label: t("stats.running"), link: t("stats.viewRunning"), color: "text-primary", bg: "bg-primary/10", icon: (
+    { key: "running", count: stats.running, label: t("stats.running"), link: t("stats.viewRunning"), filterValue: "RUNNING", color: "text-primary", bg: "bg-primary/10", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
-    { key: "completed", count: stats.completed, label: t("stats.completed"), link: t("stats.viewCompleted"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+    { key: "completed", count: stats.completed, label: t("stats.completed"), link: t("stats.viewCompleted"), filterValue: "COMPLETED", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M8 12l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
-    { key: "cancelled", count: stats.cancelled, label: t("stats.cancelled"), link: t("stats.viewCancelled"), color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30", icon: (
+    { key: "cancelled", count: stats.cancelled, label: t("stats.cancelled"), link: t("stats.viewCancelled"), filterValue: "CANCELLED", color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
   ];
@@ -167,7 +168,11 @@ export default function AbTestsPage() {
       {/* ===== 4 STAT CARDS ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cardData.map((s) => (
-          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+          <button
+            key={s.key}
+            onClick={() => setFilterStatus(s.filterValue)}
+            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
@@ -179,7 +184,7 @@ export default function AbTestsPage() {
               {s.link}
               <svg className="size-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -190,7 +195,7 @@ export default function AbTestsPage() {
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[140px]">
           <option value="">{t("filters.allStatuses")}</option>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { CatalogItem } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -265,6 +266,7 @@ export default function CatalogPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={searchKeyHandler(setSearch)}
             placeholder={tc("searchPlaceholder")}
             className="input w-full h-10 pl-9"
           />
@@ -279,12 +281,6 @@ export default function CatalogPage() {
             <option key={c} value={c}>{t.has(`categories.${c}`) ? t(`categories.${c}`) : c}</option>
           ))}
         </select>
-        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
-          <svg className="size-4" viewBox="0 0 16 16" fill="none">
-            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <p className="text-sm font-medium">{t("filter")}</p>
-        </button>
       </div>
 
       {/* ===== TABLEAU ===== */}
@@ -540,6 +536,7 @@ export default function CatalogPage() {
                       <input
                         value={packItemSearch}
                         onChange={(e) => setPackItemSearch(e.target.value)}
+                        onKeyDown={searchKeyHandler(setPackItemSearch)}
                         placeholder={tc("searchPlaceholder")}
                         className="input w-full h-9 pl-8 text-xs"
                       />

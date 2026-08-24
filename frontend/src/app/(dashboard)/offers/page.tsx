@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { Offer, OfferStatus } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -58,6 +59,8 @@ export default function OffersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -100,11 +103,11 @@ export default function OffersPage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openMenuId, showCreateMenu]);
 
-  useEffect(() => { setPage(1); }, [search, filterStatus]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, dateFrom, dateTo]);
 
   async function loadOffers() {
     try {
-      const { data } = await api.get("/offers");
+      const { data } = await api.get("/offers", { params: { size: 500 } });
       setOffers(data.content ?? data);
     } catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
@@ -182,9 +185,18 @@ export default function OffersPage() {
     return new Date(date).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
   }
 
+  // La periode porte sur la date de creation : c'est la seule date renseignee
+  // pour tous les statuts. validFrom reste vide sur les brouillons, qui
+  // disparaitraient donc de la liste des qu'une periode serait saisie.
   const filtered = offers.filter((o) => {
     if (filterStatus !== "ALL" && o.status !== filterStatus) return false;
     if (search && !`${o.name} ${o.shortDescription}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (dateFrom && new Date(o.createdAt) < new Date(dateFrom)) return false;
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      if (new Date(o.createdAt) > to) return false;
+    }
     return true;
   });
 
@@ -334,46 +346,32 @@ export default function OffersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={searchKeyHandler(setSearch)}
             placeholder={t("searchPlaceholder")}
             className="input w-full h-10 pl-9"
           />
         </div>
-        <select className="input h-10 min-w-[120px]">
-          <option>{t("filters.status")}</option>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[120px]">
+          <option value="ALL">{t("filters.status")}</option>
           {STATUS_KEYS.map((k) => <option key={k} value={k}>{t(`status.${k}`)}</option>)}
         </select>
-        <select className="input h-10 min-w-[130px]">
-          <option>{t("filters.category")}</option>
-        </select>
-        <select className="input h-10 min-w-[110px]">
-          <option>{t("filters.channel")}</option>
-        </select>
-        <div className="flex items-center gap-2 input h-10 min-w-[110px] cursor-pointer">
-          <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
-            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M2 6h12M6 2v12M10 2v12M2 10h12" stroke="currentColor" strokeWidth="0.8" strokeOpacity="0.4" />
-          </svg>
-          <span className="text-sm text-text-secondary dark:text-neutral-400">{t("filters.date")}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-text-secondary dark:text-neutral-500">{t("filters.date")}</span>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input h-10" />
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input h-10" />
         </div>
-        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
-          <svg className="size-4" viewBox="0 0 16 16" fill="none">
-            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <p className="text-sm font-medium">{t("filters.filters")}</p>
-        </button>
       </div>
 
       {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
         {/* En-tête bleu navy */}
-        <div className="hidden md:grid grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_80px_110px_60px] gap-3 px-6 py-3 bg-slate-800 dark:bg-slate-900 rounded-t-2xl">
+        <div className="hidden md:grid grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_110px_60px] gap-3 px-6 py-3 bg-slate-800 dark:bg-slate-900 rounded-t-2xl">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.offer")}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.type")}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.price")}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.period")}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.status")}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.quality")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.channels")}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.lastModified")}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-white text-right">{t("columns.actions")}</span>
         </div>
@@ -381,14 +379,13 @@ export default function OffersPage() {
         {loading ? (
           <div className="px-6 py-4 flex flex-col gap-1">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="hidden md:grid grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_80px_110px_60px] gap-3 items-center py-3.5">
+              <div key={i} className="hidden md:grid grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_110px_60px] gap-3 items-center py-3.5">
                 <Skeleton className="w-28 h-4" />
                 <Skeleton className="w-14 h-5 !rounded-md" />
                 <Skeleton className="w-14 h-4" />
                 <Skeleton className="w-20 h-4" />
                 <Skeleton className="w-16 h-5 !rounded-md" />
                 <Skeleton className="w-10 h-4" />
-                <Skeleton className="w-8 h-4" />
                 <Skeleton className="w-16 h-4" />
                 <Skeleton className="w-6 h-6 ml-auto" />
               </div>
@@ -424,15 +421,6 @@ export default function OffersPage() {
                     <p className="text-sm font-medium">{t("createFirstOffer")}</p>
                   </span>
                 </button>
-                <button className="tertiary-icon px-5 py-2.5 active-scale">
-                  <span className="flex items-center gap-2">
-                    <svg className="size-4" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 3v8M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                    <p className="text-sm font-medium">{t("importOffers")}</p>
-                  </span>
-                </button>
               </div>
             </div>
           </div>
@@ -441,7 +429,7 @@ export default function OffersPage() {
             {paginated.map((offer) => (
               <div
                 key={offer.id}
-                className="grid grid-cols-1 md:grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_80px_110px_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
+                className="grid grid-cols-1 md:grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_110px_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
                 onClick={() => setDetailOffer(offer)}
               >
                 <div className="min-w-0">
@@ -467,7 +455,6 @@ export default function OffersPage() {
                   </div>
                   <span className="text-[11px] font-semibold text-black dark:text-white tabular-nums w-7 text-right">{offer.qualityScore}%</span>
                 </div>
-                <span className="text-xs text-text-secondary dark:text-neutral-400">—</span>
                 <span className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(offer.updatedAt)}</span>
                 <div className="flex justify-end relative" onClick={(e) => e.stopPropagation()}>
                   <button

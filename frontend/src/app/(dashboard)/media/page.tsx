@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
@@ -57,6 +58,7 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterType, setFilterType] = useState("");
   const [page, setPage] = useState(1);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,7 +89,7 @@ export default function MediaPage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openMenuId]);
 
-  useEffect(() => { setPage(1); }, [search, filterStatus]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterType]);
 
   async function loadMedia() {
     try {
@@ -162,6 +164,7 @@ export default function MediaPage() {
   const filtered = media.filter((m) => {
     if (search && !m.fileName.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus && m.conformityStatus !== filterStatus) return false;
+    if (filterType && m.mimeType !== filterType) return false;
     return true;
   });
 
@@ -176,16 +179,16 @@ export default function MediaPage() {
   };
 
   const cardData = [
-    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
+    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), filterValue: "", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /></svg>
     ) },
-    { key: "pending", count: stats.pending, label: t("stats.pending"), link: t("stats.viewPending"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", icon: (
+    { key: "pending", count: stats.pending, label: t("stats.pending"), link: t("stats.viewPending"), filterValue: "PENDING", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
-    { key: "approved", count: stats.approved, label: t("stats.approved"), link: t("stats.viewApproved"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+    { key: "approved", count: stats.approved, label: t("stats.approved"), link: t("stats.viewApproved"), filterValue: "COMPLIANT", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 2a5 5 0 015 5v1H7V7a5 5 0 015-5z" stroke="currentColor" strokeWidth="1.5" /><path d="M4 8h16v11a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M9 13l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
-    { key: "rejected", count: stats.rejected, label: t("stats.rejected"), link: t("stats.viewRejected"), color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30", icon: (
+    { key: "rejected", count: stats.rejected, label: t("stats.rejected"), link: t("stats.viewRejected"), filterValue: "NON_COMPLIANT", color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M15 9l-6 6M9 9l6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
   ];
@@ -225,7 +228,11 @@ export default function MediaPage() {
       {/* ===== 4 STAT CARDS ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cardData.map((s) => (
-          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+          <button
+            key={s.key}
+            onClick={() => setFilterStatus(s.filterValue)}
+            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
@@ -237,7 +244,7 @@ export default function MediaPage() {
               {s.link}
               <svg className="size-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -248,7 +255,7 @@ export default function MediaPage() {
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[140px]">
           <option value="">{t("filters.allStatuses")}</option>
@@ -256,13 +263,12 @@ export default function MediaPage() {
           <option value="COMPLIANT">{t("status.COMPLIANT")}</option>
           <option value="NON_COMPLIANT">{t("status.NON_COMPLIANT")}</option>
         </select>
-        <select className="input h-10 min-w-[120px]">
-          <option>{t("filters.allTypes")}</option>
+        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="input h-10 min-w-[140px]">
+          <option value="">{t("filters.allTypes")}</option>
+          {[...new Set(media.map((m) => m.mimeType))].sort().map((mime) => (
+            <option key={mime} value={mime}>{MIME_LABELS[mime] ?? mime}</option>
+          ))}
         </select>
-        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
-          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-          <p className="text-sm font-medium">{t("filters.filters")}</p>
-        </button>
       </div>
 
       {/* ===== TABLEAU ===== */}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { Campaign, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -10,6 +11,7 @@ const STATUS_STYLES: Record<string, string> = {
   DRAFT: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
   SCHEDULED: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   PUBLISHED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  COMPLETED: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
   CANCELLED: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
 };
 
@@ -39,6 +41,8 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
 
@@ -78,7 +82,7 @@ export default function CampaignsPage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openMenuId, showCreateMenu]);
 
-  useEffect(() => { setPage(1); }, [search, filterStatus, filterChannel]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterChannel, dateFrom, dateTo]);
 
   async function loadCampaigns() {
     try { const { data } = await api.get("/campaigns/mine"); setCampaigns(data); }
@@ -149,6 +153,14 @@ export default function CampaignsPage() {
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus && c.status !== filterStatus) return false;
     if (filterChannel && !c.channels.some((ch) => ch.channelType === filterChannel)) return false;
+    // La periode porte sur la date de creation, seule date renseignee quel que
+    // soit le statut : scheduledAt reste vide sur les brouillons.
+    if (dateFrom && new Date(c.createdAt) < new Date(dateFrom)) return false;
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      if (new Date(c.createdAt) > to) return false;
+    }
     return true;
   });
 
@@ -159,20 +171,20 @@ export default function CampaignsPage() {
     total: campaigns.length,
     scheduled: campaigns.filter((c) => c.status === "SCHEDULED").length,
     published: campaigns.filter((c) => c.status === "PUBLISHED").length,
-    done: campaigns.filter((c) => c.status === "CANCELLED").length,
+    done: campaigns.filter((c) => c.status === "COMPLETED").length,
   };
 
   const cardData = [
-    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
+    { key: "total", count: stats.total, label: t("stats.total"), link: t("stats.viewAll"), filterValue: "", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M3 11V9a1 1 0 01.6-.9l8-4a1 1 0 01.8 0l8 4a1 1 0 01.6.9v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M3 11v4l9 5 9-5v-4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M21 11l-9 5-9-5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
     ) },
-    { key: "scheduled", count: stats.scheduled, label: t("stats.scheduled"), link: t("stats.viewScheduled"), color: "text-primary", bg: "bg-primary/10", icon: (
+    { key: "scheduled", count: stats.scheduled, label: t("stats.scheduled"), link: t("stats.viewScheduled"), filterValue: "SCHEDULED", color: "text-primary", bg: "bg-primary/10", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M3 9h18" stroke="currentColor" strokeWidth="1.5" /><path d="M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="16" cy="16" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M16 14.5v2l1 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
-    { key: "published", count: stats.published, label: t("stats.active"), link: t("stats.viewActive"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+    { key: "published", count: stats.published, label: t("stats.active"), link: t("stats.viewActive"), filterValue: "PUBLISHED", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
     ) },
-    { key: "done", count: stats.done, label: t("stats.done"), link: t("stats.viewDone"), color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", icon: (
+    { key: "done", count: stats.done, label: t("stats.done"), link: t("stats.viewDone"), filterValue: "COMPLETED", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 2a5 5 0 015 5v1H7V7a5 5 0 015-5z" stroke="currentColor" strokeWidth="1.5" /><path d="M4 8h16v11a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
   ];
@@ -216,7 +228,11 @@ export default function CampaignsPage() {
       {/* ===== 4 STAT CARDS ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cardData.map((s) => (
-          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+          <button
+            key={s.key}
+            onClick={() => setFilterStatus(s.filterValue)}
+            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
@@ -228,7 +244,7 @@ export default function CampaignsPage() {
               {s.link}
               <svg className="size-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -239,30 +255,25 @@ export default function CampaignsPage() {
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[140px]">
           <option value="">{t("filters.allStatuses")}</option>
           <option value="DRAFT">{t("status.DRAFT")}</option>
           <option value="SCHEDULED">{t("status.SCHEDULED")}</option>
           <option value="PUBLISHED">{t("status.PUBLISHED")}</option>
+          <option value="COMPLETED">{t("status.COMPLETED")}</option>
           <option value="CANCELLED">{t("status.CANCELLED")}</option>
         </select>
         <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} className="input h-10 min-w-[140px]">
           <option value="">{t("filters.allChannels")}</option>
           {CHANNEL_LIST.map((ch) => <option key={ch} value={ch}>{t(`channels.${ch}`)}</option>)}
         </select>
-        <div className="flex items-center gap-2 input h-10 min-w-[110px] cursor-pointer">
-          <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
-            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M2 6h12M6 2v12M10 2v12M2 10h12" stroke="currentColor" strokeWidth="0.8" strokeOpacity="0.4" />
-          </svg>
-          <span className="text-sm text-text-secondary dark:text-neutral-400">{t("filters.period")}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-text-secondary dark:text-neutral-500">{t("filters.period")}</span>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input h-10" />
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input h-10" />
         </div>
-        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
-          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-          <p className="text-sm font-medium">{t("filters.filters")}</p>
-        </button>
       </div>
 
       {/* ===== TABLEAU ===== */}

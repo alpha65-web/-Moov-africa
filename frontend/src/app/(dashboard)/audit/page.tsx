@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { AuditLog } from "@/lib/types";
 import { useTranslations } from "next-intl";
 
@@ -48,7 +49,7 @@ export default function AuditPage() {
   useEffect(() => { setPage(1); }, [search, filterAction, filterEntity]);
 
   async function loadLogs() {
-    try { const { data } = await api.get("/audit"); setLogs(data.content ?? data); }
+    try { const { data } = await api.get("/audit", { params: { size: 500 } }); setLogs(data.content ?? data); }
     catch { /* API pas disponible */ }
     finally { setLoading(false); }
   }
@@ -98,7 +99,7 @@ export default function AuditPage() {
               <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3" />
               <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
-            <input type="text" placeholder={t("searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="input w-full pl-8" />
+            <input type="text" placeholder={t("searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} className="input w-full pl-8" />
           </div>
           <select value={filterEntity} onChange={(e) => setFilterEntity(e.target.value)} className="input">
             <option value="">{t("allEntities")}</option>

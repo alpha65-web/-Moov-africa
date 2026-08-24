@@ -318,6 +318,7 @@
       "DRAFT": "Draft",
       "SCHEDULED": "Scheduled",
       "PUBLISHED": "Published",
+      "COMPLETED": "Completed",
       "CANCELLED": "Cancelled"
     },
     "messages": {

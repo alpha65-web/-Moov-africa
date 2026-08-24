@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
+import { searchKeyHandler } from "@/lib/search";
 import type { User } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -262,7 +263,7 @@ export default function UsersPage() {
     setForm({
       email: user.email, password: "", firstName: user.firstName, lastName: user.lastName,
       phone: user.phone || "", pseudo: user.pseudo || "", sex: user.sex || "",
-      address: "", roleName: user.role,
+      address: user.address || "", roleName: user.role,
     });
     setAvatarPreview(user.avatarUrl || null);
     setStep(1);
@@ -277,7 +278,7 @@ export default function UsersPage() {
     try {
       const payload: Record<string, string | null> = {
         email: form.email, firstName: form.firstName, lastName: form.lastName,
-        phone: form.phone, pseudo: form.pseudo, sex: form.sex, roleName: form.roleName,
+        phone: form.phone, pseudo: form.pseudo, sex: form.sex, address: form.address, roleName: form.roleName,
         avatarUrl: avatarPreview,
       };
       if (form.password) payload.password = form.password;
@@ -310,7 +311,11 @@ export default function UsersPage() {
   const filtered = users.filter((u) => {
     if (search && !`${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterRole && u.role !== filterRole) return false;
-    if (filterStatus && u.status !== filterStatus) return false;
+    // DISABLED et DEACTIVATED portent le meme libelle dans l'interface : le
+    // filtre "Desactive" doit retenir les deux, sinon la carte de statistiques
+    // annonce plus de comptes que la liste n'en affiche.
+    if (filterStatus === "DISABLED" && u.status !== "DISABLED" && u.status !== "DEACTIVATED") return false;
+    if (filterStatus && filterStatus !== "DISABLED" && u.status !== filterStatus) return false;
     return true;
   });
 
@@ -325,16 +330,16 @@ export default function UsersPage() {
   };
 
   const cardData = [
-    { key: "total", count: stats.total, label: t("stats.totalUsers"), link: t("stats.viewAll"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
+    { key: "total", count: stats.total, label: t("stats.totalUsers"), link: t("stats.viewAll"), filterValue: "", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M3 20c0-3 3-5.5 6-5.5s6 2.5 6 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="17" cy="9" r="3" stroke="currentColor" strokeWidth="1.5" /><path d="M19 20c1.5-.5 3-2 3-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
-    { key: "active", count: stats.active, label: t("stats.activeUsers"), link: t("stats.viewActive"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+    { key: "active", count: stats.active, label: t("stats.activeUsers"), link: t("stats.viewActive"), filterValue: "ACTIVE", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M16 11l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
-    { key: "disabled", count: stats.disabled, label: t("stats.disabledUsers"), link: t("stats.viewDisabled"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", icon: (
+    { key: "disabled", count: stats.disabled, label: t("stats.disabledUsers"), link: t("stats.viewDisabled"), filterValue: "DISABLED", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="18" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M16 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
-    { key: "roles", count: stats.roles, label: t("stats.rolesCount"), link: t("stats.viewRoles"), color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", icon: (
+    { key: "roles", count: stats.roles, label: t("stats.rolesCount"), link: t("stats.viewAll"), filterValue: "", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 2l2 4 4.5.7-3.3 3.1.8 4.5L12 12.4 8 14.3l.8-4.5L5.5 6.7 10 6l2-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M5 18h14M7 21h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
   ];
@@ -377,7 +382,11 @@ export default function UsersPage() {
       {/* ===== 4 STAT CARDS ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cardData.map((s) => (
-          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+          <button
+            key={s.key}
+            onClick={() => setFilterStatus(s.filterValue)}
+            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
@@ -389,7 +398,7 @@ export default function UsersPage() {
               {s.link}
               <svg className="size-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -400,7 +409,7 @@ export default function UsersPage() {
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
             <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("filters.searchPlaceholder")} className="input w-full h-10 pl-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("filters.searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
         <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="input h-10 min-w-[140px]">
           <option value="">{t("filters.allRoles")}</option>
@@ -414,10 +423,6 @@ export default function UsersPage() {
           <option value="LOCKED">{t("status.LOCKED")}</option>
           <option value="DISABLED">{t("status.DISABLED")}</option>
         </select>
-        <button className="tertiary-icon px-4 h-10 flex items-center gap-2">
-          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-          <p className="text-sm font-medium">{t("filters.filters")}</p>
-        </button>
       </div>
 
       {/* ===== TABLEAU ===== */}
