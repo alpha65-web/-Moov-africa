@@ -1,13 +1,12 @@
 import { getRequestConfig } from "next-intl/server";
 import { cookies } from "next/headers";
 
-export const SUPPORTED_LOCALES = [
-  "fr", "en", "ar", "bg", "ca", "cs", "da", "de", "el", "es", "es-419",
-  "et", "fi", "fil", "he", "hi", "hr", "hu", "id", "it", "ja", "ko",
-  "lt", "lv", "ms", "mt", "nb", "nl", "pl", "pt", "pt-BR", "ro", "ru",
-  "sk", "sl", "sr", "sv", "sw", "th", "tr", "uk", "vi", "zh", "zh-HK",
-  "zh-TW", "zu",
-] as const;
+// Seules ces deux langues sont reellement traduites. Les 44 autres locales
+// livrees jusqu'ici etaient des copies identiques du fichier francais, amputees
+// de 266 cles : elles n'apportaient rien que le repli sur le francais ne fasse
+// deja. Ajouter un code ici suppose de livrer le fichier messages/<code>.json
+// correspondant.
+export const SUPPORTED_LOCALES = ["fr", "en"] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 

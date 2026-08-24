@@ -3,61 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+// Les seules langues reellement traduites. Le filtre COMPLETE_LOCALES qui se
+// trouvait ici masquait 44 locales dont les fichiers n'etaient que des copies du
+// francais : ces fichiers ont ete supprimes, la liste se suffit desormais a
+// elle-meme. Ajouter une entree suppose de livrer messages/<code>.json complet.
 const LANGUAGES: { code: string; label: string; flag: string }[] = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
   { code: "en", label: "English", flag: "🇬🇧" },
-  { code: "ar", label: "العربية", flag: "🇸🇦" },
-  { code: "bg", label: "Български", flag: "🇧🇬" },
-  { code: "ca", label: "Català", flag: "🇪🇸" },
-  { code: "cs", label: "Čeština", flag: "🇨🇿" },
-  { code: "da", label: "Dansk", flag: "🇩🇰" },
-  { code: "de", label: "Deutsch", flag: "🇩🇪" },
-  { code: "el", label: "Ελληνικά", flag: "🇬🇷" },
-  { code: "es", label: "Español", flag: "🇪🇸" },
-  { code: "es-419", label: "Español (Latam)", flag: "🇲🇽" },
-  { code: "et", label: "Eesti", flag: "🇪🇪" },
-  { code: "fi", label: "Suomi", flag: "🇫🇮" },
-  { code: "fil", label: "Filipino", flag: "🇵🇭" },
-  { code: "he", label: "עברית", flag: "🇮🇱" },
-  { code: "hi", label: "हिन्दी", flag: "🇮🇳" },
-  { code: "hr", label: "Hrvatski", flag: "🇭🇷" },
-  { code: "hu", label: "Magyar", flag: "🇭🇺" },
-  { code: "id", label: "Bahasa Indonesia", flag: "🇮🇩" },
-  { code: "it", label: "Italiano", flag: "🇮🇹" },
-  { code: "ja", label: "日本語", flag: "🇯🇵" },
-  { code: "ko", label: "한국어", flag: "🇰🇷" },
-  { code: "lt", label: "Lietuvių", flag: "🇱🇹" },
-  { code: "lv", label: "Latviešu", flag: "🇱🇻" },
-  { code: "ms", label: "Bahasa Melayu", flag: "🇲🇾" },
-  { code: "mt", label: "Malti", flag: "🇲🇹" },
-  { code: "nb", label: "Norsk bokmål", flag: "🇳🇴" },
-  { code: "nl", label: "Nederlands", flag: "🇳🇱" },
-  { code: "pl", label: "Polski", flag: "🇵🇱" },
-  { code: "pt", label: "Português", flag: "🇵🇹" },
-  { code: "pt-BR", label: "Português (Brasil)", flag: "🇧🇷" },
-  { code: "ro", label: "Română", flag: "🇷🇴" },
-  { code: "ru", label: "Русский", flag: "🇷🇺" },
-  { code: "sk", label: "Slovenčina", flag: "🇸🇰" },
-  { code: "sl", label: "Slovenščina", flag: "🇸🇮" },
-  { code: "sr", label: "Српски", flag: "🇷🇸" },
-  { code: "sv", label: "Svenska", flag: "🇸🇪" },
-  { code: "sw", label: "Kiswahili", flag: "🇰🇪" },
-  { code: "th", label: "ไทย", flag: "🇹🇭" },
-  { code: "tr", label: "Türkçe", flag: "🇹🇷" },
-  { code: "uk", label: "Українська", flag: "🇺🇦" },
-  { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
-  { code: "zh", label: "中文 (简体)", flag: "🇨🇳" },
-  { code: "zh-HK", label: "中文 (香港)", flag: "🇭🇰" },
-  { code: "zh-TW", label: "中文 (繁體)", flag: "🇹🇼" },
-  { code: "zu", label: "isiZulu", flag: "🇿🇦" },
 ];
-
-// Seuls fr et en disposent de 100% des cles (messages/*.json). Les 44 autres
-// locales ont environ 180 cles manquantes chacune, ce qui casse le rendu des
-// pages users, notifications, settings, rules, audit, login et offers.
-// Retirer un code de cette liste des que sa traduction est complete.
-const COMPLETE_LOCALES = new Set(["fr", "en"]);
-const AVAILABLE_LANGUAGES = LANGUAGES.filter((l) => COMPLETE_LOCALES.has(l.code));
 
 export default function LanguageSwitcher() {
   const locale = useLocale();
@@ -85,8 +38,8 @@ export default function LanguageSwitcher() {
     window.location.reload();
   }
 
-  const current = AVAILABLE_LANGUAGES.find((l) => l.code === locale) || AVAILABLE_LANGUAGES[0];
-  const filtered = AVAILABLE_LANGUAGES.filter(
+  const current = LANGUAGES.find((l) => l.code === locale) || LANGUAGES[0];
+  const filtered = LANGUAGES.filter(
     (l) =>
       l.label.toLowerCase().includes(search.toLowerCase()) ||
       l.code.toLowerCase().includes(search.toLowerCase())
