@@ -25,6 +25,16 @@ const FILTER_ACTIONS = ["ALL", "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGIN_FAI
 
 const PER_PAGE = 10;
 
+const ENTITY_KEYS: Record<string, string> = {
+  Offer: "OFFER",
+  CatalogItem: "CATALOG_ITEM",
+  User: "USER",
+  Campaign: "CAMPAIGN",
+  MediaAsset: "MEDIA",
+  BusinessRule: "RULE",
+  Notification: "NOTIFICATION",
+};
+
 export default function AuditPage() {
   const t = useTranslations("audit");
 
@@ -33,6 +43,19 @@ export default function AuditPage() {
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("ALL");
   const [filterEntity, setFilterEntity] = useState("");
+
+  /**
+   * Le journal enregistre le type d'entite sous le nom de la classe Java
+   * (« Offer », « CatalogItem »), tandis que les traductions sont indexees par code
+   * metier (« OFFER », « CATALOG_ITEM »). Les deux jeux ne se recoupaient sur aucune
+   * valeur : chaque ligne levait une erreur MISSING_MESSAGE et la colonne Entite
+   * etait vide. La correspondance est explicite, et tout type inconnu retombe sur
+   * sa valeur brute plutot que de casser l'affichage.
+   */
+  function entityLabel(entityType: string): string {
+    const key = ENTITY_KEYS[entityType] ?? entityType;
+    return t.has(`entities.${key}`) ? t(`entities.${key}`) : entityType;
+  }
   const [detailLog, setDetailLog] = useState<AuditLog | null>(null);
   const [page, setPage] = useState(1);
 
@@ -104,7 +127,7 @@ export default function AuditPage() {
           <select value={filterEntity} onChange={(e) => setFilterEntity(e.target.value)} className="input">
             <option value="">{t("allEntities")}</option>
             {entityTypes.map((et) => (
-              <option key={et} value={et}>{t(`entities.${et}`)}</option>
+              <option key={et} value={et}>{entityLabel(et)}</option>
             ))}
           </select>
         </div>
@@ -164,7 +187,7 @@ export default function AuditPage() {
                         {t(`actions.${log.action}`)}
                       </span>
                     </td>
-                    <td className="px-4 py-3"><span className="font-bold text-black dark:text-white text-xs">{t(`entities.${log.entityType}`)}</span></td>
+                    <td className="px-4 py-3"><span className="font-bold text-black dark:text-white text-xs">{entityLabel(log.entityType)}</span></td>
                     <td className="px-4 py-3"><span className="text-xs text-text-secondary dark:text-neutral-400 font-mono">{log.ipAddress || "·"}</span></td>
                     <td className="px-4 py-3">
                       {(log.previousValue || log.newValue) ? (
@@ -209,7 +232,7 @@ export default function AuditPage() {
               <div>
                 <h3 className="text-lg font-bold text-black dark:text-white">{t("detail")}</h3>
                 <p className="text-xs text-text-secondary dark:text-neutral-500 mt-0.5">
-                  {t(`actions.${detailLog.action}`)} · {t(`entities.${detailLog.entityType}`)} · {formatDate(detailLog.createdAt)}
+                  {t.has(`actions.${detailLog.action}`) ? t(`actions.${detailLog.action}`) : detailLog.action} · {entityLabel(detailLog.entityType)} · {formatDate(detailLog.createdAt)}
                 </p>
               </div>
               <button onClick={() => setDetailLog(null)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
