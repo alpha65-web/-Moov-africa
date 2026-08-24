@@ -245,7 +245,7 @@ export default function AbTestsPage() {
                 <circle cx="140" cy="40" r="2" className="fill-emerald-400/25" />
               </svg>
               <div>
-                <p className="text-base font-bold text-black dark:text-white">{t("emptyTitle")}</p>
+                <p className="text-base font-bold text-black dark:text-white">{t("empty")}</p>
                 <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
               </div>
               <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">

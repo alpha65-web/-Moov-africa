@@ -312,7 +312,11 @@
       "EMAIL": "Email",
       "PUSH_NOTIFICATION": "Push",
       "SOCIAL_MEDIA": "Réseaux sociaux",
-      "USSD": "USSD"
+      "USSD": "USSD",
+      "FACEBOOK": "Facebook",
+      "INSTAGRAM": "Instagram",
+      "LINKEDIN": "LinkedIn",
+      "PARTNER_SITE": "Site partenaire"
     },
     "status": {
       "DRAFT": "Brouillon",
@@ -911,7 +915,8 @@
       "name": "Nom de la catégorie",
       "description": "Description",
       "parentId": "Catégorie parente",
-      "noParent": "Aucune (catégorie racine)"
+      "noParent": "Aucune (catégorie racine)",
+      "parent": "Catégorie parente"
     },
     "createTitle": "Nouvelle catégorie",
     "editTitle": "Modifier la catégorie",
@@ -934,8 +939,22 @@
       "navigation": "Navigation",
       "navigationDesc": "Facilitez la navigation dans votre catalogue.",
       "flexibility": "Flexibilité",
-      "flexibilityDesc": "Ajoutez, modifiez ou réorganisez vos catégories à tout moment."
-    }
+      "flexibilityDesc": "Ajoutez, modifiez ou réorganisez vos catégories à tout moment.",
+      "organize": "Organisation",
+      "organizeDesc": "Regroupez vos offres et vos éléments de catalogue par thème.",
+      "catalog": "Catalogue structuré",
+      "catalogDesc": "Rattachez chaque produit ou service à sa catégorie."
+    },
+    "searchPlaceholder": "Rechercher une catégorie...",
+    "level": "Niveau",
+    "root": "racine",
+    "stats": {
+      "total": "Total des catégories",
+      "roots": "Catégories racines",
+      "children": "Sous-catégories"
+    },
+    "emptyTitle": "Aucune catégorie",
+    "createFirst": "Créer ma première catégorie"
   },
   "analytics": {
     "title": "Analytics",
@@ -994,7 +1013,11 @@
       "total": "Total des tests",
       "running": "En cours",
       "completed": "Terminés",
-      "cancelled": "Annulés"
+      "cancelled": "Annulés",
+      "viewAll": "Voir tous les tests",
+      "viewRunning": "Voir les tests en cours",
+      "viewCompleted": "Voir les tests terminés",
+      "viewCancelled": "Voir les tests annulés"
     },
     "columns": {
       "test": "Test",
@@ -1017,13 +1040,17 @@
       "variantA": "Variante A",
       "variantB": "Variante B",
       "metric": "Métrique de mesure",
-      "metricPlaceholder": "Ex: taux de conversion, clics..."
+      "metricPlaceholder": "Ex: taux de conversion, clics...",
+      "offer": "Offre à tester",
+      "variantAPlaceholder": "Ex : Rentrée Moov, 5 Go à 2500 F",
+      "variantBPlaceholder": "Ex : Profitez de 5 Go pour 2500 F"
     },
     "actions": {
       "start": "Démarrer",
       "complete": "Terminer",
       "cancel": "Annuler",
-      "chooseWinner": "Choisir le gagnant"
+      "chooseWinner": "Choisir le gagnant",
+      "confirmWinner": "Confirmer le gagnant"
     },
     "winner": "Gagnant",
     "selectWinner": "Sélectionnez le gagnant",
@@ -1046,8 +1073,19 @@
       "optimize": "Optimisation",
       "optimizeDesc": "Identifiez la meilleure variante pour maximiser vos résultats.",
       "data": "Data-driven",
-      "dataDesc": "Prenez des décisions basées sur les données réelles."
-    }
+      "dataDesc": "Prenez des décisions basées sur les données réelles.",
+      "metrics": "Métriques",
+      "metricsDesc": "Suivez le taux de conversion, les clics et les souscriptions.",
+      "winner": "Variante gagnante",
+      "winnerDesc": "Désignez la variante retenue à la clôture du test."
+    },
+    "searchPlaceholder": "Rechercher un test...",
+    "createFirst": "Créer mon premier test",
+    "filters": {
+      "allStatuses": "Tous les statuts"
+    },
+    "detailTitle": "Détail du test",
+    "completeDescription": "Désignez la variante gagnante pour clore le test."
   },
   "exports": {
     "title": "Exports & Intégrations",

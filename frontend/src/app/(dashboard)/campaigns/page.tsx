@@ -15,7 +15,11 @@ const STATUS_STYLES: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
 };
 
-const CHANNEL_LIST = ["SMS", "EMAIL", "PUSH_NOTIFICATION", "SOCIAL_MEDIA", "USSD"];
+// Les neuf valeurs de l'enum ChannelType cote serveur. La liste s'arretait a cinq,
+// alors que des campagnes diffusent sur Facebook et LinkedIn : ces canaux etaient
+// absents du filtre et leur libelle ne se resolvait pas.
+const CHANNEL_LIST = ["SMS", "EMAIL", "PUSH_NOTIFICATION", "SOCIAL_MEDIA", "USSD",
+  "FACEBOOK", "INSTAGRAM", "LINKEDIN", "PARTNER_SITE"];
 
 const EMPTY_FORM = {
   name: "",

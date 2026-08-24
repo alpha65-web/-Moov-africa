@@ -312,7 +312,11 @@
       "EMAIL": "Email",
       "PUSH_NOTIFICATION": "Push",
       "SOCIAL_MEDIA": "Social media",
-      "USSD": "USSD"
+      "USSD": "USSD",
+      "FACEBOOK": "Facebook",
+      "INSTAGRAM": "Instagram",
+      "LINKEDIN": "LinkedIn",
+      "PARTNER_SITE": "Partner site"
     },
     "status": {
       "DRAFT": "Draft",
@@ -911,7 +915,8 @@
       "name": "Category name",
       "description": "Description",
       "parentId": "Parent category",
-      "noParent": "None (root category)"
+      "noParent": "None (root category)",
+      "parent": "Parent category"
     },
     "createTitle": "New category",
     "editTitle": "Edit category",
@@ -934,8 +939,22 @@
       "navigation": "Navigation",
       "navigationDesc": "Facilitate navigation in your catalog.",
       "flexibility": "Flexibility",
-      "flexibilityDesc": "Add, modify or reorganize your categories at any time."
-    }
+      "flexibilityDesc": "Add, modify or reorganize your categories at any time.",
+      "organize": "Organisation",
+      "organizeDesc": "Group your offers and catalogue items by theme.",
+      "catalog": "Structured catalogue",
+      "catalogDesc": "Attach every product or service to its category."
+    },
+    "searchPlaceholder": "Search for a category...",
+    "level": "Level",
+    "root": "root",
+    "stats": {
+      "total": "Total categories",
+      "roots": "Root categories",
+      "children": "Subcategories"
+    },
+    "emptyTitle": "No category",
+    "createFirst": "Create my first category"
   },
   "analytics": {
     "title": "Analytics",
@@ -994,7 +1013,11 @@
       "total": "Total tests",
       "running": "Running",
       "completed": "Completed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "viewAll": "View all tests",
+      "viewRunning": "View running tests",
+      "viewCompleted": "View completed tests",
+      "viewCancelled": "View cancelled tests"
     },
     "columns": {
       "test": "Test",
@@ -1017,13 +1040,17 @@
       "variantA": "Variant A",
       "variantB": "Variant B",
       "metric": "Measurement metric",
-      "metricPlaceholder": "E.g.: conversion rate, clicks..."
+      "metricPlaceholder": "E.g.: conversion rate, clicks...",
+      "offer": "Offer to test",
+      "variantAPlaceholder": "e.g. Moov back-to-school, 5 GB for 2500 F",
+      "variantBPlaceholder": "e.g. Get 5 GB for 2500 F"
     },
     "actions": {
       "start": "Start",
       "complete": "Complete",
       "cancel": "Cancel",
-      "chooseWinner": "Choose winner"
+      "chooseWinner": "Choose winner",
+      "confirmWinner": "Confirm the winner"
     },
     "winner": "Winner",
     "selectWinner": "Select the winner",
@@ -1046,8 +1073,19 @@
       "optimize": "Optimization",
       "optimizeDesc": "Identify the best variant to maximize your results.",
       "data": "Data-driven",
-      "dataDesc": "Make decisions based on real data."
-    }
+      "dataDesc": "Make decisions based on real data.",
+      "metrics": "Metrics",
+      "metricsDesc": "Track conversion rate, clicks and subscriptions.",
+      "winner": "Winning variant",
+      "winnerDesc": "Designate the retained variant when the test closes."
+    },
+    "searchPlaceholder": "Search for a test...",
+    "createFirst": "Create my first test",
+    "filters": {
+      "allStatuses": "All statuses"
+    },
+    "detailTitle": "Test details",
+    "completeDescription": "Pick the winning variant to close the test."
   },
   "exports": {
     "title": "Exports & Integrations",
