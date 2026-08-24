@@ -123,6 +123,33 @@ class OfferVisibilityScopeTest {
                 "CHEF_PRODUIT reste cloisonne a ses propres fiches");
     }
 
+    /**
+     * Le compte administrateur livre (alpha@) ne peut pas etre teste par appel reel :
+     * il exige un mot de passe et un code TOTP que seul son titulaire detient. Le
+     * chemin de code, lui, est verifie ici : ADMIN_SYSTEME doit emprunter la requete
+     * non filtree, comme le chef de service.
+     */
+    @Test
+    void administrateur_interrogeLaRequeteNonFiltree() throws Exception {
+        authenticate(RoleName.ADMIN_SYSTEME);
+        when(offerRepository.search(isNull(), isNull(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        offerService.search(null, null, PageRequest.of(0, 20));
+
+        verify(offerRepository).search(isNull(), isNull(), any());
+        verify(offerRepository, never()).searchByOwner(any(), any(), any(), any());
+    }
+
+    @Test
+    void administrateur_peutOuvrirNimporteQuelleOffre() throws Exception {
+        authenticate(RoleName.ADMIN_SYSTEME);
+        UUID offerId = UUID.randomUUID();
+        when(offerRepository.findById(offerId))
+                .thenReturn(Optional.of(offerCreatedBy(UUID.randomUUID())));
+
+        assertDoesNotThrow(() -> offerService.getById(offerId));
+    }
+
     @Test
     void chefDeService_peutOuvrirUneOffreDunAutreActeur() throws Exception {
         authenticate(RoleName.CHEF_SERVICE);
