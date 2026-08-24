@@ -132,6 +132,7 @@ rôle qui l'utilise au quotidien.
 |---|---|---|---|
 | `alpha@moov-africa.bf` | Administrateur système | *défini à la première connexion* | `V022` |
 | `chef.produit@moov-africa.bf` | Chef de produit | `MoovProduit@2026!` | `V032` |
+| `chef.produit2@moov-africa.bf` | Chef de produit (second) | `MoovProduit2@2026!` | `V036` |
 | `chef.service@moov-africa.bf` | Chef de service | `MoovService@2026!` | `V032` |
 | `chef.departement@moov-africa.bf` | Chef de département | `MoovDepartement@2026!` | `V032` |
 | `community.manager@moov-africa.bf` | Community manager | `MoovCommunity@2026!` | `V032` |
@@ -146,6 +147,30 @@ par le compte analyste marketing, seul porteur de la permission `OFFER_ENRICH`.
 Les cinq comptes métier se connectent directement : ils ne portent pas le drapeau
 `force_password_change` et ne sont pas soumis à la double authentification, que
 `MfaPolicyFilter` n'exige que d'`ADMIN_SYSTEME` et `SUPER_ADMIN`.
+
+## Circuit de validation
+
+Chaque transition exige la permission de l'étape correspondante, contrôlée par
+`OfferService` où le statut cible est connu. Détenir une permission du cycle de vie
+n'ouvre pas les autres : un chef de produit ne peut pas publier sa propre offre.
+
+| Étape | Statut atteint | Permission exigée | Rôle |
+|---|---|---|---|
+| Soumettre à enrichissement | `IN_ENRICHMENT` | `OFFER_SUBMIT` | chef de produit |
+| Enrichir les contenus | *(reste `IN_ENRICHMENT`)* | `OFFER_ENRICH` | analyste marketing |
+| Soumettre à validation | `IN_VALIDATION` | `OFFER_SUBMIT` | chef de produit |
+| Valider | `VALIDATED` | `OFFER_VALIDATE` | chef de service |
+| Rejeter vers l'enrichissement | `IN_ENRICHMENT` | `OFFER_VALIDATE` | chef de service |
+| Planifier, publier, suspendre, retirer | `PLANNED`, `PUBLISHED`, … | `OFFER_PUBLISH` | chef de département |
+
+Chaque franchissement notifie l'acteur de l'étape suivante, désigné par sa permission
+et non par un rôle codé en dur, ainsi que l'auteur de la fiche pour les décisions qui
+la concernent. L'acteur qui vient d'agir n'est jamais son propre destinataire. Le
+nombre de notifications non lues s'affiche sur l'icône de la barre latérale.
+
+Conséquence de ce routage par permission : l'administrateur, qui détient toutes les
+permissions, reçoit toutes les notifications de cycle de vie. C'est cohérent avec son
+rôle de supervision.
 
 ## Périmètres de visibilité
 
