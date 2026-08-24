@@ -1162,7 +1162,8 @@
       "types": {
         "description": "Description",
         "tags": "Tags",
-        "translation": "Traduction"
+        "translation": "Traduction",
+        "seo": "SEO"
       },
       "product": "Nom du produit",
       "productPlaceholder": "ex. Forfait Data 5Go",
@@ -1187,7 +1188,12 @@
       "applied": "Description appliquée à l élément",
       "applyError": "L application a échoué.",
       "applyHint": "Disponible pour une description générée depuis un élément du catalogue.",
-      "error": "La génération a échoué."
+      "error": "La génération a échoué.",
+      "sourceOffer": "Offre",
+      "selectOffer": "Sélectionnez une offre",
+      "applySeo": "Appliquer le SEO à l'offre",
+      "appliedSeo": "Titre et méta-description appliqués à l'offre",
+      "applySeoHint": "Disponible pour un contenu SEO généré depuis une offre en brouillon ou en enrichissement."
     },
     "insights": {
       "qualityScore": "Score qualité",

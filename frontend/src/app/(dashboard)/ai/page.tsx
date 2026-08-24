@@ -4,12 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import toast from "react-hot-toast";
 import api, { apiError } from "@/lib/api";
-import type { CatalogItem } from "@/lib/types";
+import type { CatalogItem, Offer } from "@/lib/types";
 
 type Tab = "assistant" | "generation" | "insights";
-type GenType = "DESCRIPTION" | "TAGS" | "TRANSLATION";
+type GenType = "DESCRIPTION" | "TAGS" | "TRANSLATION" | "SEO";
 type Tone = "PROFESSIONAL" | "CREATIVE";
-type SourceMode = "catalog" | "free";
+type SourceMode = "catalog" | "offer" | "free";
 
 interface Fact {
   label: string;
@@ -49,6 +49,9 @@ interface Generation {
   language: string;
   content: string;
   source: string;
+  /** Renseignes uniquement pour le type SEO. */
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 }
 
 const PRIORITY_STYLES: Record<string, string> = {
@@ -103,6 +106,10 @@ export default function AiPage() {
   const [genType, setGenType] = useState<GenType>("DESCRIPTION");
   const [sourceMode, setSourceMode] = useState<SourceMode>("catalog");
   const [selectedItemId, setSelectedItemId] = useState("");
+  // Les champs de referencement appartiennent a l'offre, pas a l'element de
+  // catalogue : generer un SEO applicable suppose donc de viser une offre.
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState("");
   const [freeSubject, setFreeSubject] = useState("");
   const [genLang, setGenLang] = useState("fr");
   const [genTone, setGenTone] = useState<Tone>("PROFESSIONAL");
@@ -133,6 +140,10 @@ export default function AiPage() {
       .get("/catalog", { params: { size: 500 } })
       .then(({ data }) => setItems(Array.isArray(data) ? data : data.content ?? []))
       .catch(() => { /* la generation reste utilisable en mode intitule libre */ });
+    api
+      .get("/offers", { params: { size: 500 } })
+      .then(({ data }) => setOffers(Array.isArray(data) ? data : data.content ?? []))
+      .catch(() => { /* idem : la source « offre » sera simplement vide */ });
   }, [loadInsights]);
 
   useEffect(() => {
@@ -177,6 +188,7 @@ export default function AiPage() {
         tone: genTone,
         language: genLang,
         catalogItemId: sourceMode === "catalog" && selectedItemId ? selectedItemId : null,
+        offerId: sourceMode === "offer" && selectedOfferId ? selectedOfferId : null,
         subject: sourceMode === "free" ? freeSubject : null,
       });
       setGeneration(data);
@@ -230,6 +242,39 @@ export default function AiPage() {
     }
   }
 
+  /**
+   * Ecrit le titre et la meta-description generes sur l'offre visee.
+   *
+   * Le passage par /offers/{id}/enrich n'est pas un detour : c'est l'endpoint du
+   * circuit d'enrichissement, protege par OFFER_ENRICH et limite aux offres en
+   * brouillon ou en enrichissement. Une offre plus avancee sera refusee par le
+   * serveur, dont le message est restitue tel quel.
+   */
+  async function handleApplySeo() {
+    if (!generation?.seoTitle || !generation?.seoDescription || !selectedOfferId) return;
+
+    setApplying(true);
+    try {
+      await api.patch(`/offers/${selectedOfferId}/enrich`, {
+        seoTitle: generation.seoTitle,
+        seoDescription: generation.seoDescription,
+      });
+      toast.success(t("generation.appliedSeo"));
+      setOffers((prev) =>
+        prev.map((o) =>
+          o.id === selectedOfferId
+            ? { ...o, seoTitle: generation.seoTitle!, seoDescription: generation.seoDescription! }
+            : o
+        )
+      );
+      loadInsights();
+    } catch (e) {
+      toast.error(apiError(e, t("generation.applyError")));
+    } finally {
+      setApplying(false);
+    }
+  }
+
   function copyResult() {
     if (!generation) return;
     navigator.clipboard.writeText(generation.content);
@@ -239,8 +284,12 @@ export default function AiPage() {
 
   const canApply =
     genType === "DESCRIPTION" && sourceMode === "catalog" && !!selectedItemId && !!generation;
+  const canApplySeo =
+    genType === "SEO" && sourceMode === "offer" && !!selectedOfferId && !!generation?.seoTitle;
   const canGenerate =
-    sourceMode === "catalog" ? !!selectedItemId : freeSubject.trim().length > 0;
+    sourceMode === "catalog" ? !!selectedItemId
+      : sourceMode === "offer" ? !!selectedOfferId
+        : freeSubject.trim().length > 0;
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     {
@@ -417,7 +466,7 @@ export default function AiPage() {
             <div>
               <label className="block text-sm font-medium text-text-secondary dark:text-neutral-400 mb-1.5">{t("generation.type")}</label>
               <div className="flex gap-2">
-                {([["DESCRIPTION", "description"], ["TAGS", "tags"], ["TRANSLATION", "translation"]] as const).map(([value, key]) => (
+                {([["DESCRIPTION", "description"], ["TAGS", "tags"], ["TRANSLATION", "translation"], ["SEO", "seo"]] as const).map(([value, key]) => (
                   <button
                     key={value}
                     onClick={() => setGenType(value)}
@@ -435,7 +484,7 @@ export default function AiPage() {
             <div>
               <label className="block text-sm font-medium text-text-secondary dark:text-neutral-400 mb-1.5">{t("generation.source")}</label>
               <div className="flex gap-2 mb-2">
-                {([["catalog", t("generation.sourceCatalog")], ["free", t("generation.sourceFree")]] as const).map(([value, label]) => (
+                {([["catalog", t("generation.sourceCatalog")], ["offer", t("generation.sourceOffer")], ["free", t("generation.sourceFree")]] as const).map(([value, label]) => (
                   <button
                     key={value}
                     onClick={() => setSourceMode(value)}
@@ -456,6 +505,17 @@ export default function AiPage() {
                   <option value="">{t("generation.selectPlaceholder")}</option>
                   {items.map((i) => (
                     <option key={i.id} value={i.id}>{i.name}</option>
+                  ))}
+                </select>
+              ) : sourceMode === "offer" ? (
+                <select
+                  value={selectedOfferId}
+                  onChange={(e) => setSelectedOfferId(e.target.value)}
+                  className="input w-full cursor-pointer"
+                >
+                  <option value="">{t("generation.selectOffer")}</option>
+                  {offers.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
                   ))}
                 </select>
               ) : (
@@ -539,6 +599,16 @@ export default function AiPage() {
                     <svg className="size-4" viewBox="0 0 20 20" fill="none"><rect x="6" y="6" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M14 6V4a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h2" stroke="currentColor" strokeWidth="1.5" /></svg>
                     {copied ? t("generation.copied") : t("generation.copy")}
                   </button>
+                  {canApplySeo && (
+                    <button
+                      onClick={handleApplySeo}
+                      disabled={applying}
+                      className="flex-1 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="size-4" viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      {applying ? tc("saving") : t("generation.applySeo")}
+                    </button>
+                  )}
                   {canApply && (
                     <button
                       onClick={handleApply}
@@ -552,6 +622,9 @@ export default function AiPage() {
                 </div>
                 {!canApply && genType === "DESCRIPTION" && (
                   <p className="text-[11px] text-text-secondary dark:text-neutral-500 mt-2">{t("generation.applyHint")}</p>
+                )}
+                {!canApplySeo && genType === "SEO" && (
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500 mt-2">{t("generation.applySeoHint")}</p>
                 )}
               </div>
             ) : (

@@ -19,6 +19,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
@@ -89,14 +91,58 @@ class ContentGenerationServiceTest {
         assertTrue(result.content().contains("Moov Africa network"));
     }
 
+    /**
+     * Un type inconnu produisait auparavant une description sous un code HTTP 200 :
+     * l'appelant recevait un contenu qui n'etait pas celui demande, sans le savoir.
+     */
     @Test
-    void generate_withUnknownType_shouldFallBackToDescription() {
-        AiGenerationResponse result = service.generate(new AiGenerationRequest(
-                "N_IMPORTE_QUOI", null, null, null, null, "Pack Decouverte"));
+    void generate_withUnknownType_shouldBeRejected() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.generate(new AiGenerationRequest(
+                        "N_IMPORTE_QUOI", null, null, null, null, "Pack Decouverte")));
 
-        assertEquals("DESCRIPTION", result.type());
-        assertEquals("PROFESSIONAL", result.tone());
-        assertFalse(result.content().isBlank());
+        assertTrue(ex.getMessage().contains("N_IMPORTE_QUOI"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("SEO"), ex.getMessage());
+    }
+
+    @Test
+    void generate_seo_shouldProduceBoundedTitleAndDescription() {
+        AiGenerationResponse result = service.generate(new AiGenerationRequest(
+                "SEO", null, null, null, null,
+                "Forfait Data 5 Go tres genereux pour les usages intensifs du quotidien"));
+
+        assertEquals("SEO", result.type());
+        assertNotNull(result.seoTitle());
+        assertNotNull(result.seoDescription());
+        assertTrue(result.seoTitle().length() <= 60,
+                "titre de " + result.seoTitle().length() + " caracteres : " + result.seoTitle());
+        assertTrue(result.seoDescription().length() <= 155,
+                "description de " + result.seoDescription().length() + " caracteres");
+        assertTrue(result.content().contains(result.seoTitle()));
+        assertTrue(result.content().contains(result.seoDescription()));
+    }
+
+    /** La coupure doit tomber sur un mot entier, pas au milieu. */
+    @Test
+    void generate_seo_shouldNotCutAWordInHalf() {
+        AiGenerationResponse result = service.generate(new AiGenerationRequest(
+                "SEO", null, null, null, null,
+                "Abonnement mensuel illimite pour les entreprises de grande taille"));
+
+        String titre = result.seoTitle();
+        if (titre.endsWith("…")) {
+            String sansEllipse = titre.substring(0, titre.length() - 1);
+            assertFalse(sansEllipse.endsWith(" "), "espace avant l'ellipse : " + titre);
+        }
+    }
+
+    @Test
+    void generate_nonSeoTypes_shouldNotCarrySeoFields() {
+        AiGenerationResponse result = service.generate(new AiGenerationRequest(
+                "DESCRIPTION", null, null, null, null, "Pack Decouverte"));
+
+        assertNull(result.seoTitle());
+        assertNull(result.seoDescription());
     }
 
     private void setId(Object entity, UUID id) {

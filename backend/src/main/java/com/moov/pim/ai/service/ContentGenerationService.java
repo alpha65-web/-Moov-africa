@@ -32,6 +32,11 @@ public class ContentGenerationService {
     public static final String TYPE_DESCRIPTION = "DESCRIPTION";
     public static final String TYPE_TAGS = "TAGS";
     public static final String TYPE_TRANSLATION = "TRANSLATION";
+    public static final String TYPE_SEO = "SEO";
+
+    /** Limites usuelles d'affichage des moteurs de recherche. */
+    private static final int SEO_TITLE_MAX = 60;
+    private static final int SEO_DESCRIPTION_MAX = 155;
 
     private static final String TONE_CREATIVE = "CREATIVE";
 
@@ -59,10 +64,19 @@ public class ContentGenerationService {
         String content = switch (type) {
             case TYPE_TAGS -> generateTags(subject);
             case TYPE_TRANSLATION -> generateTranslation(subject, language, tone);
+            case TYPE_SEO -> generateSeo(subject);
             default -> generateDescription(subject, tone);
         };
 
-        return new AiGenerationResponse(type, tone, language, content, subject.source());
+        String seoTitle = null;
+        String seoDescription = null;
+        if (TYPE_SEO.equals(type)) {
+            seoTitle = seoTitle(subject);
+            seoDescription = seoDescription(subject);
+        }
+
+        return new AiGenerationResponse(type, tone, language, content, subject.source(),
+                seoTitle, seoDescription);
     }
 
     // ---------------------------------------------------------------- sujet
@@ -158,13 +172,72 @@ public class ContentGenerationService {
         };
     }
 
+    // ------------------------------------------------------------------ seo
+
+    /**
+     * Titre de referencement et meta-description, composes a partir du nom, de la
+     * categorie et du prix reels de l'element.
+     *
+     * Rien ne remplissait seoTitle ni seoDescription : ces deux champs existaient sur
+     * les offres sans qu'aucune fonction ne les produise, et l'onglet Generation ne
+     * proposait que description, mots-cles et traduction.
+     *
+     * Les longueurs sont bornees aux limites usuelles d'affichage des moteurs, la
+     * coupure se faisant sur un mot entier pour ne pas trancher au milieu.
+     */
+    private String generateSeo(Subject s) {
+        return "Titre : " + seoTitle(s) + System.lineSeparator()
+                + "Meta-description : " + seoDescription(s);
+    }
+
+    private String seoTitle(Subject s) {
+        String base = s.categoryName() == null || s.categoryName().isBlank()
+                ? s.name() + " | Moov Africa"
+                : s.name() + " - " + s.categoryName() + " | Moov Africa";
+        return truncateOnWord(base, SEO_TITLE_MAX);
+    }
+
+    private String seoDescription(Subject s) {
+        StringBuilder b = new StringBuilder();
+        b.append(s.name());
+        if (s.description() != null && !s.description().isBlank()) {
+            b.append(" : ").append(s.description().trim());
+        }
+        String price = formatPrice(s);
+        if (!price.isEmpty()) {
+            b.append(" A partir de ").append(price).append(".");
+        }
+        b.append(" Souscrivez en ligne chez Moov Africa.");
+        return truncateOnWord(b.toString().replaceAll("\\s+", " ").trim(), SEO_DESCRIPTION_MAX);
+    }
+
+    /** Tronque sans couper un mot, en signalant la coupure par une ellipse. */
+    private static String truncateOnWord(String value, int max) {
+        if (value.length() <= max) {
+            return value;
+        }
+        String cut = value.substring(0, max - 1);
+        int lastSpace = cut.lastIndexOf(' ');
+        if (lastSpace > max / 2) {
+            cut = cut.substring(0, lastSpace);
+        }
+        return cut.trim() + "\u2026";
+    }
+
     // -------------------------------------------------------------- utilitaires
 
+    /**
+     * Un type inconnu etait silencieusement traite comme une description : l'API
+     * repondait 200 avec un contenu qui n'etait pas celui demande. Elle le refuse
+     * desormais, en nommant les types admis.
+     */
     private static String normalizeType(String type) {
         String value = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case TYPE_TAGS, TYPE_TRANSLATION, TYPE_DESCRIPTION -> value;
-            default -> TYPE_DESCRIPTION;
+            case TYPE_TAGS, TYPE_TRANSLATION, TYPE_DESCRIPTION, TYPE_SEO -> value;
+            default -> throw new IllegalArgumentException(
+                    "Type de generation inconnu : " + type
+                            + ". Types admis : DESCRIPTION, TAGS, TRANSLATION, SEO");
         };
     }
 

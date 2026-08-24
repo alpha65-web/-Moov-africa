@@ -1162,7 +1162,8 @@
       "types": {
         "description": "Description",
         "tags": "Tags",
-        "translation": "Translation"
+        "translation": "Translation",
+        "seo": "SEO"
       },
       "product": "Product name",
       "productPlaceholder": "e.g. Data Plan 5GB",
@@ -1187,7 +1188,12 @@
       "applied": "Description applied to the item",
       "applyError": "Apply failed.",
       "applyHint": "Available for a description generated from a catalog item.",
-      "error": "Generation failed."
+      "error": "Generation failed.",
+      "sourceOffer": "Offer",
+      "selectOffer": "Select an offer",
+      "applySeo": "Apply SEO to the offer",
+      "appliedSeo": "Title and meta description applied to the offer",
+      "applySeoHint": "Available for SEO content generated from an offer in draft or enrichment."
     },
     "insights": {
       "qualityScore": "Quality score",
