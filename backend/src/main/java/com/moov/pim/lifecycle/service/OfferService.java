@@ -104,6 +104,8 @@ public class OfferService {
         OfferStatus from = offer.getStatus();
         OfferStatus to = request.targetStatus();
 
+        checkTransitionPermission(from, to);
+
         Set<OfferStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(from, Set.of());
         if (!allowed.contains(to)) {
             throw new IllegalStateException(
@@ -132,7 +134,8 @@ public class OfferService {
         createVersion(offer);
         offer = offerRepository.save(offer);
         eventPublisher.publishEvent(new OfferTransitionEvent(
-                offer.getId(), offer.getName(), currentUserId(), from.name(), to.name()));
+                offer.getId(), offer.getName(), currentUserId(), offer.getCreatedById(),
+                from.name(), to.name()));
         return OfferResponse.from(offer);
     }
 
@@ -221,6 +224,51 @@ public class OfferService {
             return mapper.writeValueAsString(snapshot);
         } catch (Exception e) {
             return "{}";
+        }
+    }
+
+    /**
+     * Permissions admises pour atteindre un statut donne.
+     *
+     * Le controleur exposait une seule annotation
+     * hasAnyAuthority('OFFER_SUBMIT','OFFER_VALIDATE','OFFER_PUBLISH') sur un endpoint
+     * de transition generique : detenir une seule des trois permissions les donnait
+     * donc toutes. Verifie par appels reels, un chef de produit pouvait publier sa
+     * propre offre sans validation, un chef de service publier a la place du chef de
+     * departement et un chef de departement valider a la place du chef de service.
+     * La separation des taches, qui est l'objet meme de la plateforme, n'existait pas.
+     *
+     * Le controle est fait ici parce que c'est le seul endroit ou le statut cible est
+     * connu. L'annotation du controleur reste en place : elle ecarte d'emblee les
+     * roles qui n'ont aucune part au cycle de vie.
+     */
+    private static Set<String> permissionsFor(OfferStatus from, OfferStatus to) {
+        return switch (to) {
+            // Retour a l'auteur : l'enrichisseur comme le soumetteur peuvent rendre la main.
+            case DRAFT -> Set.of("OFFER_SUBMIT", "OFFER_ENRICH");
+            // Depuis la validation, un passage en enrichissement est un rejet : il
+            // appartient au valideur. Depuis le brouillon, c'est une soumission.
+            case IN_ENRICHMENT -> from == OfferStatus.IN_VALIDATION
+                    ? Set.of("OFFER_VALIDATE")
+                    : Set.of("OFFER_SUBMIT");
+            case IN_VALIDATION -> Set.of("OFFER_SUBMIT");
+            case VALIDATED -> Set.of("OFFER_VALIDATE");
+            // Planification, publication, suspension, retrait et archivage relevent
+            // tous de la decision de mise sur le marche.
+            default -> Set.of("OFFER_PUBLISH");
+        };
+    }
+
+    private void checkTransitionPermission(OfferStatus from, OfferStatus to) {
+        Set<String> required = permissionsFor(from, to);
+        CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal();
+        boolean granted = principal.getAuthorities().stream()
+                .anyMatch(a -> required.contains(a.getAuthority()));
+        if (!granted) {
+            throw new AccessDeniedException(
+                    "Passer une offre en " + to + " exige la permission "
+                            + String.join(" ou ", required.stream().sorted().toList()));
         }
     }
 

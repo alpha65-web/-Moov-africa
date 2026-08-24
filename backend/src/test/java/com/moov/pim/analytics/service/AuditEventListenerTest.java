@@ -40,7 +40,7 @@ class AuditEventListenerTest {
     void onOfferTransition_shouldLogPublish() {
         UUID offerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        var event = new OfferTransitionEvent(offerId, "Offre B", userId, "VALIDATED", "PUBLISHED");
+        var event = new OfferTransitionEvent(offerId, "Offre B", userId, UUID.randomUUID(), "VALIDATED", "PUBLISHED");
 
         listener.on(event);
 
@@ -52,7 +52,7 @@ class AuditEventListenerTest {
     void onOfferTransition_shouldLogRejectForWithdrawn() {
         UUID offerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        var event = new OfferTransitionEvent(offerId, "Offre C", userId, "IN_VALIDATION", "WITHDRAWN");
+        var event = new OfferTransitionEvent(offerId, "Offre C", userId, UUID.randomUUID(), "IN_VALIDATION", "WITHDRAWN");
 
         listener.on(event);
 

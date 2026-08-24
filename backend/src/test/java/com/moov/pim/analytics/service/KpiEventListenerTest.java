@@ -33,7 +33,7 @@ class KpiEventListenerTest {
     void onOfferTransition_shouldRecordWithStatus() {
         UUID offerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        var event = new OfferTransitionEvent(offerId, "Offre", userId, "DRAFT", "PUBLISHED");
+        var event = new OfferTransitionEvent(offerId, "Offre", userId, UUID.randomUUID(), "DRAFT", "PUBLISHED");
 
         listener.on(event);
 

@@ -56,6 +56,17 @@ class OfferServiceTest {
         nameField.setAccessible(true);
         nameField.set(role, RoleName.CHEF_PRODUIT);
 
+        // Cette classe verifie la machine a etats, pas la matrice des permissions :
+        // le role recoit donc toutes les permissions du cycle de vie. La separation
+        // des taches, elle, est couverte par OfferTransitionPermissionTest.
+        Field permsField = Role.class.getDeclaredField("permissions");
+        permsField.setAccessible(true);
+        permsField.set(role, new java.util.HashSet<>(java.util.List.of(
+                new com.moov.pim.permissions.domain.Permission("OFFER_SUBMIT", ""),
+                new com.moov.pim.permissions.domain.Permission("OFFER_ENRICH", ""),
+                new com.moov.pim.permissions.domain.Permission("OFFER_VALIDATE", ""),
+                new com.moov.pim.permissions.domain.Permission("OFFER_PUBLISH", ""))));
+
         User user = new User("chef@moov.bf", "$2a$hash", "Chef", "Produit", role);
         Field idField = User.class.getDeclaredField("id");
         idField.setAccessible(true);
