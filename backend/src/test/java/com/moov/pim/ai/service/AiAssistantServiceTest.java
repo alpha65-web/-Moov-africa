@@ -87,14 +87,70 @@ class AiAssistantServiceTest {
 
     @Test
     void answer_withoutRecognizedKeyword_shouldReturnOverview() {
-        when(catalogAnalysisService.analyse()).thenReturn(new AiInsightsResponse(
-                100, 0, 0, 0, List.of(), List.of(),
-                new AiInsightsResponse.Snapshot(14, 13, 8, 4, 2, 1, 0, 3)));
+        stubInsights();
 
-        AiAssistantResponse result = service.answer("Bonjour");
+        AiAssistantResponse result = service.answer("azerty qwerty");
 
         assertEquals("overview", result.topic());
         assertTrue(result.answer().contains("14 element(s) de catalogue"));
+    }
+
+    /**
+     * « Bonjour » retournait la vue d'ensemble : un mur de chiffres en guise de
+     * salutation, qui donnait a penser que l'assistant n'avait pas compris. L'ecran
+     * presente une conversation, elle doit commencer comme une conversation.
+     */
+    @Test
+    void answer_toAGreeting_shouldGreetBack() {
+        stubInsights();
+
+        for (String salutation : List.of("Bonjour", "BONJOUR", "salut", "Bonsoir !", "hello")) {
+            AiAssistantResponse result = service.answer(salutation);
+            assertEquals("greeting", result.topic(), salutation);
+            assertTrue(result.answer().startsWith("Bonjour"), salutation + " -> " + result.answer());
+            assertTrue(result.answer().contains("offres"), salutation);
+        }
+    }
+
+    @Test
+    void answer_toAHelpRequest_shouldListTheTopics() {
+        AiAssistantResponse result = service.answer("Que peux-tu faire ?");
+
+        assertEquals("help", result.topic());
+        assertTrue(result.answer().contains("campagnes"));
+        assertTrue(result.answer().contains("score qualite"));
+    }
+
+    /** Une demande d'aide l'emporte sur la salutation qui la precede. */
+    @Test
+    void answer_toAGreetingWithHelpRequest_shouldPreferHelp() {
+        AiAssistantResponse result = service.answer("Bonjour, que peux-tu faire ?");
+
+        assertEquals("help", result.topic());
+    }
+
+    /** Un sujet de donnees l'emporte sur la politesse qui l'accompagne. */
+    @Test
+    void answer_thankingAboutATopic_shouldStillAnswerTheTopic() {
+        when(offerRepository.findAll()).thenReturn(List.of());
+
+        AiAssistantResponse result = service.answer("Merci, et combien d'offres publiees ?");
+
+        assertEquals("offers", result.topic());
+    }
+
+    @Test
+    void answer_toThanks_shouldAcknowledgeBriefly() {
+        AiAssistantResponse result = service.answer("merci");
+
+        assertEquals("thanks", result.topic());
+        assertTrue(result.facts().isEmpty());
+    }
+
+    private void stubInsights() {
+        when(catalogAnalysisService.analyse()).thenReturn(new AiInsightsResponse(
+                100, 0, 0, 0, List.of(), List.of(),
+                new AiInsightsResponse.Snapshot(14, 13, 8, 4, 2, 1, 0, 3)));
     }
 
     @Test

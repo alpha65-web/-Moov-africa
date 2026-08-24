@@ -39,6 +39,21 @@ public class AiAssistantService {
 
     private static final Map<String, List<String>> TOPIC_KEYWORDS = new LinkedHashMap<>();
 
+    /**
+     * Formules de politesse et demandes d'aide.
+     *
+     * L'ecran presente une conversation, et une conversation commence par une
+     * salutation. Repondre « bonjour » par un etat des lieux chiffre donnait a
+     * penser que l'assistant n'avait pas compris.
+     */
+    private static final List<String> GREETING_KEYWORDS = List.of(
+            "bonjour", "bonsoir", "salut", "coucou", "hello", "hey", "bonne journee", "bonne soiree");
+    private static final List<String> HELP_KEYWORDS = List.of(
+            "aide", "aidez", "aider", "que peux-tu", "que peux tu", "que sais-tu", "que sais tu",
+            "comment ca marche", "comment tu marches", "capacite", "quoi faire", "questions possibles");
+    private static final List<String> THANKS_KEYWORDS = List.of(
+            "merci", "thanks", "nickel");
+
     static {
         TOPIC_KEYWORDS.put("quality", List.of("qualite", "score", "note", "sante", "probleme", "anomalie", "alerte"));
         TOPIC_KEYWORDS.put("offers", List.of("offre", "promotion", "publication", "validation", "workflow"));
@@ -81,6 +96,9 @@ public class AiAssistantService {
     public AiAssistantResponse answer(String question) {
         String topic = detectTopic(question);
         return switch (topic) {
+            case "greeting" -> greeting();
+            case "help" -> help();
+            case "thanks" -> thanks();
             case "quality" -> quality();
             case "offers" -> offers();
             case "catalog" -> catalog();
@@ -91,6 +109,55 @@ public class AiAssistantService {
             case "rules" -> rules();
             default -> overview();
         };
+    }
+
+    /**
+     * Salutation, puis rappel de ce que l'assistant sait faire et etat general du
+     * referentiel en deux chiffres : on repond a la personne avant de repondre a
+     * la question.
+     */
+    private AiAssistantResponse greeting() {
+        AiInsightsResponse insights = catalogAnalysisService.analyse();
+        AiInsightsResponse.Snapshot s = insights.snapshot();
+
+        String answer = "Bonjour. Je reponds aux questions portant sur le referentiel, "
+                + "a partir des donnees reelles de la plateforme. "
+                + "Vous pouvez m'interroger sur les offres, le catalogue, les campagnes, "
+                + "les medias, les categories, les regles metier, les utilisateurs ou la "
+                + "qualite du referentiel. "
+                + "En deux mots, l'etat du jour : " + s.offers() + " offre(s) dont "
+                + s.publishedOffers() + " publiee(s), pour un score qualite de "
+                + insights.qualityScore() + "/100.";
+
+        return new AiAssistantResponse("greeting", answer, List.of(
+                new AiAssistantResponse.Fact("Offres", String.valueOf(s.offers())),
+                new AiAssistantResponse.Fact("Offres publiees", String.valueOf(s.publishedOffers())),
+                new AiAssistantResponse.Fact("Score qualite", insights.qualityScore() + "/100")));
+    }
+
+    /** Ce que l'assistant sait faire, sujet par sujet. */
+    private AiAssistantResponse help() {
+        String answer = "Voici ce que je peux vous dire, chiffres a l'appui : "
+                + "les offres et leur avancement dans le circuit de validation ; "
+                + "le catalogue, ses elements actifs et archives ; "
+                + "les campagnes de diffusion et leurs canaux ; "
+                + "les medias et leur statut de conformite ; "
+                + "l'arborescence des categories ; "
+                + "les regles metier actives ; "
+                + "les comptes utilisateurs et leurs roles ; "
+                + "et le score qualite du referentiel avec le detail des points retires. "
+                + "Chaque reponse est accompagnee des comptages qui l'ont produite, "
+                + "que vous pouvez recouper avec les autres ecrans.";
+
+        return new AiAssistantResponse("help", answer, List.of(
+                new AiAssistantResponse.Fact("Sujets couverts", "8"),
+                new AiAssistantResponse.Fact("Source", "donnees de la plateforme")));
+    }
+
+    private AiAssistantResponse thanks() {
+        return new AiAssistantResponse("thanks",
+                "Avec plaisir. Posez-moi une autre question sur le referentiel quand vous voulez.",
+                List.of());
     }
 
     private AiAssistantResponse quality() {
@@ -274,15 +341,32 @@ public class AiAssistantService {
         return offers.stream().filter(o -> o.getStatus() == status).count();
     }
 
-    /** Retire les accents et la casse afin que "categorie" et "categorie" soient reconnus. */
+    /**
+     * Retire les accents et la casse afin que "categorie" et "catégorie" soient reconnus.
+     *
+     * L'ordre compte. Une demande d'aide l'emporte sur tout : « bonjour, que peux-tu
+     * faire ? » attend la liste des sujets. Les sujets de donnees passent ensuite,
+     * pour que « merci pour les offres » reste une question sur les offres. La
+     * politesse ne repond qu'en dernier, quand rien d'autre n'a ete reconnu.
+     */
     private static String detectTopic(String question) {
         String normalized = Normalizer.normalize(question, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT);
+
+        if (HELP_KEYWORDS.stream().anyMatch(normalized::contains)) {
+            return "help";
+        }
         for (Map.Entry<String, List<String>> entry : TOPIC_KEYWORDS.entrySet()) {
             if (entry.getValue().stream().anyMatch(normalized::contains)) {
                 return entry.getKey();
             }
+        }
+        if (GREETING_KEYWORDS.stream().anyMatch(normalized::contains)) {
+            return "greeting";
+        }
+        if (THANKS_KEYWORDS.stream().anyMatch(normalized::contains)) {
+            return "thanks";
         }
         return "overview";
     }
