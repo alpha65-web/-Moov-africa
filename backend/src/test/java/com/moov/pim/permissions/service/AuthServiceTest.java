@@ -13,6 +13,7 @@ import com.moov.pim.permissions.domain.User;
 import com.moov.pim.permissions.repository.RefreshTokenRepository;
 import com.moov.pim.permissions.repository.RoleRepository;
 import com.moov.pim.permissions.repository.UserRepository;
+import com.moov.pim.shared.event.LoginFailedEvent;
 import com.moov.pim.permissions.security.JwtTokenProvider;
 import com.moov.pim.permissions.security.PasswordPolicyService;
 import com.moov.pim.shared.logging.SecurityMetricsService;
@@ -53,6 +54,7 @@ class AuthServiceTest {
     @Mock private SecurityMetricsService metricsService;
     @Mock private EncryptionService encryptionService;
     @Mock private PasswordPolicyService passwordPolicyService;
+    @Mock private LoginFailureRecorder loginFailureRecorder;
 
     @InjectMocks
     private AuthService authService;
@@ -104,6 +106,47 @@ class AuthServiceTest {
 
         assertThrows(BadCredentialsException.class,
                 () -> authService.login(request, "127.0.0.1", "TestAgent"));
+    }
+
+    /**
+     * L'evenement d'echec etait publie dans la transaction de login, que l'exception
+     * annulait : son ecouteur ne se declenchait donc jamais et aucune tentative
+     * echouee n'etait tracee. Il passe desormais par LoginFailureRecorder, dont la
+     * transaction propre aboutit.
+     */
+    @Test
+    void login_withBadCredentials_shouldRecordTheFailureOutsideTheRolledBackTransaction() {
+        LoginRequest request = new LoginRequest("admin@moov-africa.bf", "mauvais", null);
+
+        when(userRepository.findByEmail("admin@moov-africa.bf")).thenReturn(Optional.of(testUser));
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
+
+        assertThrows(BadCredentialsException.class,
+                () -> authService.login(request, "10.0.0.9", "Firefox"));
+
+        verify(loginFailureRecorder).record(any(), eq("admin@moov-africa.bf"),
+                eq("BAD_CREDENTIALS"), eq("10.0.0.9"), eq("Firefox"));
+        verify(eventPublisher, never()).publishEvent(any(LoginFailedEvent.class));
+    }
+
+    /**
+     * Le verrouillage apres cinq echecs n'est volontairement pas actif : le compte
+     * ne doit etre ni modifie ni enregistre sur un echec d'authentification.
+     */
+    @Test
+    void login_withBadCredentials_shouldNotTouchTheAccount() {
+        LoginRequest request = new LoginRequest("admin@moov-africa.bf", "mauvais", null);
+
+        when(userRepository.findByEmail("admin@moov-africa.bf")).thenReturn(Optional.of(testUser));
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
+
+        assertThrows(BadCredentialsException.class,
+                () -> authService.login(request, "127.0.0.1", "TestAgent"));
+
+        verify(userRepository, never()).save(any(User.class));
+        assertEquals(0, testUser.getFailedLoginAttempts());
     }
 
     @Test

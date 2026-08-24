@@ -55,7 +55,8 @@ public class AuthService {
                        TotpService totpService,
                        SecurityMetricsService metricsService,
                        EncryptionService encryptionService,
-                       PasswordPolicyService passwordPolicyService) {
+                       PasswordPolicyService passwordPolicyService,
+                       LoginFailureRecorder loginFailureRecorder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -67,8 +68,22 @@ public class AuthService {
         this.metricsService = metricsService;
         this.encryptionService = encryptionService;
         this.passwordPolicyService = passwordPolicyService;
+        this.loginFailureRecorder = loginFailureRecorder;
     }
 
+    private final LoginFailureRecorder loginFailureRecorder;
+
+    /**
+     * Seuil de verrouillage, aujourd'hui inapplique.
+     *
+     * L'incrementation du compteur se faisait dans une transaction annulee par
+     * l'exception d'authentification : verifie en base, trois echecs consecutifs
+     * laissaient le compteur a zero et le compte ACTIVE. Le verrouillage n'a donc
+     * jamais fonctionne. Il n'est pas active pour l'instant, par decision : un
+     * administrateur ne peut pas rouvrir son propre compte et la plateforme n'en
+     * compte qu'un seul, qui se retrouverait sans recours. L'activer suppose
+     * d'abord un second administrateur.
+     */
     private static final int MAX_FAILED_ATTEMPTS = 5;
 
     @Transactional
@@ -78,8 +93,8 @@ public class AuthService {
         if (user != null && user.getStatus() == AccountStatus.LOCKED) {
             metricsService.recordLoginFailed();
             metricsService.recordAccountLockout();
-            eventPublisher.publishEvent(new LoginFailedEvent(
-                    user.getId(), request.email(), "ACCOUNT_LOCKED", ipAddress, userAgent));
+            loginFailureRecorder.record(
+                    user.getId(), request.email(), "ACCOUNT_LOCKED", ipAddress, userAgent);
             throw new org.springframework.security.authentication.LockedException(
                     "Compte verrouillé après trop de tentatives");
         }
@@ -88,19 +103,14 @@ public class AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password()));
         } catch (BadCredentialsException ex) {
-            UUID failedUserId = null;
-            if (user != null) {
-                failedUserId = user.getId();
-                user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
-                if (user.getFailedLoginAttempts() >= MAX_FAILED_ATTEMPTS) {
-                    user.setStatus(AccountStatus.LOCKED);
-                    metricsService.recordAccountLockout();
-                }
-                userRepository.save(user);
-            }
+            // Rien n'est ecrit sur l'utilisateur ici : cette transaction est sur le
+            // point d'etre annulee par l'exception relancee plus bas. L'ancien code
+            // incrementait le compteur d'echecs et verrouillait le compte a cet
+            // endroit, sans aucun effet — voir MAX_FAILED_ATTEMPTS.
             metricsService.recordLoginFailed();
-            eventPublisher.publishEvent(new LoginFailedEvent(
-                    failedUserId, request.email(), "BAD_CREDENTIALS", ipAddress, userAgent));
+            loginFailureRecorder.record(
+                    user != null ? user.getId() : null,
+                    request.email(), "BAD_CREDENTIALS", ipAddress, userAgent);
             throw ex;
         }
 
@@ -116,8 +126,8 @@ public class AuthService {
             String decryptedSecret = encryptionService.decrypt(user.getTotpSecret());
             if (!totpService.verifyCode(decryptedSecret, request.totpCode())) {
                 metricsService.recordMfaFailure();
-                eventPublisher.publishEvent(new LoginFailedEvent(
-                        user.getId(), request.email(), "INVALID_MFA", ipAddress, userAgent));
+                loginFailureRecorder.record(
+                        user.getId(), request.email(), "INVALID_MFA", ipAddress, userAgent);
                 throw new InvalidMfaCodeException();
             }
         }
