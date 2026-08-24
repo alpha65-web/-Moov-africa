@@ -6,7 +6,6 @@ import com.moov.pim.campaign.domain.Campaign;
 import com.moov.pim.campaign.domain.CampaignChannel;
 import com.moov.pim.campaign.domain.CampaignStatus;
 import com.moov.pim.campaign.repository.CampaignRepository;
-import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +56,7 @@ public class CampaignService {
     @Transactional(readOnly = true)
     public List<CampaignResponse> listByOffer(UUID offerId) {
         List<Campaign> campaigns = campaignRepository.findByOfferId(offerId);
-        if (!isAdmin()) {
+        if (!hasTransversalScope()) {
             UUID userId = currentUserId();
             campaigns = campaigns.stream()
                     .filter(c -> c.getCreatedById().equals(userId))
@@ -70,12 +69,12 @@ public class CampaignService {
 
     @Transactional(readOnly = true)
     /**
-     * Un administrateur a une vue globale, comme sur le catalogue et les offres.
-     * Sans cette exception, l'ecran Campagnes restait vide pour un ADMIN_SYSTEME
-     * alors meme que des campagnes existaient.
+     * Les roles a perimetre transversal ont une vue globale, comme sur le catalogue
+     * et les offres. Sans cela l'ecran Campagnes restait vide alors meme que des
+     * campagnes existaient.
      */
     public List<CampaignResponse> listMyCampaigns() {
-        List<Campaign> campaigns = isAdmin()
+        List<Campaign> campaigns = hasTransversalScope()
                 ? campaignRepository.findAll()
                 : campaignRepository.findByCreatedById(currentUserId());
         return campaigns.stream()
@@ -167,16 +166,36 @@ public class CampaignService {
     }
 
     private void checkOwnership(Campaign campaign) {
-        if (!isAdmin() && !campaign.getCreatedById().equals(currentUserId())) {
+        if (!hasTransversalScope() && !campaign.getCreatedById().equals(currentUserId())) {
             throw new AccessDeniedException("Accès interdit : cette campagne ne vous appartient pas");
         }
     }
 
-    private boolean isAdmin() {
+    /**
+     * Perimetre de visibilite et d'intervention sur une fiche.
+     *
+     * Le cahier des charges (regles/PROMPT_MAITRE..., regles de visibilite) impose
+     * deux regimes distincts :
+     *   « un chef de produit ne voit que les offres qu'il a lui-meme creees,
+     *     jamais celles des autres chefs de produit »
+     *   « le chef de service a une vue transversale sur plusieurs chefs de produit
+     *     et voit qui a cree quelle offre/produit »
+     *
+     * Le code ne connaissait que le couple administrateur / proprietaire : tout role
+     * non administrateur etait ramene a ses propres fiches. Le chef de service ne
+     * pouvait donc voir aucune offre a valider, l'analyste marketing aucune offre a
+     * enrichir et le chef de departement aucune offre a publier, alors qu'ils
+     * detiennent OFFER_VALIDATE, OFFER_ENRICH et OFFER_PUBLISH. Le circuit de
+     * validation etait inapplicable des que l'auteur n'etait pas l'acteur suivant.
+     *
+     * Les permissions restent verifiees en amont par les annotations @PreAuthorize
+     * des controleurs : ce perimetre ne fait que decider si l'acteur est limite a ses
+     * propres fiches, il n'accorde aucune capacite supplementaire.
+     */
+    private boolean hasTransversalScope() {
         CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal();
-        RoleName role = principal.getUser().getRole().getName();
-        return role == RoleName.ADMIN_SYSTEME || role == RoleName.SUPER_ADMIN;
+        return principal.getUser().getRole().getName().hasTransversalScope();
     }
 
     private UUID currentUserId() {

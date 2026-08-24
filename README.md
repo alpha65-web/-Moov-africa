@@ -122,18 +122,54 @@ npm run dev
 
 Le frontend démarre sur `http://localhost:3000`.
 
-## Première connexion
+## Comptes livrés
 
-Les comptes administrateurs traversent deux étapes obligatoires avant d'accéder aux
+Les migrations installent **un seul compte administrateur** et **un compte par rôle
+métier**, afin que chaque écran puisse être parcouru avec les permissions réelles du
+rôle qui l'utilise au quotidien.
+
+| Compte | Rôle | Mot de passe | Posé par |
+|---|---|---|---|
+| `alpha@moov-africa.bf` | Administrateur système | *défini à la première connexion* | `V022` |
+| `chef.produit@moov-africa.bf` | Chef de produit | `MoovProduit@2026!` | `V032` |
+| `chef.service@moov-africa.bf` | Chef de service | `MoovService@2026!` | `V032` |
+| `chef.departement@moov-africa.bf` | Chef de département | `MoovDepartement@2026!` | `V032` |
+| `community.manager@moov-africa.bf` | Community manager | `MoovCommunity@2026!` | `V032` |
+| `analyste.marketing@moov-africa.bf` | Analyste marketing | `MoovAnalyste@2026!` | `V032` |
+
+`admin@moov-africa.bf` et `watta@moov-africa.bf` ont été supprimés par
+`V033__remove_extra_admin_accounts.sql` : trois administrateurs empêchaient de
+démontrer le cloisonnement des rôles. Les contenus dont ils étaient les auteurs ont
+été repris par `alpha@moov-africa.bf`, et les cinq offres qu'ils avaient enrichies
+par le compte analyste marketing, seul porteur de la permission `OFFER_ENRICH`.
+
+Les cinq comptes métier se connectent directement : ils ne portent pas le drapeau
+`force_password_change` et ne sont pas soumis à la double authentification, que
+`MfaPolicyFilter` n'exige que d'`ADMIN_SYSTEME` et `SUPER_ADMIN`.
+
+## Périmètres de visibilité
+
+Deux régimes coexistent, conformément aux règles de visibilité du cahier des charges.
+
+- **Chef de produit** — cloisonné à ses propres fiches : « un chef de produit ne voit
+  que les offres qu'il a lui-même créées, jamais celles des autres chefs de produit ».
+- **Tous les autres rôles** — vue transversale. Le chef de service valide, le chef de
+  département publie, l'analyste marketing enrichit, le community manager diffuse :
+  leurs permissions (`OFFER_VALIDATE`, `OFFER_PUBLISH`, `OFFER_ENRICH`,
+  `CAMPAIGN_MANAGE`) porteraient sur un ensemble vide s'ils étaient cloisonnés.
+
+Le choix est porté par `RoleName.hasTransversalScope()` et appliqué par `OfferService`,
+`CatalogService` et `CampaignService`. Il ne décide que du périmètre : les permissions
+restent vérifiées en amont par les annotations `@PreAuthorize` des contrôleurs.
+`OfferVisibilityScopeTest` couvre les deux régimes.
+
+## Première connexion administrateur
+
+Le compte administrateur traverse deux étapes obligatoires avant d'accéder aux
 écrans métier. Les deux sont prises en charge par l'interface, qui redirige vers la
 page Profil à chaque fois.
 
-Le compte livré par les migrations est `admin@moov-africa.bf`, mot de passe
-`MoovPim@2026!` (posé par `V031__reset_seeded_admin_password.sql`). Il n'ouvre que
-la première connexion : le drapeau `force_password_change` impose d'en choisir un
-autre immédiatement.
-
-1. **Changement du mot de passe** — les comptes livrés portent le drapeau
+1. **Changement du mot de passe** — `alpha@moov-africa.bf` porte le drapeau
    `force_password_change`. Tant qu'il n'est pas levé, tous les endpoints répondent
    `403 FORCE_PASSWORD_CHANGE`, à l'exception de `/users/me` et `/auth/change-password`.
 2. **Enrôlement de la double authentification** — les rôles `ADMIN_SYSTEME` et

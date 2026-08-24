@@ -12,7 +12,6 @@ import com.moov.pim.lifecycle.domain.OfferStatus;
 import com.moov.pim.lifecycle.domain.OfferStatusHistory;
 import com.moov.pim.lifecycle.domain.OfferVersion;
 import com.moov.pim.lifecycle.repository.OfferRepository;
-import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.shared.event.OfferCreatedEvent;
 import com.moov.pim.shared.event.OfferTransitionEvent;
@@ -151,7 +150,7 @@ public class OfferService {
 
     @Transactional(readOnly = true)
     public Page<OfferResponse> search(OfferStatus status, String search, Pageable pageable) {
-        if (isAdmin()) {
+        if (hasTransversalScope()) {
             return offerRepository.search(status, search, pageable).map(OfferResponse::from);
         }
         return offerRepository.searchByOwner(status, search, currentUserId(), pageable).map(OfferResponse::from);
@@ -159,7 +158,7 @@ public class OfferService {
 
     @Transactional(readOnly = true)
     public List<OfferResponse> listByStatus(OfferStatus status) {
-        if (isAdmin()) {
+        if (hasTransversalScope()) {
             return offerRepository.findByStatus(status).stream()
                     .map(OfferResponse::from)
                     .toList();
@@ -178,7 +177,7 @@ public class OfferService {
 
     @Transactional(readOnly = true)
     public List<OfferResponse> listAll() {
-        if (isAdmin()) {
+        if (hasTransversalScope()) {
             return offerRepository.findAll().stream()
                     .map(OfferResponse::from)
                     .toList();
@@ -226,16 +225,36 @@ public class OfferService {
     }
 
     private void checkOwnership(Offer offer) {
-        if (!isAdmin() && !offer.getCreatedById().equals(currentUserId())) {
+        if (!hasTransversalScope() && !offer.getCreatedById().equals(currentUserId())) {
             throw new AccessDeniedException("Accès interdit : cette offre ne vous appartient pas");
         }
     }
 
-    private boolean isAdmin() {
+    /**
+     * Perimetre de visibilite et d'intervention sur une fiche.
+     *
+     * Le cahier des charges (regles/PROMPT_MAITRE..., regles de visibilite) impose
+     * deux regimes distincts :
+     *   « un chef de produit ne voit que les offres qu'il a lui-meme creees,
+     *     jamais celles des autres chefs de produit »
+     *   « le chef de service a une vue transversale sur plusieurs chefs de produit
+     *     et voit qui a cree quelle offre/produit »
+     *
+     * Le code ne connaissait que le couple administrateur / proprietaire : tout role
+     * non administrateur etait ramene a ses propres fiches. Le chef de service ne
+     * pouvait donc voir aucune offre a valider, l'analyste marketing aucune offre a
+     * enrichir et le chef de departement aucune offre a publier, alors qu'ils
+     * detiennent OFFER_VALIDATE, OFFER_ENRICH et OFFER_PUBLISH. Le circuit de
+     * validation etait inapplicable des que l'auteur n'etait pas l'acteur suivant.
+     *
+     * Les permissions restent verifiees en amont par les annotations @PreAuthorize
+     * des controleurs : ce perimetre ne fait que decider si l'acteur est limite a ses
+     * propres fiches, il n'accorde aucune capacite supplementaire.
+     */
+    private boolean hasTransversalScope() {
         CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal();
-        RoleName role = principal.getUser().getRole().getName();
-        return role == RoleName.ADMIN_SYSTEME || role == RoleName.SUPER_ADMIN;
+        return principal.getUser().getRole().getName().hasTransversalScope();
     }
 
     private UUID currentUserId() {

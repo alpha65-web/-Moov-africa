@@ -14,7 +14,6 @@ import com.moov.pim.catalog.repository.CatalogItemRepository;
 import com.moov.pim.catalog.repository.PackRepository;
 import com.moov.pim.catalog.repository.ProductRepository;
 import com.moov.pim.catalog.repository.ServiceRepository;
-import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.shared.event.CatalogItemCreatedEvent;
 import com.moov.pim.shared.event.CatalogItemArchivedEvent;
@@ -169,7 +168,7 @@ public class CatalogService {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("status"), CatalogItemStatus.ACTIVE));
 
-            if (!isAdmin()) {
+            if (!hasTransversalScope()) {
                 predicates.add(cb.equal(root.get("createdById"), currentUserId()));
             }
 
@@ -196,7 +195,7 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public List<CatalogItemResponse> listAll() {
-        if (isAdmin()) {
+        if (hasTransversalScope()) {
             return catalogItemRepository.findByStatus(CatalogItemStatus.ACTIVE).stream()
                     .map(CatalogItemResponse::from)
                     .toList();
@@ -235,16 +234,36 @@ public class CatalogService {
     }
 
     private void checkOwnership(CatalogItem item) {
-        if (!isAdmin() && !item.getCreatedById().equals(currentUserId())) {
+        if (!hasTransversalScope() && !item.getCreatedById().equals(currentUserId())) {
             throw new AccessDeniedException("Accès interdit : cet élément ne vous appartient pas");
         }
     }
 
-    private boolean isAdmin() {
+    /**
+     * Perimetre de visibilite et d'intervention sur une fiche.
+     *
+     * Le cahier des charges (regles/PROMPT_MAITRE..., regles de visibilite) impose
+     * deux regimes distincts :
+     *   « un chef de produit ne voit que les offres qu'il a lui-meme creees,
+     *     jamais celles des autres chefs de produit »
+     *   « le chef de service a une vue transversale sur plusieurs chefs de produit
+     *     et voit qui a cree quelle offre/produit »
+     *
+     * Le code ne connaissait que le couple administrateur / proprietaire : tout role
+     * non administrateur etait ramene a ses propres fiches. Le chef de service ne
+     * pouvait donc voir aucune offre a valider, l'analyste marketing aucune offre a
+     * enrichir et le chef de departement aucune offre a publier, alors qu'ils
+     * detiennent OFFER_VALIDATE, OFFER_ENRICH et OFFER_PUBLISH. Le circuit de
+     * validation etait inapplicable des que l'auteur n'etait pas l'acteur suivant.
+     *
+     * Les permissions restent verifiees en amont par les annotations @PreAuthorize
+     * des controleurs : ce perimetre ne fait que decider si l'acteur est limite a ses
+     * propres fiches, il n'accorde aucune capacite supplementaire.
+     */
+    private boolean hasTransversalScope() {
         CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal();
-        RoleName role = principal.getUser().getRole().getName();
-        return role == RoleName.ADMIN_SYSTEME || role == RoleName.SUPER_ADMIN;
+        return principal.getUser().getRole().getName().hasTransversalScope();
     }
 
     private UUID currentUserId() {
