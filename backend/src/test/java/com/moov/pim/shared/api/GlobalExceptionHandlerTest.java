@@ -11,6 +11,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -133,6 +134,28 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.FORBIDDEN, result.getStatusCode());
         assertTrue(result.getBody().message().contains("refusé"));
+    }
+
+    /**
+     * Refus de perimetre prononce par checkOwnership. Sans gestionnaire dedie,
+     * AccessDeniedException retombait sur handleAll et l'appelant recevait un 500.
+     */
+    @Test
+    void handleScopeDenied_shouldReturn403WithServiceMessage() {
+        var result = handler.handleScopeDenied(
+                new AccessDeniedException("Accès interdit : cette offre ne vous appartient pas"));
+
+        assertEquals(HttpStatus.FORBIDDEN, result.getStatusCode());
+        assertEquals(403, result.getBody().status());
+        assertEquals("Accès interdit : cette offre ne vous appartient pas", result.getBody().message());
+    }
+
+    @Test
+    void handleScopeDenied_sansMessage_shouldReturnDefault() {
+        var result = handler.handleScopeDenied(new AccessDeniedException(""));
+
+        assertEquals(HttpStatus.FORBIDDEN, result.getStatusCode());
+        assertEquals("Accès refusé", result.getBody().message());
     }
 
     @Test

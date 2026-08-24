@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -59,6 +60,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthorizationDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AuthorizationDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of(403, "Accès refusé"));
+    }
+
+    /**
+     * Refus prononce par le code metier et non par une annotation @PreAuthorize :
+     * controle de perimetre d'une fiche (checkOwnership) dans OfferService,
+     * CatalogService et CampaignService.
+     *
+     * Seul AuthorizationDeniedException etait traite. AccessDeniedException, dont il
+     * herite, retombait donc sur le gestionnaire generique : un chef de produit qui
+     * ouvrait la fiche d'un autre recevait un 500 « Erreur interne du serveur » au
+     * lieu d'un refus explicite, et l'interface affichait une panne la ou il n'y
+     * avait qu'une regle de visibilite. Le message du service est repris tel quel :
+     * il dit precisement ce qui est refuse.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleScopeDenied(AccessDeniedException ex) {
+        String message = ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : "Accès refusé";
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of(403, message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
