@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { LoginResponse } from "./types";
+import { clearSession, getSessionItem, setSessionItem } from "./session";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8092/api/v1",
@@ -24,13 +25,13 @@ export function registerSessionHandlers(next: SessionHandlers) {
 
 // /auth/login, /auth/refresh et /auth/change-password renvoient tous un LoginResponse.
 export function storeSession(data: LoginResponse) {
-  localStorage.setItem("accessToken", data.accessToken);
-  localStorage.setItem("refreshToken", data.refreshToken);
+  setSessionItem("accessToken", data.accessToken);
+  setSessionItem("refreshToken", data.refreshToken);
   if (data.fingerprint) {
-    localStorage.setItem("fingerprint", data.fingerprint);
+    setSessionItem("fingerprint", data.fingerprint);
   }
   if (data.user) {
-    localStorage.setItem("user", JSON.stringify(data.user));
+    setSessionItem("user", JSON.stringify(data.user));
   }
 }
 
@@ -38,11 +39,11 @@ api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const isPublic = PUBLIC_PATHS.some((p) => config.url?.endsWith(p));
     if (!isPublic) {
-      const token = localStorage.getItem("accessToken");
+      const token = getSessionItem("accessToken");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      const fingerprint = localStorage.getItem("fingerprint");
+      const fingerprint = getSessionItem("fingerprint");
       if (fingerprint) {
         config.headers["X-Fingerprint"] = fingerprint;
       }
@@ -74,7 +75,7 @@ api.interceptors.response.use(
 
     if (status === 401 && !original._retry) {
       original._retry = true;
-      const refreshToken = localStorage.getItem("refreshToken");
+      const refreshToken = getSessionItem("refreshToken");
       if (refreshToken) {
         try {
           const { data } = await axios.post<LoginResponse>(
@@ -90,7 +91,7 @@ api.interceptors.response.use(
           }
           return api(original);
         } catch {
-          localStorage.clear();
+          clearSession();
           handlers?.onSessionExpired();
         }
       }

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import api, { registerSessionHandlers, storeSession } from "./api";
+import { clearSession, getSessionItem, setSessionItem } from "./session";
 import type { LoginResponse, User } from "./types";
 
 interface AuthContextType {
@@ -30,8 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    const saved = localStorage.getItem("user");
+    const token = getSessionItem("accessToken");
+    const saved = getSessionItem("user");
     if (!token || !saved) {
       setLoading(false);
       return;
@@ -40,19 +41,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setUser(JSON.parse(saved));
     } catch {
-      localStorage.clear();
+      clearSession();
       setLoading(false);
       return;
     }
 
-    // La copie en localStorage peut dater : role, statut et permissions ont pu
+    // La copie en session peut dater : role, statut et permissions ont pu
     // changer depuis la derniere connexion. On resynchronise sur /users/me, dont
     // depend notamment le filtrage du menu par permission.
     api
       .get<User>("/users/me")
       .then(({ data }) => {
         setUser(data);
-        localStorage.setItem("user", JSON.stringify(data));
+        setSessionItem("user", JSON.stringify(data));
       })
       .catch(() => {
         // L'intercepteur gere deja 401 et changement de mot de passe force :
@@ -85,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     const { data } = await api.get<User>("/users/me");
     setUser(data);
-    localStorage.setItem("user", JSON.stringify(data));
+    setSessionItem("user", JSON.stringify(data));
   }, []);
 
   const applySession = useCallback((data: LoginResponse) => {
@@ -109,13 +110,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     // Doit partir AVANT le nettoyage : l'endpoint exige le jeton d'acces,
     // et c'est lui qui revoque le refresh token cote serveur.
-    const refreshToken = localStorage.getItem("refreshToken");
+    const refreshToken = getSessionItem("refreshToken");
     try {
       await api.post("/auth/logout", refreshToken ? { refreshToken } : undefined);
     } catch {
       // Une deconnexion locale doit aboutir meme si le serveur ne repond pas.
     }
-    localStorage.clear();
+    // Seule la session est effacee : le theme choisi et les brouillons de creation
+    // d'utilisateur sont des preferences durables, que l'ancien localStorage.clear()
+    // detruisait a chaque deconnexion.
+    clearSession();
     setUser(null);
     router.push("/login");
   }, [router]);
