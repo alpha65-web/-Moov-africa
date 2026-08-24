@@ -15,6 +15,7 @@ public record UserResponse(
         String sex,
         String phone,
         String pseudo,
+        String address,
         String avatarUrl,
         String role,
         List<String> permissions,
@@ -33,6 +34,7 @@ public record UserResponse(
                 user.getSex(),
                 user.getPhone(),
                 user.getPseudo(),
+                user.getAddress(),
                 user.getAvatarUrl(),
                 user.getRole().getName().name(),
                 user.getRole().getPermissions().stream()

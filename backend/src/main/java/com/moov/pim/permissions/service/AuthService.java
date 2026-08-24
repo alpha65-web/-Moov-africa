@@ -216,6 +216,7 @@ public class AuthService {
         );
         user.setPhone(blankToNull(request.phone()));
         user.setPseudo(blankToNull(request.pseudo()));
+        user.setAddress(blankToNull(request.address()));
         user.setAvatarUrl(AvatarValidator.normalize(request.avatarUrl()));
 
         user = userRepository.save(user);

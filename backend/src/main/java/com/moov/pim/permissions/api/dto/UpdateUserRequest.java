@@ -10,6 +10,7 @@ public record UpdateUserRequest(
         String sex,
         String phone,
         String pseudo,
+        String address,
         // Data URI (data:image/...;base64,...) redimensionnee par le navigateur.
         String avatarUrl,
         String roleName,

@@ -46,6 +46,9 @@ public class User {
     @Column(length = 60)
     private String pseudo;
 
+    @Column(length = 255)
+    private String address;
+
     @Column(name = "avatar_url", columnDefinition = "text")
     private String avatarUrl;
 
@@ -121,6 +124,8 @@ public class User {
     public void setPhone(String phone) { this.phone = phone; }
     public String getPseudo() { return pseudo; }
     public void setPseudo(String pseudo) { this.pseudo = pseudo; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public AccountStatus getStatus() { return status; }

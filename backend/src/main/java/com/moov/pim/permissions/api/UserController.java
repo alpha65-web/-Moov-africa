@@ -101,6 +101,7 @@ public class UserController {
         user.setSex(blankToNull(request.sex()));
         user.setPhone(blankToNull(request.phone()));
         user.setPseudo(blankToNull(request.pseudo()));
+        user.setAddress(blankToNull(request.address()));
         user.setAvatarUrl(AvatarValidator.normalize(request.avatarUrl()));
 
         // Reinitialisation du mot de passe par un administrateur : les sessions en

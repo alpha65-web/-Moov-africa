@@ -6,6 +6,7 @@ export interface User {
   sex: string | null;
   phone: string | null;
   pseudo: string | null;
+  address: string | null;
   avatarUrl: string | null;
   role: string;
   /** Codes de permission du role, tels que renvoyes par le backend. */

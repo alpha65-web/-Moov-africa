@@ -13,6 +13,7 @@ public record RegisterRequest(
         String sex,
         String phone,
         String pseudo,
+        String address,
         // Data URI (data:image/...;base64,...) redimensionnee par le navigateur.
         String avatarUrl,
         @NotNull String roleName
