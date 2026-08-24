@@ -155,4 +155,45 @@ class AuditServiceTest {
             throw new RuntimeException(e);
         }
     }
+
+    /**
+     * previous_value et new_value sont des colonnes jsonb. Les ecouteurs y passaient
+     * des chaines brutes — nom d'offre, statut, adresse e-mail — que PostgreSQL
+     * refusait avec l'erreur 22P02. Les ecouteurs etant asynchrones, l'echec passait
+     * inapercu et aucune trace n'etait ecrite.
+     */
+    @Test
+    void log_shouldEncodePlainValuesAsJson() {
+        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(i -> i.getArgument(0));
+
+        AuditLog entry = auditService.log(UUID.randomUUID(), AuditAction.LOGIN, "User",
+                UUID.randomUUID(), "ACTIVE", "alpha@moov-africa.bf", "127.0.0.1", "Firefox");
+
+        assertEquals("\"ACTIVE\"", entry.getPreviousValue());
+        assertEquals("\"alpha@moov-africa.bf\"", entry.getNewValue());
+    }
+
+    /** Un instantane deja au format JSON doit traverser sans etre re-encode. */
+    @Test
+    void log_shouldKeepAlreadyValidJsonUntouched() {
+        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(i -> i.getArgument(0));
+        String snapshot = "{\"name\":\"Forfait Data 5 Go\",\"qualityScore\":88}";
+
+        AuditLog entry = auditService.log(UUID.randomUUID(), AuditAction.UPDATE, "Offer",
+                UUID.randomUUID(), null, snapshot, null, null);
+
+        assertEquals(snapshot, entry.getNewValue());
+        assertNull(entry.getPreviousValue());
+    }
+
+    @Test
+    void log_shouldStoreNullForBlankValues() {
+        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(i -> i.getArgument(0));
+
+        AuditLog entry = auditService.log(UUID.randomUUID(), AuditAction.CREATE, "User",
+                UUID.randomUUID(), "   ", null, null, null);
+
+        assertNull(entry.getPreviousValue());
+        assertNull(entry.getNewValue());
+    }
 }
