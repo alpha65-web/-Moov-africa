@@ -272,22 +272,21 @@ export default function MediaPage() {
         </select>
       </div>
 
-      {/* ===== TABLEAU ===== */}
+      {/* ===== GALERIE =====
+          Une mediatheque se juge sur ses visuels : la liste tabulaire ne montrait que
+          des caracteristiques, sans jamais afficher l'image. Chaque media est
+          desormais une carte — l'apercu en grand, puis le nom, puis ses
+          caracteristiques — de sorte qu'on reconnaisse un visuel sans l'ouvrir. */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1.5fr_80px_80px_50px_100px_100px_60px] gap-3 px-6 py-3 bg-primary dark:bg-primary/90 rounded-t-2xl">
-          {[t("columns.file"), t("columns.type"), t("columns.size"), t("columns.version"), t("columns.status"), t("columns.date"), t("columns.actions")].map((col, i) => (
-            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1 ${i === 6 ? "justify-end" : ""}`}>
-              {col}
-              {i < 6 && <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M4 5l2-2 2 2M4 7l2 2 2-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-            </span>
-          ))}
-        </div>
-
         {loading ? (
-          <div className="px-6 py-4 flex flex-col gap-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="hidden md:grid grid-cols-[1.5fr_80px_80px_50px_100px_100px_60px] gap-3 items-center py-3.5">
-                <Skeleton className="w-36 h-4" /><Skeleton className="w-10 h-4" /><Skeleton className="w-14 h-4" /><Skeleton className="w-8 h-4" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-16 h-4" /><Skeleton className="w-6 h-6 ml-auto" />
+              <div key={i} className="rounded-xl border border-border dark:border-neutral-800 overflow-hidden">
+                <Skeleton className="w-full aspect-[16/9] !rounded-none" />
+                <div className="p-3 flex flex-col gap-2">
+                  <Skeleton className="w-3/4 h-4" />
+                  <Skeleton className="w-1/2 h-3" />
+                </div>
               </div>
             ))}
           </div>
@@ -333,25 +332,31 @@ export default function MediaPage() {
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-border dark:divide-neutral-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+            {/* Pas d'overflow-hidden sur les cartes : il rognerait le menu d'actions et
+                rendrait « approuver » et « rejeter » inatteignables. L'apercu porte donc
+                lui-meme l'arrondi du haut. */}
             {paginated.map((m) => (
-              <div key={m.id} className="grid grid-cols-1 md:grid-cols-[1.5fr_80px_80px_50px_100px_100px_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer" onClick={() => setDetailMedia(m)}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName} className="size-10 shrink-0" />
-                  <p className="text-sm font-semibold text-black dark:text-white truncate">{m.fileName}</p>
+              <div key={m.id} className="group relative rounded-xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setDetailMedia(m)}>
+                <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName} className="w-full aspect-[16/9] !rounded-t-xl !rounded-b-none border-b border-border dark:border-neutral-800" />
+                <div className="p-3 flex flex-col gap-2">
+                  <p className="text-sm font-semibold text-black dark:text-white truncate pr-7" title={m.fileName}>{m.fileName}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                      {MIME_LABELS[m.mimeType] || m.mimeType.split("/")[1]?.toUpperCase() || m.mimeType}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[m.conformityStatus] ?? STATUS_STYLES.PENDING}`}>
+                      {t(`status.${m.conformityStatus}`)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-neutral-500">
+                    <span className="tabular-nums">{formatSize(m.fileSize)} · v{m.mediaVersion}</span>
+                    <span>{formatDate(m.createdAt)}</span>
+                  </div>
                 </div>
-                <span className="text-xs font-semibold text-black dark:text-white">
-                  {MIME_LABELS[m.mimeType] || m.mimeType.split("/")[1]?.toUpperCase() || m.mimeType}
-                </span>
-                <span className="text-xs text-text-secondary dark:text-neutral-400 tabular-nums">{formatSize(m.fileSize)}</span>
-                <span className="text-xs text-text-secondary dark:text-neutral-400 tabular-nums">v{m.mediaVersion}</span>
-                <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[m.conformityStatus] ?? STATUS_STYLES.PENDING}`}>
-                  {t(`status.${m.conformityStatus}`)}
-                </span>
-                <span className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(m.createdAt)}</span>
-                <div className="flex justify-end relative" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-                    <svg className="size-5 text-neutral-500 dark:text-neutral-400" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" /></svg>
+                <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)} className="p-1.5 rounded-lg bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm border border-border dark:border-neutral-700 shadow-sm hover:bg-white dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                    <svg className="size-4 text-neutral-600 dark:text-neutral-300" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" /></svg>
                   </button>
                   {openMenuId === m.id && (
                     <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
