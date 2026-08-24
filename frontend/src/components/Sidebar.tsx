@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { NOTIFICATIONS_UPDATED_EVENT } from "@/lib/notifications";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useTranslations } from "next-intl";
@@ -196,6 +198,39 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
     (item) => !item.anyOf || item.anyOf.some((code) => granted.has(code))
   );
 
+  // Nombre de notifications non lues, affiche sur l'icone du menu.
+  // Sans lui, il fallait ouvrir l'ecran Notifications pour savoir s'il y avait
+  // quelque chose a traiter, ce qui rendait le circuit de validation aveugle.
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const refreshUnread = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await api.get("/notifications/unread/count");
+      setUnreadCount(typeof data === "number" ? data : data.count ?? 0);
+    } catch {
+      // Compteur indisponible : on n'affiche rien plutot qu'un chiffre faux.
+      setUnreadCount(0);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    refreshUnread();
+    // Relecture reguliere : une notification peut naitre d'une action d'un autre
+    // acteur, sans que cet onglet ait navigue.
+    const timer = setInterval(refreshUnread, 30000);
+    // L'ecran Notifications previent des qu'une notification est marquee lue,
+    // pour que la pastille ne reste pas en retard le temps du prochain cycle.
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, refreshUnread);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, refreshUnread);
+    };
+  }, [refreshUnread]);
+
+  // Le passage sur un autre ecran peut avoir change le compte.
+  useEffect(() => { refreshUnread(); }, [pathname, refreshUnread]);
+
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape" && open) onClose();
@@ -263,7 +298,12 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
                     }`}
                   >
                     <item.icon className="size-[18px] shrink-0" />
-                    {t(item.key)}
+                    <span className="flex-1 truncate">{t(item.key)}</span>
+                    {item.key === "notifications" && unreadCount > 0 && (
+                      <span className="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold tabular-nums">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

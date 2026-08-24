@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
+import { useAuth } from "@/lib/auth";
 import type { Offer, OfferStatus } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -20,6 +21,27 @@ const ALLOWED_TRANSITIONS: Record<string, OfferStatus[]> = {
   OBSOLETE: ["ARCHIVED"],
   WITHDRAWN: ["ARCHIVED"],
 };
+
+/**
+ * Permissions admises pour atteindre un statut, en miroir de
+ * OfferService.permissionsFor cote serveur. Le circuit refuse depuis qu'une
+ * transition exige sa propre permission : proposer un bouton que le serveur
+ * refusera afficherait une panne la ou la regle s'applique normalement.
+ */
+function permissionsForTransition(from: string, target: OfferStatus): string[] {
+  switch (target) {
+    case "DRAFT":
+      return ["OFFER_SUBMIT", "OFFER_ENRICH"];
+    case "IN_ENRICHMENT":
+      return from === "IN_VALIDATION" ? ["OFFER_VALIDATE"] : ["OFFER_SUBMIT"];
+    case "IN_VALIDATION":
+      return ["OFFER_SUBMIT"];
+    case "VALIDATED":
+      return ["OFFER_VALIDATE"];
+    default:
+      return ["OFFER_PUBLISH"];
+  }
+}
 
 const EMPTY_FORM = {
   name: "",
@@ -54,6 +76,8 @@ function Skeleton({ className }: { className: string }) {
 export default function OffersPage() {
   const t = useTranslations("offers");
   const tc = useTranslations("common");
+  const { user } = useAuth();
+  const granted = new Set(user?.permissions ?? []);
 
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -580,12 +604,19 @@ export default function OffersPage() {
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("transition.availableTransitions")}</label>
                 <div className="flex flex-wrap gap-2">
-                  {(ALLOWED_TRANSITIONS[transitionOffer.status] || []).map((target) => (
+                  {(ALLOWED_TRANSITIONS[transitionOffer.status] || [])
+                    .filter((target) => permissionsForTransition(transitionOffer.status, target).some((c) => granted.has(c)))
+                    .map((target) => (
                     <button key={target} onClick={() => handleTransition(transitionOffer.id, target)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
                       <svg className="size-3" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       {t(`status.${target}`)}
                     </button>
                   ))}
+                  {(ALLOWED_TRANSITIONS[transitionOffer.status] || [])
+                    .filter((target) => permissionsForTransition(transitionOffer.status, target).some((c) => granted.has(c)))
+                    .length === 0 && (
+                    <p className="text-xs text-text-secondary dark:text-neutral-500">{tc("noResults")}</p>
+                  )}
                 </div>
               </div>
             </div>

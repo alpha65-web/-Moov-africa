@@ -5,6 +5,7 @@ import Link from "next/link";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { searchKeyHandler } from "@/lib/search";
+import { notifyNotificationsUpdated } from "@/lib/notifications";
 import type { Notification } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -107,7 +108,11 @@ export default function NotificationsPage() {
   }
 
   async function loadUnreadCount() {
-    try { const { data } = await api.get("/notifications/unread/count"); setUnreadCount(typeof data === "number" ? data : data.count ?? 0); }
+    try {
+      const { data } = await api.get("/notifications/unread/count");
+      setUnreadCount(typeof data === "number" ? data : data.count ?? 0);
+      notifyNotificationsUpdated();
+    }
     catch { /* */ }
   }
 
