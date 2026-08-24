@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
+import MediaPreview from "@/components/MediaPreview";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
@@ -335,7 +336,10 @@ export default function MediaPage() {
           <div className="divide-y divide-border dark:divide-neutral-800">
             {paginated.map((m) => (
               <div key={m.id} className="grid grid-cols-1 md:grid-cols-[1.5fr_80px_80px_50px_100px_100px_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer" onClick={() => setDetailMedia(m)}>
-                <p className="text-sm font-semibold text-black dark:text-white truncate">{m.fileName}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName} className="size-10 shrink-0" />
+                  <p className="text-sm font-semibold text-black dark:text-white truncate">{m.fileName}</p>
+                </div>
                 <span className="text-xs font-semibold text-black dark:text-white">
                   {MIME_LABELS[m.mimeType] || m.mimeType.split("/")[1]?.toUpperCase() || m.mimeType}
                 </span>
@@ -443,6 +447,12 @@ export default function MediaPage() {
               </button>
             </div>
             <div className="px-6 py-5 flex flex-col gap-4">
+              <MediaPreview
+                mediaId={detailMedia.id}
+                mimeType={detailMedia.mimeType}
+                fileName={detailMedia.fileName}
+                className="w-full h-56 border border-border dark:border-neutral-800"
+              />
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.type")}</p>

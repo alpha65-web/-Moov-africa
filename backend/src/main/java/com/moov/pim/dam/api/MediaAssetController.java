@@ -5,6 +5,8 @@ import com.moov.pim.dam.api.dto.MediaAssetResponse;
 import com.moov.pim.dam.api.dto.MediaValidationRequest;
 import com.moov.pim.dam.service.MediaAssetService;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -69,6 +71,24 @@ public class MediaAssetController {
     @PreAuthorize("hasAuthority('MEDIA_VALIDATE')")
     public ResponseEntity<List<MediaAssetResponse>> listPending() {
         return ResponseEntity.ok(mediaAssetService.listPending());
+    }
+
+    /**
+     * Sert le fichier lui-meme, pour l'apercu de la mediatheque et le circuit de
+     * validation graphique. Protege par CATALOG_READ, comme la fiche du media.
+     */
+    @GetMapping("/{id}/content")
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public ResponseEntity<byte[]> content(@PathVariable UUID id) {
+        MediaAssetService.MediaContent content = mediaAssetService.download(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(content.mimeType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(content.fileName()).build().toString())
+                // Le contenu d'un media ne change jamais : sa cle de stockage est unique
+                // par version. Le cache evite de le retelecharger a chaque affichage.
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .body(content.bytes());
     }
 
     @GetMapping("/{id}")

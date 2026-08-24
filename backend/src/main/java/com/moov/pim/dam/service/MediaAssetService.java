@@ -14,6 +14,7 @@ import com.moov.pim.dam.repository.OfferMediaRepository;
 import com.moov.pim.permissions.domain.RoleName;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.shared.security.ClamAvScanService;
+import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
@@ -238,6 +239,31 @@ public class MediaAssetService {
     public MediaAssetResponse getById(UUID id) {
         return MediaAssetResponse.from(findAsset(id));
     }
+
+    /**
+     * Contenu binaire d'un media, relu depuis MinIO.
+     *
+     * Le service ne connaissait que putObject et removeObject : les fichiers etaient
+     * deposes et supprimes, jamais relus. La mediatheque n'affichait donc que des
+     * fiches techniques, et le chef de service approuvait ou rejetait des visuels
+     * qu'il ne pouvait pas voir, alors que le cahier des charges lui demande d'en
+     * juger le format, la resolution et les droits d'auteur.
+     */
+    @Transactional(readOnly = true)
+    public MediaContent download(UUID id) {
+        MediaAsset asset = findAsset(id);
+        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(bucket)
+                .object(asset.getStorageKey())
+                .build())) {
+            return new MediaContent(stream.readAllBytes(), asset.getMimeType(), asset.getFileName());
+        } catch (Exception e) {
+            log.error("Lecture MinIO impossible pour '{}' : {}", asset.getStorageKey(), e.getMessage());
+            throw new IllegalStateException("Fichier introuvable dans le stockage");
+        }
+    }
+
+    public record MediaContent(byte[] bytes, String mimeType, String fileName) {}
 
     private MediaAsset findAsset(UUID id) {
         return mediaAssetRepository.findById(id)

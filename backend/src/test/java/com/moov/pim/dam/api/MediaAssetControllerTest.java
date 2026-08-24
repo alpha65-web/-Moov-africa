@@ -8,7 +8,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -22,6 +24,29 @@ class MediaAssetControllerTest {
 
     @Mock private MediaAssetService mediaAssetService;
     @InjectMocks private MediaAssetController controller;
+
+    /**
+     * Le contenu binaire n'etait servi par aucun endpoint : MinIO ne connaissait que
+     * putObject et removeObject. La mediatheque n'affichait donc jamais un visuel, et
+     * le circuit de validation graphique se faisait a l'aveugle.
+     */
+    @Test
+    void content_shouldServeBytesWithMimeTypeAndInlineDisposition() {
+        UUID id = UUID.randomUUID();
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G'};
+        when(mediaAssetService.download(id))
+                .thenReturn(new MediaAssetService.MediaContent(png, "image/png", "visuel.png"));
+
+        var result = controller.content(id);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertArrayEquals(png, result.getBody());
+        assertEquals(MediaType.IMAGE_PNG, result.getHeaders().getContentType());
+        String disposition = result.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(disposition);
+        assertTrue(disposition.startsWith("inline"), disposition);
+        assertTrue(disposition.contains("visuel.png"), disposition);
+    }
 
     @Test
     void upload_shouldReturn201() {
