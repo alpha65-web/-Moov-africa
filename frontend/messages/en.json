@@ -314,7 +314,7 @@
     "createFirst": "Create the first campaign",
     "emptyTitle": "No campaigns yet",
     "emptyDescription": "Create your first marketing campaign to start distributing your offers to customers through all available channels.",
-    "notSent": "Not sent",
+    "notSent": "Not distributed",
     "stats": {
       "total": "Total campaigns",
       "scheduled": "Scheduled",
@@ -381,7 +381,8 @@
       "deleted": "Campaign deleted",
       "deleteConfirm": "Are you sure you want to delete this campaign?",
       "deleteWarning": "This action cannot be undone.",
-      "saved": "Campaign saved"
+      "saved": "Campaign saved",
+      "published": "Campaign distributed"
     },
     "createTitle": "New campaign",
     "editTitle": "Edit campaign",
@@ -393,7 +394,8 @@
       "sent": "Sent",
       "scheduled": "Scheduled",
       "lastSent": "Last sent"
-    }
+    },
+    "publishNow": "Distribute now"
   },
   "media": {
     "title": "Media Library",

@@ -63,6 +63,7 @@ export default function CampaignsPage() {
 
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -142,6 +143,31 @@ export default function CampaignsPage() {
     } catch (e) {
       toast.error(apiError(e, isEditing ? tc("errors.update") : tc("errors.create")));
     } finally { setCreating(false); }
+  }
+
+  /**
+   * Diffuse la campagne sans attendre son échéance.
+   *
+   * Une campagne créée sans date planifiée restait en brouillon sans qu'aucun
+   * geste de l'interface puisse la mettre en ligne : il fallait la rouvrir pour
+   * lui donner une échéance, puis attendre le passage du planificateur.
+   *
+   * Le serveur refuse la diffusion si l'offre promue n'est pas publiée — son
+   * message est affiché tel quel, car c'est lui qui explique pourquoi.
+   */
+  async function publishNow(campaign: Campaign) {
+    if (publishingId) return;
+    setPublishingId(campaign.id);
+    setOpenMenuId(null);
+    try {
+      await api.post(`/campaigns/${campaign.id}/publish`);
+      toast.success(t("messages.published"));
+      loadCampaigns();
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally {
+      setPublishingId(null);
+    }
   }
 
   async function handleDelete() {
@@ -393,6 +419,19 @@ export default function CampaignsPage() {
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
                         {tc("edit")}
                       </button>
+                      {/* Proposé sur les seuls statuts que le serveur accepte : une
+                          campagne déjà en ligne, terminée ou annulée ne se diffuse
+                          pas, et l'action serait refusée en 409. */}
+                      {(c.status === "DRAFT" || c.status === "SCHEDULED") && (
+                        <button
+                          onClick={() => publishNow(c)}
+                          disabled={publishingId === c.id}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="size-4 text-emerald-600" viewBox="0 0 16 16" fill="none"><path d="M2 8l12-5.5L11 14l-3-4.5L2 8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+                          {publishingId === c.id ? tc("saving") : t("publishNow")}
+                        </button>
+                      )}
                       <button onClick={() => { setDeleteTarget(c); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                         <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         {tc("delete")}

@@ -5,7 +5,10 @@ import com.moov.pim.campaign.api.dto.CreateCampaignRequest;
 import com.moov.pim.campaign.domain.Campaign;
 import com.moov.pim.campaign.domain.CampaignChannel;
 import com.moov.pim.campaign.domain.CampaignStatus;
+import com.moov.pim.campaign.domain.ChannelStatus;
 import com.moov.pim.campaign.repository.CampaignRepository;
+import com.moov.pim.lifecycle.domain.OfferStatus;
+import com.moov.pim.lifecycle.repository.OfferRepository;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +28,11 @@ public class CampaignService {
     private static final Logger log = LoggerFactory.getLogger(CampaignService.class);
 
     private final CampaignRepository campaignRepository;
+    private final OfferRepository offerRepository;
 
-    public CampaignService(CampaignRepository campaignRepository) {
+    public CampaignService(CampaignRepository campaignRepository, OfferRepository offerRepository) {
         this.campaignRepository = campaignRepository;
+        this.offerRepository = offerRepository;
     }
 
     @Transactional
@@ -150,6 +155,91 @@ public class CampaignService {
         return CampaignResponse.from(campaign);
     }
 
+    /**
+     * Diffuse immediatement une campagne, sans attendre d'echeance.
+     *
+     * Une campagne creee sans date planifiee restait DRAFT indefiniment : rien
+     * dans l'application ne pouvait la mettre en ligne, il fallait la rouvrir pour
+     * lui donner une echeance et attendre le passage du planificateur. L'ecran
+     * proposait donc une campagne qu'aucun geste ne permettait de diffuser.
+     *
+     * La diffusion est refusee si l'offre promue n'est pas publiee. Annoncer une
+     * offre encore en brouillon, suspendue ou retiree adresserait aux clients une
+     * offre qu'ils ne peuvent pas souscrire : c'est le seul controle qui empeche
+     * cette action d'ouvrir une breche que le planificateur, lui, n'ouvre pas —
+     * une campagne planifiee l'a ete alors que l'offre etait en ligne.
+     */
+    @Transactional
+    public CampaignResponse publishNow(UUID id) {
+        Campaign campaign = campaignRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Campagne introuvable"));
+        checkOwnership(campaign);
+
+        if (campaign.getStatus() != CampaignStatus.DRAFT
+                && campaign.getStatus() != CampaignStatus.SCHEDULED) {
+            throw new IllegalStateException(
+                    "Seule une campagne en brouillon ou planifiée peut être diffusée : "
+                            + "celle-ci est " + campaign.getStatus());
+        }
+
+        OfferStatus offerStatus = offerRepository.findById(campaign.getOfferId())
+                .map(offer -> offer.getStatus())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "L'offre promue par cette campagne est introuvable"));
+
+        if (offerStatus != OfferStatus.PUBLISHED) {
+            throw new IllegalStateException(
+                    "L'offre promue n'est pas publiée (" + offerStatus + ") : "
+                            + "diffuser cette campagne annoncerait une offre indisponible");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        campaign.setStatus(CampaignStatus.PUBLISHED);
+        campaign.setPublishedAt(now);
+        markChannelsDistributed(campaign, now);
+
+        campaign = campaignRepository.save(campaign);
+        log.info("Diffusion immediate de la campagne {} ({})", campaign.getName(), campaign.getId());
+        return CampaignResponse.from(campaign);
+    }
+
+    /**
+     * Marque les canaux en attente comme diffuses a la date donnee.
+     *
+     * Ce que SENT atteste ici : la plateforme a mis le message a disposition du
+     * canal. Ce n'est pas un accuse de reception d'operateur — le referentiel
+     * n'est pas une passerelle SMS et n'en recoit aucun retour. Meme portee que le
+     * statut SUCCESS des exports d'integration. Un canal deja en echec n'est pas
+     * repris : seul l'etat d'attente evolue.
+     */
+    private static void markChannelsDistributed(Campaign campaign, LocalDateTime moment) {
+        for (CampaignChannel channel : campaign.getChannels()) {
+            if (channel.getStatus() == ChannelStatus.PENDING) {
+                channel.setStatus(ChannelStatus.SENT);
+                channel.setSentAt(moment);
+            }
+        }
+    }
+
+    /**
+     * Met en ligne les campagnes dont l'echeance est atteinte.
+     *
+     * Chaque canal est marque diffuse au passage. Sans cela, une campagne
+     * annoncee « publiee » gardait indefiniment ses canaux a PENDING et l'ecran
+     * affichait « Non diffuse » sur une campagne pourtant en ligne :
+     * ChannelStatus.SENT n'etait ecrit nulle part dans le code, et sent_at restait
+     * vide. L'interface contredisait donc l'etat de la campagne.
+     *
+     * Ce que SENT signifie ici, precisement : la plateforme a mis le message a
+     * disposition du canal a cette date. Ce n'est pas un accuse de reception
+     * d'operateur — le referentiel n'est pas une passerelle SMS et n'en recoit
+     * aucun retour. C'est la meme portee que le statut SUCCESS des exports
+     * d'integration : ce qui est atteste, c'est la mise a disposition du contenu,
+     * pas sa remise au destinataire final. Le libelle de l'ecran dit « diffuse »
+     * et non « envoye » pour cette raison.
+     *
+     * Un canal deja en echec n'est pas repris : seul l'etat d'attente evolue.
+     */
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void publishScheduledCampaigns() {
@@ -160,8 +250,11 @@ public class CampaignService {
         for (Campaign campaign : scheduled) {
             campaign.setStatus(CampaignStatus.PUBLISHED);
             campaign.setPublishedAt(now);
+
+            markChannelsDistributed(campaign, now);
             campaignRepository.save(campaign);
-            log.info("Publication automatique de la campagne {} ({})", campaign.getName(), campaign.getId());
+            log.info("Publication automatique de la campagne {} ({}), {} canal/canaux diffuse(s)",
+                    campaign.getName(), campaign.getId(), campaign.getChannels().size());
         }
     }
 

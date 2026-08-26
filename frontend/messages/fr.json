@@ -314,7 +314,7 @@
     "createFirst": "Créer la première campagne",
     "emptyTitle": "Aucune campagne pour le moment",
     "emptyDescription": "Créez votre première campagne marketing pour commencer à diffuser vos offres à vos clients via tous les canaux disponibles.",
-    "notSent": "Non envoyé",
+    "notSent": "Non diffusé",
     "stats": {
       "total": "Campagnes totales",
       "scheduled": "Planifiées",
@@ -381,7 +381,8 @@
       "deleted": "Campagne supprimée",
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette campagne ?",
       "deleteWarning": "Cette action est irréversible.",
-      "saved": "Campagne enregistrée"
+      "saved": "Campagne enregistrée",
+      "published": "Campagne diffusée"
     },
     "createTitle": "Nouvelle campagne",
     "editTitle": "Modifier la campagne",
@@ -393,7 +394,8 @@
       "sent": "Diffusées",
       "scheduled": "Programmées",
       "lastSent": "Dernière diffusion"
-    }
+    },
+    "publishNow": "Diffuser maintenant"
   },
   "media": {
     "title": "Médiathèque",

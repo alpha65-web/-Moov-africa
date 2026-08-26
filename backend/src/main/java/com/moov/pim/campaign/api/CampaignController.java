@@ -66,6 +66,19 @@ public class CampaignController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Diffuse la campagne sans attendre son echeance.
+     *
+     * Complete la planification : une campagne creee sans date restait autrement
+     * en brouillon sans aucun geste pour la mettre en ligne. Le service refuse la
+     * diffusion si l'offre promue n'est pas publiee.
+     */
+    @PostMapping("/{id}/publish")
+    @PreAuthorize("hasAuthority('CAMPAIGN_MANAGE')")
+    public ResponseEntity<CampaignResponse> publishNow(@PathVariable UUID id) {
+        return ResponseEntity.ok(campaignService.publishNow(id));
+    }
+
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasAuthority('CAMPAIGN_MANAGE')")
     public ResponseEntity<CampaignResponse> cancel(@PathVariable UUID id) {

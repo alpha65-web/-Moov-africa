@@ -35,6 +35,7 @@ import static org.mockito.Mockito.*;
 class CampaignServiceTest {
 
     @Mock private CampaignRepository campaignRepository;
+    @Mock private com.moov.pim.lifecycle.repository.OfferRepository offerRepository;
 
     @InjectMocks private CampaignService campaignService;
 
@@ -243,6 +244,93 @@ class CampaignServiceTest {
         assertEquals(CampaignStatus.PUBLISHED, campaign.getStatus());
         assertNotNull(campaign.getPublishedAt());
         verify(campaignRepository).save(campaign);
+    }
+
+    @Test
+    void publishScheduledCampaigns_shouldMarkChannelsAsDistributed() {
+        Campaign campaign = createCampaign("Planifiée", userId);
+        campaign.setStatus(CampaignStatus.SCHEDULED);
+        campaign.setScheduledAt(LocalDateTime.now().minusHours(1));
+
+        com.moov.pim.campaign.domain.CampaignChannel sms =
+                new com.moov.pim.campaign.domain.CampaignChannel();
+        sms.setChannelType(com.moov.pim.campaign.domain.ChannelType.SMS);
+        sms.setMessage("Message SMS");
+        campaign.addChannel(sms);
+
+        // Un canal deja en echec ne doit pas etre repris par la mise en ligne.
+        com.moov.pim.campaign.domain.CampaignChannel email =
+                new com.moov.pim.campaign.domain.CampaignChannel();
+        email.setChannelType(com.moov.pim.campaign.domain.ChannelType.EMAIL);
+        email.setMessage("Message courriel");
+        email.setStatus(com.moov.pim.campaign.domain.ChannelStatus.FAILED);
+        campaign.addChannel(email);
+
+        when(campaignRepository.findByStatusAndScheduledAtBefore(eq(CampaignStatus.SCHEDULED), any()))
+                .thenReturn(List.of(campaign));
+        when(campaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        campaignService.publishScheduledCampaigns();
+
+        assertEquals(com.moov.pim.campaign.domain.ChannelStatus.SENT, sms.getStatus());
+        assertNotNull(sms.getSentAt());
+        assertEquals(campaign.getPublishedAt(), sms.getSentAt());
+
+        assertEquals(com.moov.pim.campaign.domain.ChannelStatus.FAILED, email.getStatus());
+        assertNull(email.getSentAt());
+    }
+
+    /** Offre au statut voulu, telle que la resoudra le service. */
+    private void offerWithStatus(UUID offerId, com.moov.pim.lifecycle.domain.OfferStatus status) {
+        com.moov.pim.lifecycle.domain.Offer offer = new com.moov.pim.lifecycle.domain.Offer();
+        offer.setStatus(status);
+        when(offerRepository.findById(offerId)).thenReturn(java.util.Optional.of(offer));
+    }
+
+    @Test
+    void publishNow_shouldDistributeImmediately() {
+        Campaign campaign = createCampaign("Immédiate", userId);
+        com.moov.pim.campaign.domain.CampaignChannel sms =
+                new com.moov.pim.campaign.domain.CampaignChannel();
+        sms.setChannelType(com.moov.pim.campaign.domain.ChannelType.SMS);
+        campaign.addChannel(sms);
+
+        when(campaignRepository.findById(campaign.getId())).thenReturn(java.util.Optional.of(campaign));
+        offerWithStatus(campaign.getOfferId(), com.moov.pim.lifecycle.domain.OfferStatus.PUBLISHED);
+        when(campaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        campaignService.publishNow(campaign.getId());
+
+        assertEquals(CampaignStatus.PUBLISHED, campaign.getStatus());
+        assertNotNull(campaign.getPublishedAt());
+        assertEquals(com.moov.pim.campaign.domain.ChannelStatus.SENT, sms.getStatus());
+        assertEquals(campaign.getPublishedAt(), sms.getSentAt());
+    }
+
+    @Test
+    void publishNow_shouldRefuseWhenOfferIsNotPublished() {
+        Campaign campaign = createCampaign("Prématurée", userId);
+
+        when(campaignRepository.findById(campaign.getId())).thenReturn(java.util.Optional.of(campaign));
+        offerWithStatus(campaign.getOfferId(), com.moov.pim.lifecycle.domain.OfferStatus.DRAFT);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> campaignService.publishNow(campaign.getId()));
+        assertTrue(ex.getMessage().contains("offre indisponible"));
+        assertEquals(CampaignStatus.DRAFT, campaign.getStatus());
+        verify(campaignRepository, never()).save(any());
+    }
+
+    @Test
+    void publishNow_shouldRefuseWhenCampaignIsAlreadyPublished() {
+        Campaign campaign = createCampaign("Déjà en ligne", userId);
+        campaign.setStatus(CampaignStatus.PUBLISHED);
+
+        when(campaignRepository.findById(campaign.getId())).thenReturn(java.util.Optional.of(campaign));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> campaignService.publishNow(campaign.getId()));
+        assertTrue(ex.getMessage().contains("brouillon ou planifiée"));
     }
 
     private Campaign createCampaign(String name, UUID createdById) {
