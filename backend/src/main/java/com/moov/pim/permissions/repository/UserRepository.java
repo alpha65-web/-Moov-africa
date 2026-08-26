@@ -31,6 +31,27 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             """)
     List<User> findByPermissionCodeAndStatus(String code, AccountStatus status);
 
+    /**
+     * Comptes a qui l'on peut confier une etape de production.
+     *
+     * Distinct de findByPermissionCodeAndStatus : l'administration detient toutes
+     * les permissions, y compris OFFER_ENRICH, et apparaissait donc dans la liste
+     * des analystes proposes au chef de service. Repartir une offre a un
+     * administrateur n'a pas de sens — il supervise la chaine, il n'y produit pas.
+     * On exclut donc les comptes porteurs de USER_MANAGE, qui identifie
+     * l'administration sans coder de nom de role en dur.
+     */
+    @Query("""
+            SELECT u FROM User u
+            JOIN u.role r
+            JOIN r.permissions p
+            WHERE p.code = :code AND u.status = :status
+              AND NOT EXISTS (
+                SELECT 1 FROM Permission adminPerm
+                WHERE adminPerm MEMBER OF r.permissions AND adminPerm.code = 'USER_MANAGE')
+            """)
+    List<User> findAssignableByPermissionCodeAndStatus(String code, AccountStatus status);
+
     @Modifying
     @Query("UPDATE User u SET u.tokenVersion = u.tokenVersion + 1")
     int incrementAllTokenVersions();

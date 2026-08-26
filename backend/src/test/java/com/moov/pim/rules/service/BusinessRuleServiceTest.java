@@ -60,7 +60,7 @@ class BusinessRuleServiceTest {
         UUID targetId = UUID.randomUUID();
         BusinessRuleRequest request = new BusinessRuleRequest(
                 "Compatibilité SIM-Forfait", "SIM compatible avec forfait",
-                RuleType.COMPATIBILITY, sourceId, targetId);
+                RuleType.COMPATIBILITY, sourceId, targetId, true);
 
         when(ruleRepository.save(any(BusinessRule.class))).thenAnswer(inv -> {
             BusinessRule r = inv.getArgument(0);
@@ -86,7 +86,7 @@ class BusinessRuleServiceTest {
         UUID newSource = UUID.randomUUID();
         UUID newTarget = UUID.randomUUID();
         BusinessRuleRequest request = new BusinessRuleRequest(
-                "Nouvelle", "Desc modifiée", RuleType.INCOMPATIBILITY, newSource, newTarget);
+                "Nouvelle", "Desc modifiée", RuleType.INCOMPATIBILITY, newSource, newTarget, true);
 
         when(ruleRepository.findById(ruleId)).thenReturn(Optional.of(rule));
         when(ruleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -101,7 +101,7 @@ class BusinessRuleServiceTest {
     void update_shouldThrowIfNotFound() {
         UUID fakeId = UUID.randomUUID();
         BusinessRuleRequest request = new BusinessRuleRequest(
-                "X", "Y", RuleType.COMPATIBILITY, UUID.randomUUID(), UUID.randomUUID());
+                "X", "Y", RuleType.COMPATIBILITY, UUID.randomUUID(), UUID.randomUUID(), true);
 
         when(ruleRepository.findById(fakeId)).thenReturn(Optional.empty());
 

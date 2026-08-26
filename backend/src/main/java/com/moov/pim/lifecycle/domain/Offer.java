@@ -77,11 +77,41 @@ public class Offer {
     @Column(name = "legal_mentions", columnDefinition = "TEXT")
     private String legalMentions;
 
+    /**
+     * Categorie de classement de l'offre.
+     *
+     * L'offre commerciale est le type OFFRE de la classification
+     * TYPE -> CATEGORIE -> SOUS-CATEGORIE -> ELEMENT : « Smart 1 Go » se range
+     * sous Internet mobile / Forfaits Data. La colonne pointe le noeud le plus
+     * profond choisi — la sous-categorie quand il y en a une, la categorie sinon ;
+     * la branche complete se relit par le parent.
+     *
+     * La categorie visee doit etre de type OFFER : la base l'impose par une cle
+     * etrangere composite vers categories(id, type), le service le verifie avant
+     * enregistrement (migration V044).
+     *
+     * Nulle uniquement pour les offres creees avant l'introduction de la
+     * classification ; toute creation la rend obligatoire.
+     */
+    @Column(name = "category_id")
+    private UUID categoryId;
+
     @Column(name = "created_by_id", nullable = false)
     private UUID createdById;
 
     @Column(name = "enriched_by_id")
     private UUID enrichedById;
+
+    /**
+     * Analyste marketing designe pour l'enrichissement.
+     *
+     * A ne pas confondre avec enrichedById, qui est renseigne pendant
+     * l'enrichissement et constate qui l'a fait. Celui-ci designe a l'avance qui
+     * doit le faire, et reste nul tant que le chef de service n'a pas reparti la
+     * fiche.
+     */
+    @Column(name = "assigned_to_id")
+    private UUID assignedToId;
 
     @Column(name = "current_version", nullable = false)
     private long currentVersion = 1;
@@ -138,6 +168,7 @@ public class Offer {
     public BigDecimal getPromotionalPrice() { return promotionalPrice; }
     public void setPromotionalPrice(BigDecimal promotionalPrice) { this.promotionalPrice = promotionalPrice; }
     public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
     public LocalDateTime getValidFrom() { return validFrom; }
     public void setValidFrom(LocalDateTime validFrom) { this.validFrom = validFrom; }
     public LocalDateTime getValidUntil() { return validUntil; }
@@ -152,10 +183,14 @@ public class Offer {
     public void setPublishDate(LocalDateTime publishDate) { this.publishDate = publishDate; }
     public String getLegalMentions() { return legalMentions; }
     public void setLegalMentions(String legalMentions) { this.legalMentions = legalMentions; }
+    public UUID getCategoryId() { return categoryId; }
+    public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
     public UUID getCreatedById() { return createdById; }
     public void setCreatedById(UUID createdById) { this.createdById = createdById; }
     public UUID getEnrichedById() { return enrichedById; }
     public void setEnrichedById(UUID enrichedById) { this.enrichedById = enrichedById; }
+    public UUID getAssignedToId() { return assignedToId; }
+    public void setAssignedToId(UUID assignedToId) { this.assignedToId = assignedToId; }
     public long getCurrentVersion() { return currentVersion; }
     public void setCurrentVersion(long currentVersion) { this.currentVersion = currentVersion; }
     public LocalDateTime getCreatedAt() { return createdAt; }

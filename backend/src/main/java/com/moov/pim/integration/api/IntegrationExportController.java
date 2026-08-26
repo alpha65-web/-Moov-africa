@@ -1,6 +1,7 @@
 package com.moov.pim.integration.api;
 
 import com.moov.pim.integration.api.dto.IntegrationExportResponse;
+import com.moov.pim.integration.api.dto.OfferDiffusionRow;
 import com.moov.pim.integration.domain.ExportStatus;
 import com.moov.pim.integration.domain.ExportType;
 import com.moov.pim.integration.domain.TargetSystem;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -37,6 +39,22 @@ public class IntegrationExportController {
             @RequestParam(defaultValue = "MANUAL_EXPORT") ExportType exportType) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(exportService.triggerManualExport(offerId, targetSystem, exportType));
+    }
+
+    /**
+     * Rapprochement entre les offres publiees et leur diffusion effective.
+     *
+     * Protege par ANALYTICS_TEAM_VIEW et non par EXPORT_MANAGE : le cahier des
+     * charges (l. 106) confie ce rapprochement au chef de departement, qui publie
+     * les offres, alors que EXPORT_MANAGE commande le declenchement des exports et
+     * l export autonome du catalogue, reserves a l administration (7.11). Ouvrir la
+     * seconde pour obtenir la premiere aurait donne au chef de departement des
+     * commandes qui ne relevent pas de son role.
+     */
+    @GetMapping("/reconciliation")
+    @PreAuthorize("hasAuthority('ANALYTICS_TEAM_VIEW')")
+    public ResponseEntity<List<OfferDiffusionRow>> reconciliation() {
+        return ResponseEntity.ok(exportService.reconciliation());
     }
 
     @GetMapping("/offers/{offerId}")

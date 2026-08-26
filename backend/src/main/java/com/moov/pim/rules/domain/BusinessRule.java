@@ -33,6 +33,18 @@ public class BusinessRule {
     @Column(nullable = false)
     private boolean active = true;
 
+    /**
+     * La violation de cette regle empeche-t-elle l'enregistrement ?
+     *
+     * Le cahier des charges (7.3) prevoit que le systeme « bloque ou avertit » :
+     * les deux comportements existent, il fallait pouvoir choisir. Une regle non
+     * bloquante permet d'introduire progressivement une contrainte sur un
+     * catalogue deja constitue, sans rendre insoumissibles les offres existantes
+     * qui la violent.
+     */
+    @Column(nullable = false)
+    private boolean blocking = true;
+
     @Column(name = "source_item_id", nullable = false)
     private UUID sourceItemId;
 
@@ -51,6 +63,9 @@ public class BusinessRule {
     void onCreate() {
         createdAt = LocalDateTime.now();
     }
+
+    public boolean isBlocking() { return blocking; }
+    public void setBlocking(boolean blocking) { this.blocking = blocking; }
 
     public UUID getId() { return id; }
     public String getName() { return name; }

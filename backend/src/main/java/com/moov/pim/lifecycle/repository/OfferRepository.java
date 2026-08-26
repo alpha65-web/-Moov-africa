@@ -36,6 +36,31 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
             " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")
     Page<Offer> searchByOwner(OfferStatus status, String search, UUID ownerId, Pageable pageable);
 
+    /**
+     * Charge ouverte d'un analyste : les fiches qui lui sont confiees et qu'il n'a
+     * pas encore rendues. C'est la donnee sur laquelle le chef de service arbitre
+     * sa repartition.
+     */
+    long countByAssignedToIdAndStatus(UUID assignedToId, OfferStatus status);
+
+    /** Total des fiches deja confiees a un analyste, tous statuts confondus. */
+    long countByAssignedToId(UUID assignedToId);
+
+    /**
+     * Offres visibles par un role de diffusion.
+     *
+     * Le community manager n'a aucune part au cycle de vie : le cahier des charges
+     * (l. 107) borne son acces a « la consultation des offres publiees ». La liste
+     * complete lui etait pourtant renvoyee, brouillons des autres acteurs compris,
+     * et seule l'interface les masquait — alors que la meme specification (l. 118)
+     * exige que le perimetre de visibilite soit verifie cote serveur.
+     */
+    @Query("SELECT o FROM Offer o WHERE o.status IN :statuses" +
+            " AND (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")
+    Page<Offer> searchWithinStatuses(java.util.Collection<OfferStatus> statuses, String search, Pageable pageable);
+
+    List<Offer> findByStatusIn(java.util.Collection<OfferStatus> statuses);
+
     @Query("SELECT o FROM Offer o WHERE o.status = 'PLANNED' AND o.validFrom <= :now")
     List<Offer> findPlannedReadyToPublish(LocalDateTime now);
 

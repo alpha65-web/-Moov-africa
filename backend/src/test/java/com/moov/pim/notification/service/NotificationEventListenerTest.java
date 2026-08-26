@@ -66,7 +66,7 @@ class NotificationEventListenerTest {
     }
 
     private OfferTransitionEvent event(String from, String to) {
-        return new OfferTransitionEvent(offerId, "Mon Offre", acteur, auteurDeLOffre, from, to);
+        return new OfferTransitionEvent(offerId, "Mon Offre", acteur, auteurDeLOffre, from, to, null);
     }
 
     @Test
@@ -79,6 +79,22 @@ class NotificationEventListenerTest {
         verify(notificationService).send(eq(analyste), eq(NotificationType.ENRICHMENT_REQUIRED),
                 eq("Enrichissement requis"), any(String.class), eq(offerId));
         verify(notificationService, never()).send(eq(acteur), any(), any(), any(), any());
+    }
+
+    @Test
+    void miseEnEnrichissement_offreAffectee_neprevientQueLAnalysteDesigne() {
+        UUID designe = UUID.randomUUID();
+        UUID sonCollegue = UUID.randomUUID();
+        // Les deux analystes existent, mais la fiche est confiee au premier.
+        holders("OFFER_ENRICH", designe, sonCollegue);
+
+        listener.on(new OfferTransitionEvent(offerId, "Mon Offre", acteur, auteurDeLOffre,
+                "DRAFT", "IN_ENRICHMENT", designe));
+
+        verify(notificationService).send(eq(designe), eq(NotificationType.ENRICHMENT_REQUIRED),
+                any(), any(), eq(offerId));
+        // Prevenir le collegue le ferait travailler sur une fiche qui ne lui revient pas.
+        verify(notificationService, never()).send(eq(sonCollegue), any(), any(), any(), any());
     }
 
     @Test

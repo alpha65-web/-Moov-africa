@@ -3,7 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
+import { usePermissions, PERM } from "@/lib/permissions";
 import MediaPreview from "@/components/MediaPreview";
+import type { Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
@@ -53,6 +55,24 @@ function Skeleton({ className }: { className: string }) {
 
 export default function MediaPage() {
   const t = useTranslations("media");
+  // MediaAssetController separe deux metiers : le depot et la suppression
+  // exigent MEDIA_UPLOAD, la validation de conformite exige MEDIA_VALIDATE.
+  // L'ecran proposait les deux a tout le monde : l'analyste marketing, qui ne
+  // valide pas, se voyait offrir « Approuver » et « Rejeter ».
+  const { has } = usePermissions();
+  const canUpload = has(PERM.MEDIA_UPLOAD);
+
+  // Association d'un media a une offre : c'est le coeur du role de l'analyste
+  // marketing (cahier des charges l. 104, « depot et association des medias »).
+  // L'endpoint POST /media/offers/{offerId}/link existait deja cote serveur,
+  // mais aucun ecran ne l'appelait : la mediatheque ignorait jusqu'a l'existence
+  // des offres, et le lien ne pouvait donc jamais etre cree.
+  const [linkTarget, setLinkTarget] = useState<MediaAsset | null>(null);
+  const [linkableOffers, setLinkableOffers] = useState<Offer[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState("");
+  const [primaryVisual, setPrimaryVisual] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const canValidate = has(PERM.MEDIA_VALIDATE);
   const tc = useTranslations("common");
 
   const [media, setMedia] = useState<MediaAsset[]>([]);
@@ -74,13 +94,14 @@ export default function MediaPage() {
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") {
+        if (linkTarget) { setLinkTarget(null); return; }
         if (deleteTarget) { setDeleteTarget(null); return; }
         if (detailMedia) { setDetailMedia(null); return; }
       }
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [deleteTarget, detailMedia]);
+  }, [deleteTarget, detailMedia, linkTarget]);
 
   useEffect(() => {
     function handleClickOutside() {
@@ -91,6 +112,25 @@ export default function MediaPage() {
   }, [openMenuId]);
 
   useEffect(() => { setPage(1); }, [search, filterStatus, filterType]);
+
+  /**
+   * Le valideur graphique ouvre sur sa file, comme l'ecran des offres le fait
+   * deja pour les acteurs du circuit metier.
+   *
+   * La mediatheque s'ouvrait sur la totalite des visuels, tous statuts confondus :
+   * le chef de service devait retrouver lui-meme, parmi les fichiers deja
+   * approuves ou rejetes, ceux qui attendaient sa decision — la seule chose que
+   * cet ecran lui demande de faire. Le filtre n'est pose qu'une fois, pour ne pas
+   * ecraser un choix fait ensuite par l'utilisateur, et seulement pour un compte
+   * qui valide sans deposer : celui qui fait les deux garde la vue complete.
+   */
+  const validationQueueApplied = useRef(false);
+  useEffect(() => {
+    if (validationQueueApplied.current) return;
+    if (!canValidate || canUpload) return;
+    validationQueueApplied.current = true;
+    setFilterStatus("PENDING");
+  }, [canValidate, canUpload]);
 
   async function loadMedia() {
     try {
@@ -141,6 +181,47 @@ export default function MediaPage() {
       loadMedia();
     } catch (e) {
       toast.error(apiError(e, tc("errors.action")));
+    }
+  }
+
+  /**
+   * Ouverture du choix d'offre.
+   *
+   * Les offres ne sont chargees qu'a ce moment : la mediatheque n'en a besoin que
+   * pour cette action, et un role sans MEDIA_UPLOAD ne la declenche jamais. Seules
+   * les fiches encore ouvertes a l'enrichissement sont proposees, car le serveur
+   * fige la fiche au-dela et le lien n'aurait plus de sens.
+   */
+  async function openLinkModal(media: MediaAsset) {
+    setLinkTarget(media);
+    setSelectedOfferId("");
+    setPrimaryVisual(false);
+    setOpenMenuId(null);
+    try {
+      const { data } = await api.get("/offers", { params: { size: 500 } });
+      const all: Offer[] = data.content ?? data;
+      setLinkableOffers(all.filter((o) => o.status === "DRAFT" || o.status === "IN_ENRICHMENT"));
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.load")));
+      setLinkableOffers([]);
+    }
+  }
+
+  async function handleLink() {
+    if (!linkTarget || !selectedOfferId || linking) return;
+    setLinking(true);
+    try {
+      await api.post(`/media/offers/${selectedOfferId}/link`, {
+        mediaAssetId: linkTarget.id,
+        isPrimary: primaryVisual,
+        displayOrder: 0,
+      });
+      toast.success(t("messages.linked"));
+      setLinkTarget(null);
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally {
+      setLinking(false);
     }
   }
 
@@ -213,16 +294,18 @@ export default function MediaPage() {
               <p className="text-sm font-medium">{t("refresh")}</p>
             </span>
           </button>
-          <label className="primary-icon px-4 py-2.5 active-scale cursor-pointer">
-            <span className="flex items-center gap-2">
-              <svg className="size-4" viewBox="0 0 16 16" fill="none">
-                <path d="M8 10V3M8 3l3 3M8 3L5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <p className="text-sm font-medium">{uploading ? t("uploadForm.uploading") : t("upload")}</p>
-            </span>
-            <input ref={fileInputRef} type="file" className="hidden" accept="image/*,application/pdf,video/mp4" onChange={handleUpload} disabled={uploading} />
-          </label>
+          {canUpload && (
+            <label className="primary-icon px-4 py-2.5 active-scale cursor-pointer">
+              <span className="flex items-center gap-2">
+                <svg className="size-4" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 10V3M8 3l3 3M8 3L5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p className="text-sm font-medium">{uploading ? t("uploadForm.uploading") : t("upload")}</p>
+              </span>
+              <input ref={fileInputRef} type="file" className="hidden" accept="image/*,application/pdf,video/mp4" onChange={handleUpload} disabled={uploading} />
+            </label>
+          )}
         </div>
       </div>
 
@@ -319,16 +402,18 @@ export default function MediaPage() {
                 <p className="text-base font-bold text-black dark:text-white">{t("emptyTitle")}</p>
                 <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
               </div>
-              <label className="primary-icon px-5 py-2.5 active-scale mt-1 cursor-pointer">
-                <span className="flex items-center gap-2">
-                  <svg className="size-4" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 10V3M8 3l3 3M8 3L5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <p className="text-sm font-medium">{t("uploadFirst")}</p>
-                </span>
-                <input ref={fileInputRef} type="file" className="hidden" accept="image/*,application/pdf,video/mp4" onChange={handleUpload} disabled={uploading} />
-              </label>
+              {canUpload && (
+                <label className="primary-icon px-5 py-2.5 active-scale mt-1 cursor-pointer">
+                  <span className="flex items-center gap-2">
+                    <svg className="size-4" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 10V3M8 3l3 3M8 3L5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="text-sm font-medium">{t("uploadFirst")}</p>
+                  </span>
+                  <input ref={fileInputRef} type="file" className="hidden" accept="image/*,application/pdf,video/mp4" onChange={handleUpload} disabled={uploading} />
+                </label>
+              )}
             </div>
           </div>
         ) : (
@@ -364,7 +449,13 @@ export default function MediaPage() {
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                         {t("actions.details")}
                       </button>
-                      {m.conformityStatus === "PENDING" && (
+                      {canUpload && (
+                        <button onClick={() => openLinkModal(m)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                          <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5a3 3 0 004.24 0l2-2a3 3 0 00-4.24-4.24l-.7.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><path d="M9.5 6.5a3 3 0 00-4.24 0l-2 2a3 3 0 004.24 4.24l.7-.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                          {t("actions.linkToOffer")}
+                        </button>
+                      )}
+                      {canValidate && m.conformityStatus === "PENDING" && (
                         <>
                           <button onClick={() => { handleValidate(m, true); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
                             <svg className="size-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -376,10 +467,12 @@ export default function MediaPage() {
                           </button>
                         </>
                       )}
-                      <button onClick={() => { setDeleteTarget(m); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                        <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        {tc("delete")}
-                      </button>
+                      {canUpload && (
+                        <button onClick={() => { setDeleteTarget(m); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          {tc("delete")}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -480,7 +573,7 @@ export default function MediaPage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
-              {detailMedia.conformityStatus === "PENDING" && (
+              {canValidate && detailMedia.conformityStatus === "PENDING" && (
                 <>
                   <button onClick={() => { handleValidate(detailMedia, true); setDetailMedia(null); }} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer">
                     {t("actions.approve")}
@@ -492,6 +585,59 @@ export default function MediaPage() {
               )}
               <button onClick={() => setDetailMedia(null)} className="tertiary-icon px-4 py-2 active-scale">
                 <p className="text-sm font-medium">{tc("close")}</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL ASSOCIATION A UNE OFFRE ===== */}
+      {linkTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setLinkTarget(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
+              <h2 className="text-base font-bold text-black dark:text-white">{t("link.title")}</h2>
+              <button onClick={() => setLinkTarget(null)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800/40 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.file")}</p>
+                <p className="text-sm font-semibold text-black dark:text-white mt-0.5 truncate">{linkTarget.fileName}</p>
+              </div>
+
+              {linkableOffers.length === 0 ? (
+                /* Aucune offre ouverte a l'enrichissement : on le dit, plutot que
+                   de presenter une liste vide et un bouton sans effet. */
+                <p className="text-sm text-text-secondary dark:text-neutral-500 leading-relaxed">{t("link.noOffer")}</p>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("link.offer")}</label>
+                    <select value={selectedOfferId} onChange={(e) => setSelectedOfferId(e.target.value)} className="input w-full h-10">
+                      <option value="">{t("link.choose")}</option>
+                      {linkableOffers.map((o) => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" checked={primaryVisual} onChange={(e) => setPrimaryVisual(e.target.checked)} className="size-4 accent-primary" />
+                    <span className="text-sm text-black dark:text-white">{t("link.primary")}</span>
+                  </label>
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => setLinkTarget(null)} className="tertiary-icon px-4 py-2 active-scale">
+                <p className="text-sm font-medium">{tc("cancel")}</p>
+              </button>
+              <button onClick={handleLink} disabled={!selectedOfferId || linking} className="primary-icon px-5 py-2 active-scale disabled:opacity-60">
+                <span className="flex items-center gap-2">
+                  {linking && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                  <p className="text-sm font-medium">{linking ? tc("saving") : t("link.confirm")}</p>
+                </span>
               </button>
             </div>
           </div>

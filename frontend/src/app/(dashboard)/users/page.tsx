@@ -26,14 +26,6 @@ const ROLE_STYLES: Record<string, string> = {
   COMMUNITY_MANAGER: "bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
 };
 
-interface Draft {
-  id: string;
-  form: typeof EMPTY_FORM;
-  avatarPreview: string | null;
-  step: number;
-  savedAt: string;
-}
-
 const EMPTY_FORM = {
   email: "",
   password: "",
@@ -46,16 +38,22 @@ const EMPTY_FORM = {
   roleName: "CHEF_PRODUIT",
 };
 
-const DRAFTS_KEY = "pim_user_drafts";
+/**
+ * Purge des brouillons de creation d'utilisateur.
+ *
+ * L'ecran conservait dans localStorage, sous la cle "pim_user_drafts", une copie
+ * integrale du formulaire — *mot de passe du compte a creer compris, en clair*.
+ * Ces entrees n'etaient rattachees ni a un compte ni a une session, survivaient
+ * a la deconnexion (auth.tsx les preservait explicitement) et reapparaissaient
+ * donc a la connexion suivante, y compris pour un autre administrateur sur le
+ * meme poste. Le mecanisme est retire ; cette fonction efface ce qui a pu etre
+ * ecrit avant la correction.
+ */
+const LEGACY_DRAFTS_KEY = "pim_user_drafts";
 
-function loadDraftsFromStorage(): Draft[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(DRAFTS_KEY) || "[]"); }
-  catch { return []; }
-}
-
-function saveDraftsToStorage(drafts: Draft[]) {
-  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+function purgeLegacyDrafts() {
+  if (typeof window === "undefined") return;
+  try { localStorage.removeItem(LEGACY_DRAFTS_KEY); } catch { /* stockage indisponible */ }
 }
 
 function Skeleton({ className }: { className: string }) {
@@ -114,9 +112,10 @@ export default function UsersPage() {
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  // Vrai des que l'adresse a ete saisie a la main : la proposition automatique
+  // ne doit plus la remplacer.
+  const [emailTouched, setEmailTouched] = useState(false);
 
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [showDrafts, setShowDrafts] = useState(false);
 
   const [detailUser, setDetailUser] = useState<User | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
@@ -126,20 +125,19 @@ export default function UsersPage() {
 
   const isEditing = !!editingUser;
 
-  useEffect(() => { loadUsers(); setDrafts(loadDraftsFromStorage()); }, []);
+  useEffect(() => { loadUsers(); purgeLegacyDrafts(); }, []);
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") {
         if (deleteTarget) { setDeleteTarget(null); return; }
         if (detailUser) { setDetailUser(null); return; }
-        if (showDrafts) { setShowDrafts(false); return; }
         if (showModal) { setShowModal(false); resetForm(); }
       }
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [showModal, deleteTarget, detailUser, showDrafts]);
+  }, [showModal, deleteTarget, detailUser]);
 
   useEffect(() => {
     function handleClickOutside() {
@@ -175,34 +173,11 @@ export default function UsersPage() {
     setStepError("");
     setEditingUser(null);
     setShowPassword(false);
+    setEmailTouched(false);
   }
 
-  function handleSaveDraft() {
-    const hasData = form.firstName || form.lastName || form.email || form.phone || form.pseudo;
-    if (!hasData) { toast.error(t("messages.noDraftData")); return; }
-    const draft: Draft = { id: Date.now().toString(), form: { ...form }, avatarPreview, step, savedAt: new Date().toISOString() };
-    const updated = [draft, ...drafts];
-    setDrafts(updated);
-    saveDraftsToStorage(updated);
-    toast.success(t("messages.draftSaved"));
-    setShowModal(false);
-    resetForm();
-  }
 
-  function handleRestoreDraft(draft: Draft) {
-    setForm({ ...draft.form });
-    setAvatarPreview(draft.avatarPreview);
-    setStep(draft.step);
-    setShowDrafts(false);
-    setShowModal(true);
-  }
 
-  function handleDeleteDraft(id: string) {
-    const updated = drafts.filter((d) => d.id !== id);
-    setDrafts(updated);
-    saveDraftsToStorage(updated);
-    toast.success(t("messages.draftDeleted"));
-  }
 
   function generateUniqueEmail(firstName: string, lastName: string): string {
     if (!firstName.trim() || !lastName.trim()) return "";
@@ -226,8 +201,13 @@ export default function UsersPage() {
     return candidate;
   }
 
+  /**
+   * Reajuste la proposition d'adresse quand le nom change — mais seulement tant
+   * que l'administrateur n'a pas saisi la sienne. Sans ce garde-fou, une adresse
+   * attribuee a la main etait effacee des la frappe suivante dans le nom.
+   */
   function updateEmailFromName(firstName: string, lastName: string) {
-    if (!isEditing) {
+    if (!isEditing && !emailTouched) {
       const email = generateUniqueEmail(firstName, lastName);
       setForm((prev) => ({ ...prev, email }));
     }
@@ -354,18 +334,6 @@ export default function UsersPage() {
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowDrafts(true)} className="secondary-icon px-4 py-2.5 active-scale relative">
-            <span className="flex items-center gap-2">
-              <svg className="size-4" viewBox="0 0 16 16" fill="none">
-                <path d="M3 2h7l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                <path d="M5 9h6M5 11.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-              <p className="text-sm font-medium whitespace-nowrap">{t("drafts")}</p>
-            </span>
-            {drafts.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 size-5 flex items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold">{drafts.length}</span>
-            )}
-          </button>
           <div className="relative">
             <button onClick={() => { resetForm(); setShowModal(true); }} className="primary-icon px-4 py-2.5 active-scale">
               <span className="flex items-center gap-2">
@@ -657,14 +625,31 @@ export default function UsersPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
+                      {/* L'adresse etait composee a partir du nom puis verrouillee
+                          en lecture seule : l'administrateur ne pouvait pas attribuer
+                          celle reellement utilisee par l'entreprise. Elle reste
+                          pre-remplie, mais a titre de proposition modifiable. */}
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
                         {t("form.email")}
-                        {!isEditing && <span className="ml-1 text-[10px] text-primary font-normal">{t("form.emailAuto")}</span>}
+                        {!isEditing && <span className="ml-1 text-[10px] text-text-secondary dark:text-neutral-500 font-normal normal-case tracking-normal">{t("form.emailSuggested")}</span>}
                       </label>
                       <div className="relative">
-                        <input type="email" value={form.email} readOnly={!isEditing} onChange={isEditing ? (e) => { setForm({ ...form, email: e.target.value }); setStepError(""); } : undefined} placeholder={t("form.emailPlaceholder")} className={`input w-full h-10 ${!isEditing ? "bg-neutral-50 dark:bg-neutral-800/50 text-text-secondary dark:text-neutral-400 cursor-default" : ""}`} />
-                        {!isEditing && form.email && (
-                          <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-emerald-500" viewBox="0 0 16 16" fill="none"><path d="M3.5 8l3 3 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => { setForm({ ...form, email: e.target.value }); setEmailTouched(true); setStepError(""); }}
+                          placeholder={t("form.emailPlaceholder")}
+                          className="input w-full h-10 pr-9"
+                        />
+                        {!isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => { setForm((prev) => ({ ...prev, email: generateUniqueEmail(prev.firstName, prev.lastName) })); setEmailTouched(false); setStepError(""); }}
+                            title={t("form.emailRegenerate")}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                          >
+                            <svg className="size-3.5" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0111.5-2.3M14 8a6 6 0 01-11.5 2.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><path d="M13.5 2v3.7h-3.7M2.5 14v-3.7h3.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -742,14 +727,6 @@ export default function UsersPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {!isEditing && (
-                    <button type="button" onClick={handleSaveDraft} className="secondary-icon px-3 py-2 active-scale">
-                      <span className="flex items-center gap-1.5">
-                        <svg className="size-3.5" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M5 9h6M5 11.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
-                        <p className="text-sm font-medium">{t("form.draft")}</p>
-                      </span>
-                    </button>
-                  )}
                   <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="tertiary-icon px-4 py-2 active-scale">
                     <p className="text-sm font-medium">{tc("cancel")}</p>
                   </button>
@@ -851,55 +828,6 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* ===== MODAL BROUILLONS ===== */}
-      {showDrafts && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setShowDrafts(false); }}>
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
-              <div>
-                <h2 className="text-base font-bold text-black dark:text-white">{t("draftsTitle")}</h2>
-                <p className="text-[11px] text-text-secondary dark:text-neutral-500 mt-0.5">{t("draftsCount", { count: drafts.length })}</p>
-              </div>
-              <button onClick={() => setShowDrafts(false)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
-                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-              </button>
-            </div>
-            {drafts.length === 0 ? (
-              <div className="px-6 py-10 text-center">
-                <svg className="size-10 text-neutral-300 dark:text-neutral-600 mx-auto mb-3" viewBox="0 0 24 24" fill="none"><path d="M5 3h10l4 4v14a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M9 13h6M9 16h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
-                <p className="text-sm text-text-secondary dark:text-neutral-500">{t("draftsEmpty")}</p>
-                <p className="text-[11px] text-neutral-400 mt-1">{t("draftsEmptyHint")}</p>
-              </div>
-            ) : (
-              <div className="max-h-80 overflow-y-auto divide-y divide-border dark:divide-neutral-800">
-                {drafts.map((d) => (
-                  <div key={d.id} className="flex items-center gap-3 px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
-                    {d.avatarPreview ? (
-                      <img src={d.avatarPreview} alt="" className="size-9 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">{d.form.lastName?.[0]}{d.form.firstName?.[0]}</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-black dark:text-white truncate">
-                        {d.form.lastName || d.form.firstName ? `${d.form.lastName} ${d.form.firstName}`.trim() : t("draftNoName")}
-                      </p>
-                      <p className="text-[11px] text-text-secondary dark:text-neutral-500 truncate">
-                        {d.form.email || t("draftNoEmail")} · {t("form.stepOf", { step: d.step })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => handleRestoreDraft(d)} className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">{t("draftResume")}</button>
-                      <button onClick={() => handleDeleteDraft(d.id)} className="p-1.5 rounded-md text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                        <svg className="size-3.5" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

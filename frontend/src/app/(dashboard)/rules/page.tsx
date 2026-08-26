@@ -13,6 +13,9 @@ const EMPTY_FORM = {
   name: "",
   description: "",
   ruleType: "COMPATIBILITY",
+  // Une regle metier declaree est une contrainte : elle bloque par defaut, et
+  // c'est a son auteur de la relacher s'il veut seulement avertir.
+  blocking: true,
   sourceItemId: "",
   targetItemId: "",
 };
@@ -107,6 +110,7 @@ export default function RulesPage() {
       name: rule.name,
       description: rule.description || "",
       ruleType: rule.ruleType,
+      blocking: rule.blocking ?? true,
       sourceItemId: rule.sourceItemId || "",
       targetItemId: rule.targetItemId || "",
     });
@@ -125,6 +129,7 @@ export default function RulesPage() {
         ruleType: form.ruleType,
         sourceItemId: form.sourceItemId,
         targetItemId: form.targetItemId,
+        blocking: form.blocking,
       };
       if (isEditing) {
         await api.put(`/rules/${editingRule!.id}`, payload);
@@ -525,6 +530,41 @@ export default function RulesPage() {
                       <option key={rt} value={rt}>{t(`types.${rt}`)}</option>
                     ))}
                   </select>
+                </div>
+
+                {/* Sévérité de la contrainte.
+                    Le cahier des charges (7.3) prévoit que le système « bloque ou
+                    avertit » : les deux comportements étaient donc attendus, mais
+                    rien en base ne permettait de choisir — business_rules ne
+                    portait que `active`. Sans ce réglage, toute nouvelle règle
+                    serait bloquante dès sa création, ce qui interdit d'introduire
+                    progressivement une contrainte sur un catalogue déjà constitué :
+                    les offres existantes qui la violent deviendraient d'un coup
+                    insoumissibles. */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                    {t("form.severity")}
+                  </label>
+                  <div className="flex flex-col gap-1.5">
+                    {[
+                      { value: true, label: t("form.blocking"), hint: t("form.blockingHint") },
+                      { value: false, label: t("form.warning"), hint: t("form.warningHint") },
+                    ].map((option) => (
+                      <button
+                        type="button"
+                        key={String(option.value)}
+                        onClick={() => setForm({ ...form, blocking: option.value })}
+                        className={`rounded-xl border px-3 py-2.5 text-left transition-colors cursor-pointer ${
+                          form.blocking === option.value
+                            ? "border-primary bg-primary/5 dark:bg-primary/10"
+                            : "border-border dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/40"
+                        }`}
+                      >
+                        <span className="block text-sm font-medium text-black dark:text-white">{option.label}</span>
+                        <span className="block text-[11px] text-text-secondary dark:text-neutral-500 mt-0.5">{option.hint}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.source")}</label>

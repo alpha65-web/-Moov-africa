@@ -77,7 +77,22 @@
     "tipEmpty": "Commencez par créer votre première offre pour alimenter votre catalogue PIM.",
     "tipGood": "Votre catalogue est bien garni. Pensez à vérifier les offres en enrichissement.",
     "today": "Aujourd'hui",
-    "yesterday": "Hier"
+    "yesterday": "Hier",
+    "toProcess": "À traiter",
+    "cards": {
+      "myDrafts": "Mes brouillons",
+      "toEnrich": "À enrichir",
+      "toValidate": "À valider",
+      "mediaToValidate": "Visuels à valider",
+      "toPublish": "À publier",
+      "campaignsActive": "Campagnes en cours"
+    },
+    "tipQueue": "{count} fiche(s) attendent votre intervention : traitez-les pour ne pas retarder le circuit.",
+    "tipDiffusion": "{count} offre(s) publiée(s) sont diffusables : préparez ou programmez vos campagnes.",
+    "total": "Total",
+    "vsPrevious": "sur 30 jours",
+    "completeness": "Fiches à compléter",
+    "completenessEmpty": "Toutes les fiches en cours sont complètes."
   },
   "catalog": {
     "title": "Catalogue",
@@ -94,7 +109,8 @@
       "price": "Prix",
       "category": "Catégorie",
       "status": "Statut",
-      "actions": "Actions"
+      "actions": "Actions",
+      "createdBy": "Créé par {name}"
     },
     "form": {
       "name": "Nom",
@@ -106,16 +122,6 @@
       "packItems": "Éléments du pack",
       "selected": "sélectionné(s)",
       "noItems": "Aucun produit ou service disponible"
-    },
-    "categories": {
-      "Voix": "Voix",
-      "Data": "Data",
-      "SMS": "SMS",
-      "Transfert": "Transfert",
-      "Divertissement": "Divertissement",
-      "Finance": "Finance",
-      "Entreprise": "Entreprise",
-      "Roaming": "Roaming"
     },
     "status": {
       "ACTIVE": "Actif",
@@ -137,7 +143,13 @@
     "viewAll": "Voir tous",
     "filter": "Filtrer",
     "createTitle": "Nouveau {type}",
-    "editTitle": "Modifier l'élément"
+    "editTitle": "Modifier l'élément",
+    "duplicates": {
+      "title": "{count} doublon(s) suspecté(s)",
+      "subtitle": "Ces produits portent des libellés très proches. Vérifiez s'il s'agit du même produit saisi deux fois, ou écartez le rapprochement.",
+      "similarity": "{percent} % de similarité",
+      "dismiss": "Ce sont deux produits distincts"
+    }
   },
   "offers": {
     "title": "Offres",
@@ -146,8 +158,6 @@
     "subtitle": "Gérez le cycle de vie de vos offres commerciales",
     "newOffer": "Nouvelle offre",
     "createOffer": "Créer une offre",
-    "createFromTemplate": "Créer à partir d'un modèle",
-    "importOffer": "Importer une offre",
     "importOffers": "Importer des offres",
     "searchPlaceholder": "Rechercher par nom, code, description...",
     "columns": {
@@ -162,7 +172,9 @@
       "channels": "Canaux",
       "lastModified": "Dernière modification",
       "created": "Créée le",
-      "actions": "Actions"
+      "actions": "Actions",
+      "createdBy": "Créé par {name}",
+      "author": "Créée par"
     },
     "form": {
       "name": "Nom de l'offre",
@@ -172,7 +184,13 @@
       "currency": "Devise",
       "targetSegment": "Segment cible",
       "customerType": "Type de client",
-      "legalMentions": "Mentions légales"
+      "legalMentions": "Mentions légales",
+      "seoTitle": "Titre SEO",
+      "seoDescription": "Méta-description SEO",
+      "mediaChoose": "Choisir un visuel de la bibliothèque…",
+      "mediaAttach": "Associer",
+      "mediaUpload": "Déposer un visuel",
+      "mediaTooLarge": "Fichier trop volumineux : 50 Mo maximum."
     },
     "status": {
       "DRAFT": "Brouillon",
@@ -226,7 +244,9 @@
     },
     "detail": {
       "version": "Version",
-      "updatedAt": "Modifiée le"
+      "updatedAt": "Modifiée le",
+      "media": "Visuels associés",
+      "history": "Parcours de la fiche"
     },
     "transition": {
       "title": "Transition de statut",
@@ -235,7 +255,9 @@
       "confirm": "Confirmer la transition",
       "currentStatus": "Statut actuel",
       "availableTransitions": "Transitions possibles",
-      "commentRequired": "Un commentaire est requis pour cette transition"
+      "commentRequired": "Un commentaire est requis pour cette transition",
+      "noneAvailable": "Aucune transition ne vous est ouverte depuis ce statut.",
+      "noLegalMentions": "Aucune mention légale n'est renseignée sur cette offre. Vérifiez avant publication."
     },
     "messages": {
       "created": "Offre créée avec succès",
@@ -244,7 +266,10 @@
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette offre ?",
       "deleteWarning": "Cette action est irréversible.",
       "transitionSuccess": "Transition effectuée",
-      "saved": "Offre enregistrée"
+      "saved": "Offre enregistrée",
+      "enriched": "Offre enrichie avec succès",
+      "mediaAttached": "Visuel associé à l'offre",
+      "sentToValidation": "Offre enrichie et envoyée en validation"
     },
     "empty": "Aucune offre trouvée",
     "emptyTitle": "Aucune offre disponible",
@@ -254,7 +279,32 @@
     "createFirstOffer": "Créer ma première offre",
     "createTitle": "Nouvelle offre",
     "editTitle": "Modifier l'offre",
-    "filterAll": "Toutes"
+    "filterAll": "Toutes",
+    "enrich": "Enrichir",
+    "enrichTitle": "Enrichir l'offre",
+    "filterQueue": "À traiter",
+    "emptyQueue": "Aucune offre n'attend votre intervention pour le moment.",
+    "emptyReadOnly": "Aucune offre ne correspond à ces critères.",
+    "updateTitle": "Modifier l'offre",
+    "saveAndSubmit": "Enregistrer et envoyer en validation",
+    "assign": {
+      "title": "Affecter l'offre à un analyste",
+      "action": "Affecter à un analyste",
+      "reassign": "Réaffecter",
+      "analyst": "Analyste marketing",
+      "none": "— Aucun (remettre dans le lot commun)",
+      "hint": "L'analyste désigné est le seul prévenu et reçoit la fiche dans sa file. La charge affichée est comptée sur les offres qui lui sont réellement confiées.",
+      "confirm": "Affecter",
+      "done": "Offre affectée",
+      "released": "Affectation retirée : l'offre retourne dans le lot commun",
+      "mine": "Qui vous est confiée",
+      "assigned": "Confiée",
+      "noAnalyst": "Aucun analyste marketing actif n'est disponible.",
+      "warningOtherAnalyst": "Cette offre est confiée à un autre analyste. Vous pouvez tout de même l'enrichir, mais prévenez-le pour éviter que le travail soit fait deux fois.",
+      "available": "Disponible",
+      "inProgress": "{count} en cours",
+      "handled": "{count} offre(s) traitée(s) au total"
+    }
   },
   "campaigns": {
     "title": "Campagnes",
@@ -334,7 +384,16 @@
       "saved": "Campagne enregistrée"
     },
     "createTitle": "Nouvelle campagne",
-    "editTitle": "Modifier la campagne"
+    "editTitle": "Modifier la campagne",
+    "channelStats": {
+      "title": "Diffusion par canal",
+      "subtitle": "Compté sur les campagnes réellement enregistrées. Les vues et clics ne sont pas affichés : ils supposent un raccordement aux interfaces des réseaux sociaux, dont la plateforme ne dispose pas.",
+      "channel": "Canal",
+      "campaigns": "Campagnes",
+      "sent": "Diffusées",
+      "scheduled": "Programmées",
+      "lastSent": "Dernière diffusion"
+    }
   },
   "media": {
     "title": "Médiathèque",
@@ -392,7 +451,8 @@
     "actions": {
       "approve": "Approuver",
       "reject": "Rejeter",
-      "details": "Détails"
+      "details": "Détails",
+      "linkToOffer": "Associer à une offre"
     },
     "messages": {
       "uploaded": "Fichier uploadé avec succès",
@@ -402,7 +462,16 @@
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce média ?",
       "fileTooLarge": "Le fichier ne doit pas dépasser 10 Mo",
       "saved": "Média enregistré",
-      "deleteWarning": "Cette action est irréversible."
+      "deleteWarning": "Cette action est irréversible.",
+      "linked": "Média associé à l'offre"
+    },
+    "link": {
+      "title": "Associer le média à une offre",
+      "offer": "Offre",
+      "choose": "Choisir une offre…",
+      "primary": "Visuel principal de l'offre",
+      "confirm": "Associer",
+      "noOffer": "Aucune offre n'est actuellement ouverte à l'enrichissement. Un média ne peut être associé qu'à une offre en brouillon ou en enrichissement."
     }
   },
   "users": {
@@ -441,7 +510,6 @@
       "lastName": "Nom",
       "sex": "Sexe",
       "email": "Adresse email",
-      "emailAuto": "(auto)",
       "role": "Rôle",
       "password": "Mot de passe temporaire",
       "passwordEdit": "Nouveau mot de passe (optionnel)",
@@ -466,7 +534,9 @@
       "pseudoPlaceholder": "Nom d'utilisateur",
       "lastNamePlaceholder": "Nom de famille",
       "firstNamePlaceholder": "Prénom",
-      "roleLabel": "Rôle attribué"
+      "roleLabel": "Rôle attribué",
+      "emailSuggested": "— proposition, modifiable",
+      "emailRegenerate": "Regénérer une proposition"
     },
     "sex": {
       "M": "Masculin",
@@ -678,7 +748,12 @@
       "ruleType": "Type de règle",
       "sourceItemId": "ID élément source",
       "targetItemId": "ID élément cible",
-      "selectType": "Sélectionner un type"
+      "selectType": "Sélectionner un type",
+      "severity": "Sévérité",
+      "blocking": "Bloquante",
+      "blockingHint": "La violation empêche l'enregistrement et la soumission de l'offre.",
+      "warning": "Avertissement",
+      "warningHint": "La violation est signalée mais n'empêche rien. Utile pour introduire une contrainte sur un catalogue déjà constitué."
     },
     "types": {
       "COMPATIBILITY": "Compatibilité",
@@ -904,7 +979,9 @@
       "description": "Description",
       "level": "Niveau",
       "parent": "Parent",
-      "actions": "Actions"
+      "actions": "Actions",
+      "type": "Type",
+      "status": "État"
     },
     "levels": {
       "root": "Racine",
@@ -916,7 +993,11 @@
       "description": "Description",
       "parentId": "Catégorie parente",
       "noParent": "Aucune (catégorie racine)",
-      "parent": "Catégorie parente"
+      "parent": "Catégorie parente",
+      "type": "Type",
+      "typeLocked": "Le type est hérité de la catégorie parente",
+      "typeImmutable": "Le type ne se modifie pas après création",
+      "chooseType": "— Choisir un type —"
     },
     "createTitle": "Nouvelle catégorie",
     "editTitle": "Modifier la catégorie",
@@ -925,7 +1006,11 @@
       "updated": "Catégorie modifiée avec succès",
       "deleted": "Catégorie supprimée",
       "deleteConfirm": "Supprimer la catégorie",
-      "deleteWarning": "Cette action supprimera également les sous-catégories."
+      "deleteWarning": "La suppression n'est possible que si aucune sous-catégorie ni aucun élément n'y est rattaché. Sinon, désactivez-la.",
+      "deactivated": "Catégorie désactivée",
+      "reactivated": "Catégorie réactivée",
+      "deactivateConfirm": "Désactiver la catégorie",
+      "deactivateWarning": "Elle ne sera plus proposée au classement, ainsi que ses sous-catégories. Les éléments déjà classés la conservent."
     },
     "empty": "Aucune catégorie",
     "emptyDescription": "Créez vos premières catégories pour organiser votre catalogue.",
@@ -951,10 +1036,20 @@
     "stats": {
       "total": "Total des catégories",
       "roots": "Catégories racines",
-      "children": "Sous-catégories"
+      "children": "Sous-catégories",
+      "types": "Types",
+      "inactive": "Désactivées"
     },
     "emptyTitle": "Aucune catégorie",
-    "createFirst": "Créer ma première catégorie"
+    "createFirst": "Créer ma première catégorie",
+    "allTypes": "Tous les types",
+    "allStatuses": "Tous les états",
+    "active": "Active",
+    "inactive": "Désactivée",
+    "actions": {
+      "deactivate": "Désactiver",
+      "reactivate": "Réactiver"
+    }
   },
   "analytics": {
     "title": "Analytics",
@@ -1001,7 +1096,42 @@
     },
     "durationMs": "{ms} ms",
     "durationSec": "{sec} s",
-    "durationMin": "{min} min"
+    "durationMin": "{min} min",
+    "kpi": {
+      "stageTitle": "Temps moyen par étape",
+      "stageSubtitle": "Durée moyenne de séjour dans chaque statut du circuit.",
+      "stageSubtitleSelf": "Votre temps de traitement moyen, sur les transitions que vous avez réalisées.",
+      "stageHint": "{count} passage(s) mesuré(s)",
+      "bottleneck": "Goulot",
+      "ttmTitle": "Time To Market",
+      "ttmSubtitle": "Délai entre la création d'une offre et sa publication.",
+      "ttmTeamOnly": "Le Time To Market est un indicateur d'équipe. Votre vue est limitée à votre temps de traitement.",
+      "noPublication": "Aucune offre publiée sur la période.",
+      "noData": "Aucune donnée sur la période.",
+      "median": "Médiane",
+      "average": "Moyenne",
+      "truncated": "{shown} offres affichées sur {total}, les plus lentes en premier."
+    },
+    "reconciliation": {
+      "title": "Rapprochement avec les systèmes tiers",
+      "subtitle": "État réel de la diffusion de chaque offre publiée vers le CRM, le centre d'appel et le site web. Les données de vente du CRM ne sont pas raccordées : ce rapprochement porte sur la diffusion, pas sur le croisé ventes/offres.",
+      "offer": "Offre",
+      "complete": "Toutes les offres publiées sont bien diffusées.",
+      "empty": "Aucune offre publiée à ce jour.",
+      "gapsTitle": "Offres publiées non diffusées intégralement",
+      "gapsCount": "{count} offre(s) à reprendre sur {total} publiée(s)",
+      "status": {
+        "SUCCESS": "Diffusée",
+        "FAILED": "En échec",
+        "PENDING": "En attente",
+        "ABSENT": "Jamais diffusée"
+      },
+      "systems": {
+        "CRM": "CRM",
+        "CALL_CENTER": "Centre d'appel",
+        "WEBSITE": "Site web"
+      }
+    }
   },
   "abTests": {
     "title": "Tests A/B",
@@ -1263,5 +1393,22 @@
       }
     },
     "poweredBy": "Calculé sur les données de la plateforme"
+  },
+  "classification": {
+    "type": "Type",
+    "category": "Catégorie",
+    "subCategory": "Sous-catégorie",
+    "choose": "— Choisir —",
+    "loading": "Chargement…",
+    "noSubCategory": "Aucune sous-catégorie",
+    "noneForType": "Aucune catégorie pour ce type. Créez-en une depuis l'écran Catégories.",
+    "allTypes": "Tous les types",
+    "unclassified": "Non classé",
+    "types": {
+      "PRODUCT": "Produit",
+      "OFFER": "Offre",
+      "SERVICE": "Service",
+      "PACK": "Pack"
+    }
   }
 }

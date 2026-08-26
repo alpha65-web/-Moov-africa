@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
+import { usePermissions, PERM } from "@/lib/permissions";
 import type { KpiEvent } from "@/lib/types";
 import { useTranslations } from "next-intl";
 
@@ -100,6 +101,92 @@ function eventLabel(type: string, t: (k: string) => string, has: (k: string) => 
   return type.replace(/^STATUS_/, "").replace(/_/g, " ").toLowerCase();
 }
 
+/**
+ * Reponse de GET /exports/reconciliation.
+ *
+ * Le serveur ne renvoie pas le nom de l'offre : cet ecran charge deja la liste
+ * des offres et resout l'identite lui-meme, ce qui evite au module de diffusion
+ * d'interroger celui du cycle de vie.
+ */
+interface DiffusionRow {
+  offerId: string;
+  statusByTarget: Record<string, string>;
+}
+
+/** Les trois systemes destinataires, dans l'ordre du cahier des charges. */
+const TARGET_SYSTEMS = ["CRM", "CALL_CENTER", "WEBSITE"] as const;
+
+const DIFFUSION_STATUS_STYLES: Record<string, string> = {
+  SUCCESS: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  FAILED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  ABSENT: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
+};
+
+/** Reponse de GET /kpi/summary. */
+interface KpiSummary {
+  scope: "TEAM" | "SELF";
+  trackedOffers: number;
+  publishedOffers: number;
+  ttmMedianMs: number | null;
+  ttmAverageMs: number | null;
+  ttmByOffer: { offerId: string; durationMs: number }[];
+  stages: { stage: string; averageMs: number; count: number }[];
+  bottleneckStage: string | null;
+}
+
+/**
+ * Barres horizontales a serie unique.
+ *
+ * Une seule teinte : les barres comparent des grandeurs d'une meme mesure, la
+ * couleur n'a donc aucune identite a porter et une palette categorielle serait
+ * trompeuse. La valeur est inscrite au bout de chaque barre plutot que sur un
+ * axe, parce qu'on en compare peu et qu'on veut les lire sans viser.
+ */
+function BarChart({
+  rows,
+  emphasis,
+  emphasisLabel,
+  format,
+}: {
+  rows: { key: string; label: string; value: number; hint?: string }[];
+  emphasis?: string | null;
+  emphasisLabel?: string;
+  format: (value: number) => string;
+}) {
+  const max = Math.max(...rows.map((r) => r.value), 1);
+  return (
+    <div className="flex flex-col gap-3">
+      {rows.map((row) => {
+        const isEmphasis = emphasis != null && row.key === emphasis;
+        return (
+          <div key={row.key} className="flex flex-col gap-1" title={row.hint ?? `${row.label} : ${format(row.value)}`}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-xs font-medium text-black dark:text-white truncate flex items-center gap-1.5">
+                {row.label}
+                {isEmphasis && emphasisLabel && (
+                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    {emphasisLabel}
+                  </span>
+                )}
+              </span>
+              <span className="text-xs font-semibold text-text-secondary dark:text-neutral-400 tabular-nums shrink-0">
+                {format(row.value)}
+              </span>
+            </div>
+            <div className="h-3 w-full rounded-sm bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+              <div
+                className="h-full rounded-r-[4px] bg-primary transition-all duration-700 ease-out"
+                style={{ width: `${Math.max((row.value / max) * 100, 1.5)}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const PER_PAGE = 10;
 
 function Skeleton({ className }: { className: string }) {
@@ -108,8 +195,29 @@ function Skeleton({ className }: { className: string }) {
 
 export default function AnalyticsPage() {
   const t = useTranslations("analytics");
+  // Le perimetre equipe commande aussi ce rapprochement : l'analyste marketing,
+  // qui n'a que ANALYTICS_VIEW, ne voit pas la diffusion des offres des autres.
+  const { has } = usePermissions();
+  const canSeeTeamScope = has(PERM.ANALYTICS_TEAM_VIEW);
+  // Les etapes sont des statuts d'offre : on reutilise leurs libelles plutot
+  // que d'afficher les constantes techniques du backend.
+  const ts = useTranslations("offers.status");
 
   const [events, setEvents] = useState<KpiEvent[]>([]);
+  // Indicateurs agreges par le serveur. Le perimetre (TEAM ou SELF) est decide
+  // par le backend selon les permissions, jamais par un parametre de requete.
+  const [summary, setSummary] = useState<KpiSummary | null>(null);
+  const [offerNames, setOfferNames] = useState<Record<string, string>>({});
+  /**
+   * Rapprochement avec les systemes tiers, reserve a la vue transversale.
+   *
+   * Le cahier des charges (l. 106) confie ce rapprochement au chef de departement,
+   * qui publie les offres et doit pouvoir constater lesquelles ne sont pas
+   * arrivees a destination. Aucun ecran ne le lui permettait : la seule vue des
+   * exports etait celle de l'administration, fermee par EXPORT_MANAGE.
+   */
+  const [diffusion, setDiffusion] = useState<DiffusionRow[]>([]);
+  const [publishedOffers, setPublishedOffers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -130,9 +238,62 @@ export default function AnalyticsPage() {
         params: { from: from.toISOString().slice(0, 19), to: to.toISOString().slice(0, 19), size: 500 },
       });
       setEvents(Array.isArray(data) ? data : data.content ?? []);
+
+      const { data: agg } = await api.get("/kpi/summary", {
+        params: { from: from.toISOString().slice(0, 19), to: to.toISOString().slice(0, 19) },
+      });
+      setSummary(agg);
+
+      // Les indicateurs designent les offres par identifiant : un graphique doit
+      // porter leur nom. La liste est deja ouverte a tous les roles qui accedent
+      // a cet ecran, aucune permission supplementaire n'est requise.
+      // Les offres sont desormais toujours chargees : elles nomment les barres du
+      // Time To Market, et servent de reference au rapprochement ci-dessous — une
+      // offre publiee absente des exports n'a jamais ete diffusee du tout.
+      const { data: offers } = await api.get("/offers", { params: { size: 500 } });
+      const list: { id: string; name: string; status: string }[] = offers.content ?? offers;
+      setOfferNames(Object.fromEntries(list.map((o) => [o.id, o.name])));
+      setPublishedOffers(list.filter((o) => o.status === "PUBLISHED").map((o) => ({ id: o.id, name: o.name })));
     } catch { /* API pas disponible */ }
     finally { setLoading(false); }
   }
+
+  // Requete distincte : elle n'est meme pas emise pour un compte qui n'a pas la
+  // vue transversale, plutot que d'etre emise puis refusee en 403.
+  useEffect(() => {
+    if (!canSeeTeamScope) return;
+    let cancelled = false;
+    api.get("/exports/reconciliation")
+      .then(({ data }) => { if (!cancelled) setDiffusion(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setDiffusion([]); });
+    return () => { cancelled = true; };
+  }, [canSeeTeamScope]);
+
+  /**
+   * Etat de diffusion de chaque offre publiee, systeme par systeme.
+   *
+   * Le rapprochement se fait ici : une offre publiee qui n'apparait dans aucun
+   * export est signalee ABSENT sur les trois systemes. C'est exactement le cas que
+   * la plateforme produisait avant le branchement de la diffusion — la publication
+   * n'ouvrait aucun export.
+   */
+  const reconciliation = useMemo(() => {
+    const byOffer = new Map(diffusion.map((row) => [row.offerId, row.statusByTarget]));
+    return publishedOffers.map((offer) => {
+      const statuses = byOffer.get(offer.id) ?? {};
+      const targets = TARGET_SYSTEMS.map((system) => ({
+        system,
+        status: statuses[system] ?? "ABSENT",
+      }));
+      return {
+        ...offer,
+        targets,
+        complete: targets.every((target) => target.status === "SUCCESS"),
+      };
+    });
+  }, [diffusion, publishedOffers]);
+
+  const diffusionGaps = reconciliation.filter((row) => !row.complete);
 
   function formatDate(dateStr: string): string {
     const d = new Date(dateStr);
@@ -224,6 +385,85 @@ export default function AnalyticsPage() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* ===== INDICATEURS DU CAHIER DES CHARGES ===== */}
+      {/* Chaque valeur est agregee par le serveur a partir des transitions
+          reellement enregistrees. Une periode sans activite affiche l'absence de
+          donnee : rien n'est estime pour remplir un graphique. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-4">
+          <div>
+            <h2 className="text-sm font-bold text-black dark:text-white">{t("kpi.stageTitle")}</h2>
+            <p className="text-xs text-text-secondary dark:text-neutral-500 mt-0.5">
+              {summary?.scope === "SELF" ? t("kpi.stageSubtitleSelf") : t("kpi.stageSubtitle")}
+            </p>
+          </div>
+          {loading ? (
+            <div className="flex flex-col gap-3">
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="w-full h-8" />)}
+            </div>
+          ) : !summary?.stages.length ? (
+            <p className="text-sm text-text-secondary dark:text-neutral-500 py-6 text-center">{t("kpi.noData")}</p>
+          ) : (
+            <BarChart
+              rows={summary.stages.map((st) => ({
+                key: st.stage,
+                label: ts.has(st.stage) ? ts(st.stage) : st.stage,
+                value: st.averageMs,
+                hint: t("kpi.stageHint", { count: st.count }),
+              }))}
+              emphasis={summary.bottleneckStage}
+              emphasisLabel={t("kpi.bottleneck")}
+              format={formatDuration}
+            />
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-4">
+          <div>
+            <h2 className="text-sm font-bold text-black dark:text-white">{t("kpi.ttmTitle")}</h2>
+            <p className="text-xs text-text-secondary dark:text-neutral-500 mt-0.5">{t("kpi.ttmSubtitle")}</p>
+          </div>
+          {loading ? (
+            <div className="flex flex-col gap-3">
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="w-full h-8" />)}
+            </div>
+          ) : !summary?.ttmByOffer.length ? (
+            <p className="text-sm text-text-secondary dark:text-neutral-500 py-6 text-center">
+              {summary?.scope === "SELF" ? t("kpi.ttmTeamOnly") : t("kpi.noPublication")}
+            </p>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-6 pb-1">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("kpi.median")}</p>
+                  <p className="text-2xl font-bold text-black dark:text-white tabular-nums">{formatDuration(summary.ttmMedianMs)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("kpi.average")}</p>
+                  <p className="text-2xl font-bold text-black dark:text-white tabular-nums">{formatDuration(summary.ttmAverageMs)}</p>
+                </div>
+              </div>
+              <BarChart
+                rows={summary.ttmByOffer.slice(0, 8).map((o) => ({
+                  key: o.offerId,
+                  label: offerNames[o.offerId] ?? o.offerId.slice(0, 8),
+                  value: o.durationMs,
+                }))}
+                format={formatDuration}
+              />
+              {summary.ttmByOffer.length > 8 && (
+                /* On annonce ce qui n'est pas montre : un graphique tronque en
+                   silence se lit comme un graphique complet. */
+                <p className="text-[11px] text-text-secondary dark:text-neutral-500">
+                  {t("kpi.truncated", { shown: 8, total: summary.ttmByOffer.length })}
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* ===== FILTRES ===== */}
@@ -349,6 +589,78 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
+
+      {/* ===== RAPPROCHEMENT AVEC LES SYSTÈMES TIERS =====
+          Responsabilité du chef de département (cahier des charges l. 106). Elle
+          n'avait aucune contrepartie dans l'interface : l'unique vue des exports
+          était l'écran d'administration, fermé par EXPORT_MANAGE, permission que
+          son rôle ne détient pas. Plutôt que de lui ouvrir cet écran — qui porte
+          aussi le déclenchement manuel et l'export du catalogue, réservés à
+          l'administration — le rapprochement est présenté ici, en lecture seule.
+      */}
+      {canSeeTeamScope && (
+        <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+          <div className="px-6 py-4 border-b border-border dark:border-neutral-800">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h2 className="text-sm font-bold text-black dark:text-white uppercase tracking-wider">
+                {t("reconciliation.title")}
+              </h2>
+              {diffusionGaps.length > 0 && (
+                <span className="px-2 py-1 rounded-lg text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  {t("reconciliation.gapsCount", { count: diffusionGaps.length, total: reconciliation.length })}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1">
+              {t("reconciliation.subtitle")}
+            </p>
+          </div>
+
+          {reconciliation.length === 0 ? (
+            <p className="px-6 py-6 text-sm text-text-secondary dark:text-neutral-500">
+              {t("reconciliation.empty")}
+            </p>
+          ) : diffusionGaps.length === 0 ? (
+            <p className="px-6 py-6 text-sm text-emerald-700 dark:text-emerald-400">
+              {t("reconciliation.complete")}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">
+                      {t("reconciliation.offer")}
+                    </th>
+                    {TARGET_SYSTEMS.map((system) => (
+                      <th key={system} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">
+                        {t(`reconciliation.systems.${system}`)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border dark:divide-neutral-800">
+                  {/* Seules les offres incomplètes sont listées : celles qui sont
+                      correctement diffusées n'appellent aucune action. */}
+                  {diffusionGaps.map((row) => (
+                    <tr key={row.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
+                      <td className="px-4 py-3 font-medium text-black dark:text-white">{row.name}</td>
+                      {row.targets.map((target) => (
+                        <td key={target.system} className="px-4 py-3">
+                          {/* Le statut est libellé, pas seulement coloré (NF5). */}
+                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md ${DIFFUSION_STATUS_STYLES[target.status] ?? DIFFUSION_STATUS_STYLES.ABSENT}`}>
+                            {t(`reconciliation.status.${target.status}`)}
+                          </span>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

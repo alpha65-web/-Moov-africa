@@ -77,7 +77,22 @@
     "tipEmpty": "Start by creating your first offer to populate your PIM catalog.",
     "tipGood": "Your catalog is well stocked. Consider reviewing offers in enrichment.",
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "toProcess": "To process",
+    "cards": {
+      "myDrafts": "My drafts",
+      "toEnrich": "To enrich",
+      "toValidate": "To validate",
+      "mediaToValidate": "Visuals to validate",
+      "toPublish": "To publish",
+      "campaignsActive": "Active campaigns"
+    },
+    "tipQueue": "{count} record(s) are waiting for you: handle them so the circuit is not delayed.",
+    "tipDiffusion": "{count} published offer(s) can be promoted: prepare or schedule your campaigns.",
+    "total": "Total",
+    "vsPrevious": "over 30 days",
+    "completeness": "Records to complete",
+    "completenessEmpty": "Every record in progress is complete."
   },
   "catalog": {
     "title": "Catalog",
@@ -94,7 +109,8 @@
       "price": "Price",
       "category": "Category",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "createdBy": "Created by {name}"
     },
     "form": {
       "name": "Name",
@@ -106,16 +122,6 @@
       "packItems": "Pack items",
       "selected": "selected",
       "noItems": "No products or services available"
-    },
-    "categories": {
-      "Voix": "Voice",
-      "Data": "Data",
-      "SMS": "SMS",
-      "Transfert": "Transfer",
-      "Divertissement": "Entertainment",
-      "Finance": "Finance",
-      "Entreprise": "Enterprise",
-      "Roaming": "Roaming"
     },
     "status": {
       "ACTIVE": "Active",
@@ -137,7 +143,13 @@
     "viewAll": "View all",
     "filter": "Filter",
     "createTitle": "New {type}",
-    "editTitle": "Edit item"
+    "editTitle": "Edit item",
+    "duplicates": {
+      "title": "{count} suspected duplicate(s)",
+      "subtitle": "These products have very similar names. Check whether it is the same product entered twice, or dismiss the match.",
+      "similarity": "{percent}% similarity",
+      "dismiss": "These are two distinct products"
+    }
   },
   "offers": {
     "title": "Offers",
@@ -146,8 +158,6 @@
     "subtitle": "Manage the lifecycle of your commercial offers",
     "newOffer": "New offer",
     "createOffer": "Create an offer",
-    "createFromTemplate": "Create from template",
-    "importOffer": "Import an offer",
     "importOffers": "Import offers",
     "searchPlaceholder": "Search by name, code, description...",
     "columns": {
@@ -162,7 +172,9 @@
       "channels": "Channels",
       "lastModified": "Last modified",
       "created": "Created on",
-      "actions": "Actions"
+      "actions": "Actions",
+      "createdBy": "Created by {name}",
+      "author": "Created by"
     },
     "form": {
       "name": "Offer name",
@@ -172,7 +184,13 @@
       "currency": "Currency",
       "targetSegment": "Target segment",
       "customerType": "Customer type",
-      "legalMentions": "Legal mentions"
+      "legalMentions": "Legal mentions",
+      "seoTitle": "SEO title",
+      "seoDescription": "SEO meta description",
+      "mediaChoose": "Pick a media from the library…",
+      "mediaAttach": "Attach",
+      "mediaUpload": "Upload a media",
+      "mediaTooLarge": "File too large: 50 MB maximum."
     },
     "status": {
       "DRAFT": "Draft",
@@ -226,7 +244,9 @@
     },
     "detail": {
       "version": "Version",
-      "updatedAt": "Updated on"
+      "updatedAt": "Updated on",
+      "media": "Attached media",
+      "history": "Record history"
     },
     "transition": {
       "title": "Status transition",
@@ -235,7 +255,9 @@
       "confirm": "Confirm transition",
       "currentStatus": "Current status",
       "availableTransitions": "Available transitions",
-      "commentRequired": "A comment is required for this transition"
+      "commentRequired": "A comment is required for this transition",
+      "noneAvailable": "No transition is available to you from this status.",
+      "noLegalMentions": "No legal notice is filled in on this offer. Check before publishing."
     },
     "messages": {
       "created": "Offer created successfully",
@@ -244,7 +266,10 @@
       "deleteConfirm": "Are you sure you want to delete this offer?",
       "deleteWarning": "This action cannot be undone.",
       "transitionSuccess": "Transition completed",
-      "saved": "Offer saved"
+      "saved": "Offer saved",
+      "enriched": "Offer enriched successfully",
+      "mediaAttached": "Media attached to the offer",
+      "sentToValidation": "Offer enriched and sent for validation"
     },
     "empty": "No offers found",
     "emptyTitle": "No offers available",
@@ -254,7 +279,32 @@
     "createFirstOffer": "Create my first offer",
     "createTitle": "New offer",
     "editTitle": "Edit offer",
-    "filterAll": "All"
+    "filterAll": "All",
+    "enrich": "Enrich",
+    "enrichTitle": "Enrich offer",
+    "filterQueue": "To process",
+    "emptyQueue": "No offer is awaiting your action right now.",
+    "emptyReadOnly": "No offer matches these criteria.",
+    "updateTitle": "Edit offer",
+    "saveAndSubmit": "Save and send for validation",
+    "assign": {
+      "title": "Assign the offer to an analyst",
+      "action": "Assign to an analyst",
+      "reassign": "Reassign",
+      "analyst": "Marketing analyst",
+      "none": "— None (return to the shared pool)",
+      "hint": "Only the assigned analyst is notified and gets the record in their queue. The workload shown is counted on the offers actually assigned to them.",
+      "confirm": "Assign",
+      "done": "Offer assigned",
+      "released": "Assignment removed: the offer returns to the shared pool",
+      "mine": "Assigned to you",
+      "assigned": "Assigned",
+      "noAnalyst": "No active marketing analyst is available.",
+      "warningOtherAnalyst": "This offer is assigned to another analyst. You can still enrich it, but let them know so the work is not done twice.",
+      "available": "Available",
+      "inProgress": "{count} in progress",
+      "handled": "{count} offer(s) handled in total"
+    }
   },
   "campaigns": {
     "title": "Campaigns",
@@ -334,7 +384,16 @@
       "saved": "Campaign saved"
     },
     "createTitle": "New campaign",
-    "editTitle": "Edit campaign"
+    "editTitle": "Edit campaign",
+    "channelStats": {
+      "title": "Diffusion by channel",
+      "subtitle": "Counted on the campaigns actually recorded. Views and clicks are not shown: they require a connection to the social network APIs, which the platform does not have.",
+      "channel": "Channel",
+      "campaigns": "Campaigns",
+      "sent": "Sent",
+      "scheduled": "Scheduled",
+      "lastSent": "Last sent"
+    }
   },
   "media": {
     "title": "Media Library",
@@ -392,7 +451,8 @@
     "actions": {
       "approve": "Approve",
       "reject": "Reject",
-      "details": "Details"
+      "details": "Details",
+      "linkToOffer": "Attach to an offer"
     },
     "messages": {
       "uploaded": "File uploaded successfully",
@@ -402,7 +462,16 @@
       "deleteConfirm": "Are you sure you want to delete this media?",
       "fileTooLarge": "File must not exceed 10 MB",
       "saved": "Media saved",
-      "deleteWarning": "This action cannot be undone."
+      "deleteWarning": "This action cannot be undone.",
+      "linked": "Media attached to the offer"
+    },
+    "link": {
+      "title": "Attach media to an offer",
+      "offer": "Offer",
+      "choose": "Choose an offer…",
+      "primary": "Primary visual for the offer",
+      "confirm": "Attach",
+      "noOffer": "No offer is currently open for enrichment. Media can only be attached to an offer in draft or in enrichment."
     }
   },
   "users": {
@@ -441,7 +510,6 @@
       "lastName": "Last name",
       "sex": "Gender",
       "email": "Email address",
-      "emailAuto": "(auto)",
       "role": "Role",
       "password": "Temporary password",
       "passwordEdit": "New password (optional)",
@@ -466,7 +534,9 @@
       "pseudoPlaceholder": "Username",
       "lastNamePlaceholder": "Last name",
       "firstNamePlaceholder": "First name",
-      "roleLabel": "Assigned role"
+      "roleLabel": "Assigned role",
+      "emailSuggested": "— suggestion, editable",
+      "emailRegenerate": "Generate a new suggestion"
     },
     "sex": {
       "M": "Male",
@@ -678,7 +748,12 @@
       "ruleType": "Rule type",
       "sourceItemId": "Source item ID",
       "targetItemId": "Target item ID",
-      "selectType": "Select a type"
+      "selectType": "Select a type",
+      "severity": "Severity",
+      "blocking": "Blocking",
+      "blockingHint": "The violation prevents saving and submitting the offer.",
+      "warning": "Warning",
+      "warningHint": "The violation is reported but blocks nothing. Useful to introduce a constraint on an existing catalogue."
     },
     "types": {
       "COMPATIBILITY": "Compatibility",
@@ -904,7 +979,9 @@
       "description": "Description",
       "level": "Level",
       "parent": "Parent",
-      "actions": "Actions"
+      "actions": "Actions",
+      "type": "Type",
+      "status": "Status"
     },
     "levels": {
       "root": "Root",
@@ -916,7 +993,11 @@
       "description": "Description",
       "parentId": "Parent category",
       "noParent": "None (root category)",
-      "parent": "Parent category"
+      "parent": "Parent category",
+      "type": "Type",
+      "typeLocked": "The type is inherited from the parent category",
+      "typeImmutable": "The type cannot be changed after creation",
+      "chooseType": "— Choose a type —"
     },
     "createTitle": "New category",
     "editTitle": "Edit category",
@@ -925,7 +1006,11 @@
       "updated": "Category updated successfully",
       "deleted": "Category deleted",
       "deleteConfirm": "Delete category",
-      "deleteWarning": "This will also delete subcategories."
+      "deleteWarning": "Deletion is only possible when no sub-category and no item is attached. Otherwise, disable it.",
+      "deactivated": "Category disabled",
+      "reactivated": "Category enabled",
+      "deactivateConfirm": "Disable category",
+      "deactivateWarning": "It will no longer be offered for classification, nor will its sub-categories. Items already classified keep it."
     },
     "empty": "No categories",
     "emptyDescription": "Create your first categories to organize your catalog.",
@@ -951,10 +1036,20 @@
     "stats": {
       "total": "Total categories",
       "roots": "Root categories",
-      "children": "Subcategories"
+      "children": "Subcategories",
+      "types": "Types",
+      "inactive": "Disabled"
     },
     "emptyTitle": "No category",
-    "createFirst": "Create my first category"
+    "createFirst": "Create my first category",
+    "allTypes": "All types",
+    "allStatuses": "All statuses",
+    "active": "Active",
+    "inactive": "Disabled",
+    "actions": {
+      "deactivate": "Disable",
+      "reactivate": "Enable"
+    }
   },
   "analytics": {
     "title": "Analytics",
@@ -1001,7 +1096,42 @@
     },
     "durationMs": "{ms} ms",
     "durationSec": "{sec} s",
-    "durationMin": "{min} min"
+    "durationMin": "{min} min",
+    "kpi": {
+      "stageTitle": "Average time per stage",
+      "stageSubtitle": "Average time spent in each status of the workflow.",
+      "stageSubtitleSelf": "Your average handling time, on the transitions you performed.",
+      "stageHint": "{count} measured transition(s)",
+      "bottleneck": "Bottleneck",
+      "ttmTitle": "Time To Market",
+      "ttmSubtitle": "Time between an offer's creation and its publication.",
+      "ttmTeamOnly": "Time To Market is a team indicator. Your view is limited to your own handling time.",
+      "noPublication": "No offer published in this period.",
+      "noData": "No data for this period.",
+      "median": "Median",
+      "average": "Average",
+      "truncated": "{shown} of {total} offers shown, slowest first."
+    },
+    "reconciliation": {
+      "title": "Reconciliation with third-party systems",
+      "subtitle": "Actual diffusion state of each published offer towards the CRM, the call centre and the website. CRM sales data is not connected: this reconciliation covers diffusion, not the sales/offers cross-check.",
+      "offer": "Offer",
+      "complete": "Every published offer has been fully distributed.",
+      "empty": "No published offer yet.",
+      "gapsTitle": "Published offers not fully distributed",
+      "gapsCount": "{count} offer(s) to replay out of {total} published",
+      "status": {
+        "SUCCESS": "Distributed",
+        "FAILED": "Failed",
+        "PENDING": "Pending",
+        "ABSENT": "Never distributed"
+      },
+      "systems": {
+        "CRM": "CRM",
+        "CALL_CENTER": "Call centre",
+        "WEBSITE": "Website"
+      }
+    }
   },
   "abTests": {
     "title": "A/B Tests",
@@ -1263,5 +1393,22 @@
       }
     },
     "poweredBy": "Computed from platform data"
+  },
+  "classification": {
+    "type": "Type",
+    "category": "Category",
+    "subCategory": "Sub-category",
+    "choose": "— Choose —",
+    "loading": "Loading…",
+    "noSubCategory": "No sub-category",
+    "noneForType": "No category for this type. Create one from the Categories screen.",
+    "allTypes": "All types",
+    "unclassified": "Unclassified",
+    "types": {
+      "PRODUCT": "Product",
+      "OFFER": "Offer",
+      "SERVICE": "Service",
+      "PACK": "Pack"
+    }
   }
 }

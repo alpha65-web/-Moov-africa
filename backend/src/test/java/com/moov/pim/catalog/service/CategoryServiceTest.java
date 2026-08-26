@@ -3,6 +3,7 @@ package com.moov.pim.catalog.service;
 import com.moov.pim.catalog.api.dto.CategoryRequest;
 import com.moov.pim.catalog.api.dto.CategoryResponse;
 import com.moov.pim.catalog.domain.Category;
+import com.moov.pim.catalog.domain.ItemType;
 import com.moov.pim.catalog.domain.Product;
 import com.moov.pim.catalog.repository.CatalogItemRepository;
 import com.moov.pim.catalog.repository.CategoryRepository;
@@ -31,10 +32,11 @@ class CategoryServiceTest {
     @InjectMocks private CategoryService categoryService;
 
     @Test
-    void create_shouldCreateRootCategory() {
-        CategoryRequest request = new CategoryRequest("Téléphonie", "Catégorie téléphonie", null);
+    void create_shouldCreateRootCategoryOfRequestedType() {
+        CategoryRequest request = new CategoryRequest("Téléphones", "Terminaux", "PRODUCT", null);
 
-        when(categoryRepository.existsByNameAndLevel("Téléphonie", 0)).thenReturn(false);
+        when(categoryRepository.existsByTypeAndParentIsNullAndNameIgnoreCase(ItemType.PRODUCT, "Téléphones"))
+                .thenReturn(false);
         when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> {
             Category c = inv.getArgument(0);
             setId(c, UUID.randomUUID());
@@ -43,22 +45,42 @@ class CategoryServiceTest {
 
         CategoryResponse response = categoryService.create(request);
 
-        assertNotNull(response);
-        assertEquals("Téléphonie", response.name());
+        assertEquals("Téléphones", response.name());
+        assertEquals("PRODUCT", response.type());
+        assertEquals("Produit", response.typeLabel());
         assertEquals(0, response.level());
+        assertTrue(response.active());
         assertNull(response.parentId());
     }
 
     @Test
-    void create_shouldCreateChildCategoryWithParent() {
-        UUID parentId = UUID.randomUUID();
-        Category parent = new Category("Téléphonie", "Parent", null, 0);
-        setId(parent, parentId);
+    void create_shouldRejectUnknownType() {
+        CategoryRequest request = new CategoryRequest("Divers", null, "FORFAIT", null);
 
-        CategoryRequest request = new CategoryRequest("Mobiles", "Sous-catégorie", parentId);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> categoryService.create(request));
+        assertTrue(ex.getMessage().contains("Type inconnu"));
+    }
+
+    @Test
+    void create_shouldRequireTypeForRootCategory() {
+        CategoryRequest request = new CategoryRequest("Divers", null, null, null);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> categoryService.create(request));
+        assertTrue(ex.getMessage().contains("type est obligatoire"));
+    }
+
+    @Test
+    void create_shouldInheritTypeFromParent() {
+        UUID parentId = UUID.randomUUID();
+        Category parent = root("Internet mobile", ItemType.OFFER, parentId);
+
+        CategoryRequest request = new CategoryRequest("Forfaits Data", "Forfaits Internet", null, parentId);
 
         when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parent));
-        when(categoryRepository.existsByNameAndLevel("Mobiles", 1)).thenReturn(false);
+        when(categoryRepository.existsByTypeAndParentIdAndNameIgnoreCase(ItemType.OFFER, parentId, "Forfaits Data"))
+                .thenReturn(false);
         when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> {
             Category c = inv.getArgument(0);
             setId(c, UUID.randomUUID());
@@ -67,29 +89,60 @@ class CategoryServiceTest {
 
         CategoryResponse response = categoryService.create(request);
 
-        assertNotNull(response);
-        assertEquals("Mobiles", response.name());
+        assertEquals("OFFER", response.type());
         assertEquals(1, response.level());
         assertEquals(parentId, response.parentId());
     }
 
     @Test
-    void create_shouldThrowIfParentNotFound() {
-        UUID fakeParentId = UUID.randomUUID();
-        CategoryRequest request = new CategoryRequest("Orpheline", "Desc", fakeParentId);
+    void create_shouldRejectSubCategoryContradictingParentType() {
+        UUID parentId = UUID.randomUUID();
+        Category parent = root("Internet mobile", ItemType.OFFER, parentId);
 
-        when(categoryRepository.findById(fakeParentId)).thenReturn(Optional.empty());
+        CategoryRequest request = new CategoryRequest("Routeurs", null, "PRODUCT", parentId);
+
+        when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parent));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> categoryService.create(request));
-        assertTrue(ex.getMessage().contains("parente introuvable"));
+        assertTrue(ex.getMessage().contains("hérite du type"));
+        verify(categoryRepository, never()).save(any(Category.class));
     }
 
     @Test
-    void create_shouldThrowIfDuplicateNameAtLevel() {
-        CategoryRequest request = new CategoryRequest("Téléphonie", "Doublon", null);
+    void create_shouldRefuseThirdLevel() {
+        UUID parentId = UUID.randomUUID();
+        Category subCategory = new Category("Forfaits Data", null, root("Internet mobile", ItemType.OFFER, UUID.randomUUID()), 1, ItemType.OFFER);
+        setId(subCategory, parentId);
 
-        when(categoryRepository.existsByNameAndLevel("Téléphonie", 0)).thenReturn(true);
+        CategoryRequest request = new CategoryRequest("Trop profond", null, null, parentId);
+
+        when(categoryRepository.findById(parentId)).thenReturn(Optional.of(subCategory));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> categoryService.create(request));
+        assertTrue(ex.getMessage().contains("s'arrête à la sous-catégorie"));
+    }
+
+    @Test
+    void create_shouldRefuseSubCategoryUnderInactiveParent() {
+        UUID parentId = UUID.randomUUID();
+        Category parent = root("Data", ItemType.OFFER, parentId);
+        parent.setActive(false);
+
+        when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parent));
+
+        CategoryRequest request = new CategoryRequest("Forfaits Data", null, null, parentId);
+
+        assertThrows(IllegalStateException.class, () -> categoryService.create(request));
+    }
+
+    @Test
+    void create_shouldRejectDuplicateNameWithinSameType() {
+        CategoryRequest request = new CategoryRequest("Internet mobile", null, "OFFER", null);
+
+        when(categoryRepository.existsByTypeAndParentIsNullAndNameIgnoreCase(ItemType.OFFER, "Internet mobile"))
+                .thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> categoryService.create(request));
@@ -97,60 +150,103 @@ class CategoryServiceTest {
     }
 
     @Test
-    void update_shouldUpdateCategory() {
-        UUID categoryId = UUID.randomUUID();
-        Category category = new Category("Ancien", "Old desc", null, 0);
-        setId(category, categoryId);
+    void update_shouldRenameCategory() {
+        UUID id = UUID.randomUUID();
+        Category category = root("Ancien", ItemType.SERVICE, id);
 
-        CategoryRequest request = new CategoryRequest("Nouveau", "New desc", null);
-
-        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
+        when(categoryRepository.existsByTypeAndParentIsNullAndNameIgnoreCase(ItemType.SERVICE, "Nouveau"))
+                .thenReturn(false);
         when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CategoryResponse response = categoryService.update(categoryId, request);
+        CategoryResponse response = categoryService.update(id, new CategoryRequest("Nouveau", "Desc", null, null));
 
         assertEquals("Nouveau", response.name());
-        assertEquals("New desc", response.description());
+        assertEquals("Desc", response.description());
     }
 
     @Test
-    void update_shouldThrowIfNotFound() {
-        UUID fakeId = UUID.randomUUID();
-        CategoryRequest request = new CategoryRequest("X", "Y", null);
+    void update_shouldRefuseTypeChange() {
+        UUID id = UUID.randomUUID();
+        Category category = root("Services financiers", ItemType.SERVICE, id);
 
-        when(categoryRepository.findById(fakeId)).thenReturn(Optional.empty());
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
 
-        assertThrows(IllegalArgumentException.class, () -> categoryService.update(fakeId, request));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> categoryService.update(id, new CategoryRequest("Services financiers", null, "OFFER", null)));
+        assertTrue(ex.getMessage().contains("ne se change pas"));
     }
 
     @Test
-    void listRoots_shouldReturnRootCategories() {
-        Category root = new Category("Racine", "Root", null, 0);
-        setId(root, UUID.randomUUID());
+    void deactivate_shouldAlsoDeactivateChildren() {
+        UUID id = UUID.randomUUID();
+        Category parent = root("Data", ItemType.OFFER, id);
+        Category child = new Category("Forfaits Data", null, parent, 1, ItemType.OFFER);
+        setId(child, UUID.randomUUID());
 
-        when(categoryRepository.findByParentIsNullOrderByNameAsc()).thenReturn(List.of(root));
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(parent));
+        when(categoryRepository.findByParentIdOrderByNameAsc(id)).thenReturn(List.of(child));
+        when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        List<CategoryResponse> results = categoryService.listRoots();
+        CategoryResponse response = categoryService.deactivate(id);
+
+        assertFalse(response.active());
+        assertFalse(child.isActive());
+    }
+
+    @Test
+    void reactivate_shouldRefuseWhenParentIsInactive() {
+        UUID id = UUID.randomUUID();
+        Category parent = root("Data", ItemType.OFFER, UUID.randomUUID());
+        parent.setActive(false);
+        Category child = new Category("Forfaits Data", null, parent, 1, ItemType.OFFER);
+        setId(child, id);
+
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(child));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> categoryService.reactivate(id));
+        assertTrue(ex.getMessage().contains("Réactivez d'abord"));
+    }
+
+    @Test
+    void listRoots_shouldFilterByTypeWhenRequested() {
+        Category root = root("Internet mobile", ItemType.OFFER, UUID.randomUUID());
+
+        when(categoryRepository.findByTypeAndParentIsNullAndActiveTrueOrderByNameAsc(ItemType.OFFER))
+                .thenReturn(List.of(root));
+
+        List<CategoryResponse> results = categoryService.listRoots("OFFER", true);
 
         assertEquals(1, results.size());
-        assertEquals("Racine", results.get(0).name());
+        assertEquals("Internet mobile", results.get(0).name());
     }
 
     @Test
-    void listChildren_shouldReturnChildCategories() {
+    void listChildren_shouldReturnSubCategories() {
         UUID parentId = UUID.randomUUID();
-        Category parent = new Category("Parent", "P", null, 0);
-        setId(parent, parentId);
-        Category child = new Category("Enfant", "E", parent, 1);
+        Category parent = root("Services financiers", ItemType.SERVICE, parentId);
+        Category child = new Category("Moov Money", null, parent, 1, ItemType.SERVICE);
         setId(child, UUID.randomUUID());
 
         when(categoryRepository.findByParentIdOrderByNameAsc(parentId)).thenReturn(List.of(child));
 
-        List<CategoryResponse> results = categoryService.listChildren(parentId);
+        List<CategoryResponse> results = categoryService.listChildren(parentId, false);
 
         assertEquals(1, results.size());
-        assertEquals("Enfant", results.get(0).name());
+        assertEquals("Moov Money", results.get(0).name());
         assertEquals(parentId, results.get(0).parentId());
+    }
+
+    @Test
+    void listTypes_shouldExposeTheFourFixedTypes() {
+        when(categoryRepository.findByTypeOrderByNameAsc(any(ItemType.class))).thenReturn(List.of());
+
+        List<CategoryService.TypeSummary> types = categoryService.listTypes();
+
+        assertEquals(4, types.size());
+        assertEquals(List.of("PRODUCT", "OFFER", "SERVICE", "PACK"),
+                types.stream().map(CategoryService.TypeSummary::code).toList());
     }
 
     @Test
@@ -168,7 +264,7 @@ class CategoryServiceTest {
     @Test
     void delete_shouldThrowIfHasChildren() {
         UUID categoryId = UUID.randomUUID();
-        Category child = new Category("Enfant", "E", null, 1);
+        Category child = new Category("Enfant", "E", null, 1, ItemType.SERVICE);
         setId(child, UUID.randomUUID());
 
         when(categoryRepository.findByParentIdOrderByNameAsc(categoryId)).thenReturn(List.of(child));
@@ -190,6 +286,12 @@ class CategoryServiceTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> categoryService.delete(categoryId));
         assertTrue(ex.getMessage().contains("éléments sont rattachés"));
+    }
+
+    private Category root(String name, ItemType type, UUID id) {
+        Category category = new Category(name, null, null, 0, type);
+        setId(category, id);
+        return category;
     }
 
     private void setId(Object entity, UUID id) {

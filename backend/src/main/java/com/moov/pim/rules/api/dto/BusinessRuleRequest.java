@@ -11,5 +11,15 @@ public record BusinessRuleRequest(
         String description,
         @NotNull RuleType ruleType,
         @NotNull UUID sourceItemId,
-        @NotNull UUID targetItemId
-) {}
+        @NotNull UUID targetItemId,
+        /**
+         * Nul vaut « bloquante ». Une regle metier declaree est une contrainte :
+         * c'est a son auteur de la relacher explicitement s'il veut seulement
+         * avertir, pas au systeme de supposer qu'elle est facultative.
+         */
+        Boolean blocking
+) {
+    public boolean blockingOrDefault() {
+        return blocking == null || blocking;
+    }
+}

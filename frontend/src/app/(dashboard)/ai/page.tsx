@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import toast from "react-hot-toast";
 import api, { apiError } from "@/lib/api";
+import { usePermissions, PERM } from "@/lib/permissions";
 import type { CatalogItem, Offer } from "@/lib/types";
 
 type Tab = "assistant" | "generation" | "insights";
@@ -103,7 +104,40 @@ export default function AiPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   /* ===== GENERATION ===== */
+  /**
+   * Repartition des deux fonctions d'assistance, section 7.10 du cahier des
+   * charges : « deux fonctions distinctes a ne pas confondre ».
+   *
+   *   auto-tagging / classification -> chef de produit, a la creation
+   *   generation de contenu marketing et SEO -> analyste marketing, a l'enrichissement
+   *
+   * L'ecran proposait les quatre types a tout le monde : le chef de produit se
+   * voyait offrir la redaction des descriptions et l'optimisation du
+   * referencement, qui ne relevent pas de son metier, et l'analyste marketing
+   * l'extraction des caracteristiques techniques, qui ne releve pas du sien.
+   */
+  const { has } = usePermissions();
+  const canTag = has(PERM.CATALOG_MANAGE);
+  const canWriteContent = has(PERM.OFFER_ENRICH);
+  const GEN_TYPES = ([
+    ["DESCRIPTION", "description", canWriteContent],
+    ["TAGS", "tags", canTag],
+    ["TRANSLATION", "translation", canWriteContent],
+    ["SEO", "seo", canWriteContent],
+  ] as const).filter(([, , allowed]) => allowed);
+
   const [genType, setGenType] = useState<GenType>("DESCRIPTION");
+
+  // Les permissions arrivent avec le profil, apres le premier rendu : le type par
+  // defaut ne peut donc pas etre choisi a l'initialisation. Sans ce recalage, un
+  // chef de produit ouvrait l'onglet sur DESCRIPTION, type qui ne lui est pas
+  // propose — aucun bouton n'apparaissait selectionne et le formulaire produisait
+  // un contenu que le serveur lui refusait.
+  useEffect(() => {
+    if (GEN_TYPES.length === 0) return;
+    if (GEN_TYPES.some(([value]) => value === genType)) return;
+    setGenType(GEN_TYPES[0][0]);
+  }, [GEN_TYPES, genType]);
   const [sourceMode, setSourceMode] = useState<SourceMode>("catalog");
   const [selectedItemId, setSelectedItemId] = useState("");
   // Les champs de referencement appartiennent a l'offre, pas a l'element de
@@ -312,8 +346,10 @@ export default function AiPage() {
         </svg>
       ),
     },
-    {
-      key: "insights",
+    // L'analyse de qualite porte sur le referentiel produit : elle releve de celui
+    // qui le construit, pas de celui qui habille les fiches ni de qui les valide.
+    ...(canTag ? [{
+      key: "insights" as Tab,
       label: t("tabs.insights"),
       icon: (
         <svg className="size-4" viewBox="0 0 20 20" fill="none">
@@ -321,7 +357,7 @@ export default function AiPage() {
           <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -466,7 +502,7 @@ export default function AiPage() {
             <div>
               <label className="block text-sm font-medium text-text-secondary dark:text-neutral-400 mb-1.5">{t("generation.type")}</label>
               <div className="flex gap-2">
-                {([["DESCRIPTION", "description"], ["TAGS", "tags"], ["TRANSLATION", "translation"], ["SEO", "seo"]] as const).map(([value, key]) => (
+                {GEN_TYPES.map(([value, key]) => (
                   <button
                     key={value}
                     onClick={() => setGenType(value)}

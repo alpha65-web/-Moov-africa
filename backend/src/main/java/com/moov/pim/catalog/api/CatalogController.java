@@ -17,10 +17,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import com.moov.pim.catalog.api.dto.DuplicateFlagResponse;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -70,6 +73,26 @@ public class CatalogController {
     public ResponseEntity<CatalogItemResponse> updatePack(@PathVariable UUID id,
                                                            @Valid @RequestBody PackRequest request) {
         return ResponseEntity.ok(catalogService.updatePack(id, request));
+    }
+
+    /**
+     * Doublons suspectes, en attente d'arbitrage par le chef de produit.
+     *
+     * Reserve a CATALOG_MANAGE : c'est celui qui cree les briques qui tranche si
+     * deux libelles voisins designent le meme produit.
+     */
+    @GetMapping("/duplicates")
+    @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
+    public ResponseEntity<List<DuplicateFlagResponse>> pendingDuplicates() {
+        return ResponseEntity.ok(catalogService.pendingDuplicates());
+    }
+
+    /** Ecarte un rapprochement : les deux produits sont bien distincts. */
+    @PatchMapping("/duplicates/{id}/resolve")
+    @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
+    public ResponseEntity<Void> resolveDuplicate(@PathVariable UUID id) {
+        catalogService.resolveDuplicate(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

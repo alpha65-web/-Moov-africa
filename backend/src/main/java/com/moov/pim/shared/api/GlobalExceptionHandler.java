@@ -15,7 +15,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import com.moov.pim.permissions.service.AuthService;
+import com.moov.pim.rules.service.RuleViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -30,6 +33,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(ApiError.of(400, ex.getMessage()));
+    }
+
+    /**
+     * Composition d'offre refusee par une regle metier bloquante.
+     *
+     * Renvoyee en 400 avec la liste complete des violations, et non un message
+     * unique : l'ecran doit pouvoir nommer chaque regle en cause. Un refus qui se
+     * contente de dire « composition invalide » laisse le chef de produit chercher
+     * lui-meme laquelle de ses briques pose probleme.
+     */
+    @ExceptionHandler(RuleViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleRuleViolation(RuleViolationException ex) {
+        log.info("Composition refusee : {} regle(s) bloquante(s) violee(s)", ex.getViolations().size());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", 400);
+        body.put("message", ex.getMessage());
+        body.put("code", "RULE_VIOLATION");
+        body.put("violations", ex.getViolations());
+        return ResponseEntity.badRequest().body(body);
     }
 
     @ExceptionHandler(IllegalStateException.class)

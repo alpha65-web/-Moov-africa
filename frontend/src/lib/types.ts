@@ -25,6 +25,23 @@ export interface LoginResponse {
   user: User;
 }
 
+/**
+ * Premier niveau de classification : TYPE -> CATEGORIE -> SOUS-CATEGORIE -> ELEMENT.
+ *
+ * L'enumeration est figee cote serveur (com.moov.pim.catalog.domain.ItemType) :
+ * le type determine quelle entite est creee, quel formulaire est presente et quel
+ * circuit s'applique. PRODUCT, SERVICE et PACK sont des briques du catalogue ;
+ * OFFER designe les offres commerciales du cycle de vie.
+ */
+export type ItemType = "PRODUCT" | "OFFER" | "SERVICE" | "PACK";
+
+export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
+  PRODUCT: "Produit",
+  OFFER: "Offre",
+  SERVICE: "Service",
+  PACK: "Pack",
+};
+
 export interface CatalogItem {
   id: string;
   type: "PRODUCT" | "SERVICE" | "PACK";
@@ -34,16 +51,35 @@ export interface CatalogItem {
   basePrice: number;
   currency: string;
   categoryId: string | null;
+  /** Chemin de classement lisible : « Équipements / Routeurs ». Null si non résolu. */
+  categoryPath: string | null;
   createdAt: string;
   details: Record<string, unknown>;
+  /**
+   * Auteur de la brique, en clair. Null lorsque le compte connecte n'a pas a le
+   * connaitre : le serveur ne le renseigne que pour les roles a vue transversale,
+   * conformement aux regles de visibilite du cahier des charges.
+   */
+  createdByName: string | null;
 }
 
 export interface Category {
   id: string;
   name: string;
   description: string;
+  /** Type auquel la branche appartient. Une sous-catégorie hérite de celui de son parent. */
+  type: ItemType;
+  /** Libellé français du type, fourni par le serveur pour éviter une table de correspondance locale. */
+  typeLabel: string;
   level: number;
   parentId: string | null;
+  parentName: string | null;
+  /**
+   * Une catégorie désactivée reste lisible sur les fiches déjà classées mais
+   * n'est plus proposée à la sélection. La désactivation remplace la suppression,
+   * qui laisserait les éléments existants sans classement.
+   */
+  active: boolean;
   createdAt: string;
 }
 
@@ -55,6 +91,10 @@ export interface Offer {
   seoTitle: string | null;
   seoDescription: string | null;
   status: OfferStatus;
+  /** Catégorie ou sous-catégorie de type OFFRE. Null pour les offres antérieures à la classification. */
+  categoryId: string | null;
+  /** Chemin de classement lisible : « Internet mobile / Forfaits Data ». */
+  categoryPath: string | null;
   promotionalPrice: number | null;
   currency: string;
   validFrom: string | null;
@@ -66,6 +106,17 @@ export interface Offer {
   legalMentions: string | null;
   createdById: string;
   enrichedById: string | null;
+  /** Analyste designe pour l'enrichissement ; null tant que l'offre n'est pas repartie. */
+  assignedToId: string | null;
+  /**
+   * Auteur de la fiche, en clair. Null lorsque le compte connecte n'a pas a le
+   * connaitre : le serveur ne le renseigne que pour les roles a vue transversale
+   * qui prennent part au circuit, conformement aux regles de visibilite du cahier
+   * des charges. Ne jamais retomber sur createdById pour l'afficher.
+   */
+  createdByName: string | null;
+  /** Analyste designe, en clair. Meme regle de divulgation que l'auteur. */
+  assignedToName: string | null;
   currentVersion: number;
   createdAt: string;
   updatedAt: string;
@@ -161,6 +212,8 @@ export interface BusinessRule {
   targetItemId: string;
   createdById: string;
   createdAt: string;
+  /** La violation empeche-t-elle l enregistrement ? Ajoute par la migration V042. */
+  blocking: boolean;
 }
 
 export interface NotificationConfig {

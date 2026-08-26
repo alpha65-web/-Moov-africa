@@ -44,11 +44,16 @@ import static org.mockito.Mockito.*;
 class CatalogServiceTest {
 
     @Mock private CatalogItemRepository catalogItemRepository;
+    @Mock private com.moov.pim.catalog.repository.CategoryRepository categoryRepository;
     @Mock private ProductRepository productRepository;
     @Mock private ServiceRepository serviceRepository;
     @Mock private PackRepository packRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
 
+    // La detection de doublons est desormais invoquee a la creation d un produit.
+    // Une doublure sans stub ne signale rien, ce qui laisse ces tests porter sur ce
+    // qu ils verifient : la creation elle-meme.
+    @Mock private DuplicateDetectionService duplicateDetectionService;
     @InjectMocks private CatalogService catalogService;
 
     private UUID userId;
@@ -78,9 +83,27 @@ class CatalogServiceTest {
         SecurityContextHolder.clearContext();
     }
 
+
+    /**
+     * Categorie coherente avec le type attendu.
+     *
+     * Depuis la classification, toute creation resout sa categorie et refuse un
+     * type qui ne correspond pas : les tests doivent donc fournir la categorie que
+     * le service ira chercher.
+     */
+    private com.moov.pim.catalog.domain.Category categoryOfType(
+            UUID id, com.moov.pim.catalog.domain.ItemType type) {
+        var category = new com.moov.pim.catalog.domain.Category(
+                type.getLabel(), null, null, 0, type);
+        setId(category, id);
+        when(categoryRepository.findById(id)).thenReturn(java.util.Optional.of(category));
+        return category;
+    }
+
     @Test
     void createProduct_shouldReturnProductResponse() {
         UUID categoryId = UUID.randomUUID();
+        categoryOfType(categoryId, com.moov.pim.catalog.domain.ItemType.PRODUCT);
         ProductRequest request = new ProductRequest(
                 "SIM 4G", "Carte SIM 4G", new BigDecimal("500"),
                 categoryId, "{\"type\":\"nano\"}", false);
@@ -99,11 +122,57 @@ class CatalogServiceTest {
         verify(productRepository).save(any(Product.class));
     }
 
+
+    @Test
+    void createProduct_shouldRefuseCategoryOfAnotherType() {
+        UUID categoryId = UUID.randomUUID();
+        categoryOfType(categoryId, com.moov.pim.catalog.domain.ItemType.OFFER);
+
+        ProductRequest request = new ProductRequest(
+                "Routeur 4G", "Routeur domestique", new BigDecimal("35000"),
+                categoryId, "{}", false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> catalogService.createProduct(request));
+
+        assertTrue(ex.getMessage().contains("Offre"));
+        assertTrue(ex.getMessage().contains("Produit"));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void createProduct_shouldRefuseDeactivatedCategory() {
+        UUID categoryId = UUID.randomUUID();
+        var category = categoryOfType(categoryId, com.moov.pim.catalog.domain.ItemType.PRODUCT);
+        category.setActive(false);
+
+        ProductRequest request = new ProductRequest(
+                "Routeur 4G", null, new BigDecimal("35000"), categoryId, "{}", false);
+
+        assertThrows(IllegalStateException.class, () -> catalogService.createProduct(request));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void createProduct_shouldRefuseUnknownCategory() {
+        UUID categoryId = UUID.randomUUID();
+        when(categoryRepository.findById(categoryId)).thenReturn(java.util.Optional.empty());
+
+        ProductRequest request = new ProductRequest(
+                "Routeur 4G", null, new BigDecimal("35000"), categoryId, "{}", false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> catalogService.createProduct(request));
+        assertTrue(ex.getMessage().contains("introuvable"));
+    }
+
     @Test
     void createService_shouldReturnServiceResponse() {
+        UUID serviceCategoryId = UUID.randomUUID();
+        categoryOfType(serviceCategoryId, com.moov.pim.catalog.domain.ItemType.SERVICE);
         ServiceRequest request = new ServiceRequest(
                 "Internet Fibre", "Abonnement fibre optique", new BigDecimal("25000"),
-                UUID.randomUUID(), ServiceType.DATA, BillingCycle.MONTHLY,
+                serviceCategoryId, ServiceType.DATA, BillingCycle.MONTHLY,
                 "{\"debit\":\"100Mbps\"}", false);
 
         when(serviceRepository.save(any(Service.class))).thenAnswer(inv -> {
@@ -122,9 +191,11 @@ class CatalogServiceTest {
     @Test
     void createPack_shouldValidateItems() {
         UUID itemId = UUID.randomUUID();
+        UUID packCategoryId = UUID.randomUUID();
+        categoryOfType(packCategoryId, com.moov.pim.catalog.domain.ItemType.PACK);
         PackRequest request = new PackRequest(
                 "Pack Pro", "Pack entreprise", new BigDecimal("50000"),
-                UUID.randomUUID(), new BigDecimal("45000"), new BigDecimal("10"),
+                packCategoryId, new BigDecimal("45000"), new BigDecimal("10"),
                 List.of(new PackRequest.PackItemRequest(itemId, 2)));
 
         when(catalogItemRepository.existsById(itemId)).thenReturn(true);
@@ -144,9 +215,11 @@ class CatalogServiceTest {
     @Test
     void createPack_shouldThrowIfItemNotFound() {
         UUID missingId = UUID.randomUUID();
+        UUID packCategoryId = UUID.randomUUID();
+        categoryOfType(packCategoryId, com.moov.pim.catalog.domain.ItemType.PACK);
         PackRequest request = new PackRequest(
                 "Pack", "Desc", new BigDecimal("10000"),
-                UUID.randomUUID(), new BigDecimal("9000"), new BigDecimal("10"),
+                packCategoryId, new BigDecimal("9000"), new BigDecimal("10"),
                 List.of(new PackRequest.PackItemRequest(missingId, 1)));
 
         when(catalogItemRepository.existsById(missingId)).thenReturn(false);

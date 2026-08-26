@@ -19,4 +19,15 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     Page<Notification> findByRecipientIdAndReadFalseOrderByCreatedAtDesc(UUID recipientId, Pageable pageable);
 
     long countByRecipientIdAndReadFalse(UUID recipientId);
+
+    /**
+     * Une alerte de meme nature a-t-elle deja ete envoyee sur cette offre ?
+     *
+     * L'alerte d'expiration est produite par un balayage horaire : sans ce
+     * controle, une offre expirant dans sept jours generait cent soixante-huit
+     * notifications identiques a son auteur, qui noieraient tout le reste.
+     */
+    boolean existsByRecipientIdAndTypeAndRelatedOfferId(UUID recipientId,
+                                                        com.moov.pim.notification.domain.NotificationType type,
+                                                        UUID relatedOfferId);
 }

@@ -23,7 +23,13 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "user_id", nullable = false)
+    /**
+     * Auteur de l'action. Nul lorsqu'elle n'en a pas d'identifie — typiquement
+     * une tentative de connexion sur une adresse qui ne correspond a aucun compte.
+     * La contrainte NOT NULL faisait echouer l'enregistrement de ces tentatives,
+     * qui sont pourtant celles qui signalent une enumeration de comptes.
+     */
+    @Column(name = "user_id")
     private UUID userId;
 
     @Enumerated(EnumType.STRING)
@@ -33,7 +39,8 @@ public class AuditLog {
     @Column(name = "entity_type", nullable = false, length = 60)
     private String entityType;
 
-    @Column(name = "entity_id", nullable = false)
+    /** Objet de l'action. Nul lorsqu'elle ne porte sur aucun objet existant. */
+    @Column(name = "entity_id")
     private UUID entityId;
 
     @JdbcTypeCode(SqlTypes.JSON)

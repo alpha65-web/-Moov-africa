@@ -25,5 +25,14 @@ public interface IntegrationExportRepository extends JpaRepository<IntegrationEx
 
     Optional<IntegrationExport> findByIdempotencyKey(String idempotencyKey);
 
+    /**
+     * Derniere fiche constituee pour cette offre, quel que soit le systeme cible.
+     *
+     * Sert a la reexpedition manuelle : le module de diffusion ne sait pas
+     * reconstruire une fiche, il rediffuse celle que le cycle de vie lui a
+     * transmise a la publication.
+     */
+    Optional<IntegrationExport> findFirstByOfferIdAndPayloadIsNotNullOrderByCreatedAtDesc(UUID offerId);
+
     boolean existsByOfferIdAndTargetSystemAndStatus(UUID offerId, TargetSystem targetSystem, ExportStatus status);
 }

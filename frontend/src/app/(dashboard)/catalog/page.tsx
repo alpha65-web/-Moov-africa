@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
-import type { CatalogItem } from "@/lib/types";
+import { usePermissions, PERM } from "@/lib/permissions";
+import type { CatalogItem, Category } from "@/lib/types";
+import CategoryPicker from "@/components/CategoryPicker";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
 type TabType = "PRODUCT" | "SERVICE" | "PACK";
-
-const CATEGORY_LIST = [
-  "Voix", "Data", "SMS", "Transfert",
-  "Divertissement", "Finance", "Entreprise", "Roaming",
-];
 
 const EMPTY_FORM = {
   name: "",
@@ -61,12 +58,66 @@ function TypeIcon({ type, className }: { type: TabType; className?: string }) {
 export default function CatalogPage() {
   const t = useTranslations("catalog");
   const tc = useTranslations("common");
+  const tcat = useTranslations("categories");
+  // Creation, modification et suppression du catalogue exigent CATALOG_MANAGE
+  // (CatalogController). La simple lecture, ouverte a tous les roles metier,
+  // donnait acces aux memes boutons : ils partaient en 403.
+  const { has } = usePermissions();
+  const canManage = has(PERM.CATALOG_MANAGE);
+
+  /**
+   * Doublons suspectes, en attente d'arbitrage.
+   *
+   * La detection (cahier des charges 7.2) n'existait pas : la table
+   * duplicate_flags etait prevue mais rien ne l'alimentait ni ne la lisait. Un
+   * meme terminal pouvait etre saisi deux fois sous deux libelles voisins sans
+   * que rien ne le signale. Le rapprochement est volontairement non bloquant —
+   * deux capacites d'un meme modele portent des noms proches et sont pourtant
+   * bien deux produits — c'est donc au chef de produit de trancher.
+   */
+  const [duplicates, setDuplicates] = useState<{
+    id: string;
+    sourceProductName: string | null;
+    duplicateProductName: string | null;
+    similarityScore: number;
+  }[]>([]);
+
+  const loadDuplicates = useCallback(async () => {
+    if (!canManage) return;
+    try {
+      const { data } = await api.get("/catalog/duplicates");
+      setDuplicates(Array.isArray(data) ? data : []);
+    } catch {
+      // Rapprochements indisponibles : on n'affiche rien plutôt qu'un compte faux.
+      setDuplicates([]);
+    }
+  }, [canManage]);
+
+  useEffect(() => { loadDuplicates(); }, [loadDuplicates]);
+
+  async function dismissDuplicate(flagId: string) {
+    try {
+      await api.patch(`/catalog/duplicates/${flagId}/resolve`);
+      setDuplicates((current) => current.filter((flag) => flag.id !== flagId));
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    }
+  }
 
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabType>("PRODUCT");
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  /**
+   * Categories du type affiche, pour le filtre du tableau.
+   *
+   * L'ecran proposait huit libelles ecrits en dur — « Voix », « Data », « SMS »…
+   * — sans rapport avec l'arborescence en base, et les envoyait dans un champ
+   * qui attend un identifiant. Le filtre ne filtrait rien et la creation
+   * echouait. La liste vient desormais du serveur, bornee au type de l'onglet.
+   */
+  const [filterOptions, setFilterOptions] = useState<Category[]>([]);
   const [page, setPage] = useState(1);
 
   const [showModal, setShowModal] = useState(false);
@@ -106,6 +157,23 @@ export default function CatalogPage() {
 
   useEffect(() => { setPage(1); }, [search, tab, filterCategory]);
 
+  // Un changement de type rend le filtre courant caduc : les categories d'un
+  // type ne sont jamais celles d'un autre.
+  useEffect(() => {
+    let cancelled = false;
+    api.get("/categories", { params: { type: tab } })
+      .then(async ({ data }: { data: Category[] }) => {
+        const children = await Promise.all(
+          data.map((root) =>
+            api.get(`/categories/${root.id}/children`)
+              .then((r) => r.data as Category[])
+              .catch(() => [] as Category[])));
+        if (!cancelled) setFilterOptions([...data, ...children.flat()]);
+      })
+      .catch(() => { if (!cancelled) setFilterOptions([]); });
+    return () => { cancelled = true; };
+  }, [tab]);
+
   async function loadItems() {
     try {
       // GET /catalog renvoie un Page<CatalogItemResponse>, pas un tableau nu.
@@ -113,6 +181,18 @@ export default function CatalogPage() {
       setItems(Array.isArray(data) ? data : data.content ?? []);
     } catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
+  }
+
+  /**
+   * Change de type affiche.
+   *
+   * Le filtre par categorie est remis a zero dans le meme geste : les categories
+   * d'un type ne sont jamais celles d'un autre, et conserver l'ancienne selection
+   * afficherait une liste vide sans explication.
+   */
+  function selectTab(next: TabType) {
+    setTab(next);
+    setFilterCategory("");
   }
 
   function resetForm() { setForm({ ...EMPTY_FORM }); setEditingItem(null); setSelectedPackItems([]); setPackItemSearch(""); }
@@ -148,7 +228,7 @@ export default function CatalogPage() {
       const payload: Record<string, unknown> = {
         name: form.name, description: form.description,
         basePrice: parseFloat(form.basePrice) || 0, currency: form.currency,
-        categoryId: form.category || null, characteristics: form.characteristics || "{}", packOnly: false,
+        categoryId: form.category, characteristics: form.characteristics || "{}", packOnly: false,
       };
       if (tab === "SERVICE") { payload.serviceType = "DATA"; payload.billingCycle = "MONTHLY"; }
       if (tab === "PACK") { payload.bundlePrice = parseFloat(form.basePrice) || 0; payload.bundleDiscount = 0; payload.items = selectedPackItems; }
@@ -215,6 +295,7 @@ export default function CatalogPage() {
           <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
+        {canManage && (
         <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
           <span className="flex items-center gap-2">
             <svg className="size-4" viewBox="0 0 16 16" fill="none">
@@ -223,6 +304,7 @@ export default function CatalogPage() {
             <p className="text-sm font-medium">{t("newItem")}</p>
           </span>
         </button>
+        )}
       </div>
 
       {/* ===== 3 CARDS COMPTEURS (Produits / Services / Packs) ===== */}
@@ -230,7 +312,7 @@ export default function CatalogPage() {
         {(["PRODUCT", "SERVICE", "PACK"] as TabType[]).map((tp) => (
           <button
             key={tp}
-            onClick={() => setTab(tp)}
+            onClick={() => selectTab(tp)}
             className={`rounded-2xl border bg-white dark:bg-neutral-900 p-5 shadow-card transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 text-left cursor-pointer ${CARD_ACCENTS[tp].border}`}
           >
             <div className="flex items-center gap-3 mb-3">
@@ -256,6 +338,61 @@ export default function CatalogPage() {
         ))}
       </div>
 
+      {/* ===== DOUBLONS SUSPECTÉS =====
+          Détection exigée par la section 7.2 du cahier des charges. Elle
+          n'existait pas : la table duplicate_flags était prévue depuis l'origine
+          mais rien ne l'alimentait ni ne la lisait, et un même terminal pouvait
+          être saisi deux fois sous deux libellés voisins sans que rien ne le
+          signale.
+
+          Volontairement non bloquant : deux capacités d'un même modèle portent
+          des noms proches et sont pourtant bien deux produits distincts. Le
+          système rapproche, le chef de produit tranche.
+      */}
+      {canManage && duplicates.length > 0 && (
+        <div className="rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <span className="shrink-0 rounded-lg bg-amber-100 dark:bg-amber-900/40 p-2 text-amber-700 dark:text-amber-400">
+              <svg className="size-4" viewBox="0 0 20 20" fill="none">
+                <path d="M10 3l7 13H3l7-13z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M10 8v3.5M10 13.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-300">
+                {t("duplicates.title", { count: duplicates.length })}
+              </p>
+              <p className="text-xs text-amber-800 dark:text-amber-400/90 mt-0.5">
+                {t("duplicates.subtitle")}
+              </p>
+              <ul className="flex flex-col gap-1.5 mt-3">
+                {duplicates.map((flag) => (
+                  <li key={flag.id} className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-medium text-black dark:text-white truncate">
+                      {flag.sourceProductName ?? "—"}
+                    </span>
+                    <span className="text-amber-700 dark:text-amber-400" aria-hidden="true">↔</span>
+                    <span className="font-medium text-black dark:text-white truncate">
+                      {flag.duplicateProductName ?? "—"}
+                    </span>
+                    {/* Le taux est chiffré et libellé : la couleur ne le porte pas seule. */}
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-semibold tabular-nums">
+                      {t("duplicates.similarity", { percent: Math.round(flag.similarityScore * 100) })}
+                    </span>
+                    <button
+                      onClick={() => dismissDuplicate(flag.id)}
+                      className="text-amber-800 dark:text-amber-400 underline underline-offset-2 hover:no-underline cursor-pointer"
+                    >
+                      {t("duplicates.dismiss")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== RECHERCHE + FILTRES ===== */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
@@ -277,8 +414,11 @@ export default function CatalogPage() {
           className="input h-10 min-w-[180px]"
         >
           <option value="">{tc("all")}</option>
-          {CATEGORY_LIST.map((c) => (
-            <option key={c} value={c}>{t.has(`categories.${c}`) ? t(`categories.${c}`) : c}</option>
+          {filterOptions.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.parentName ? `${c.parentName} / ${c.name}` : c.name}
+              {c.active ? "" : ` (${tcat("inactive")})`}
+            </option>
           ))}
         </select>
       </div>
@@ -351,7 +491,7 @@ export default function CatalogPage() {
                   </p>
                 )}
               </div>
-              {items.filter((i) => i.type === tab).length === 0 && (
+              {canManage && items.filter((i) => i.type === tab).length === 0 && (
                 <button onClick={openCreateModal} className="primary-icon px-4 py-2 active-scale mt-1">
                   <span className="flex items-center gap-2">
                     <svg className="size-4" viewBox="0 0 16 16" fill="none">
@@ -371,11 +511,22 @@ export default function CatalogPage() {
                 className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr_100px_110px_90px_60px] gap-2 md:gap-4 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
                 onClick={() => setDetailItem(item)}
               >
-                <p className="text-sm font-semibold text-black dark:text-white truncate">{item.name}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-black dark:text-white truncate">{item.name}</p>
+                  {/* Auteur de la brique. Le cahier des charges (l. 114) donne au
+                      chef de service la vue de « qui a cree quelle offre/produit ».
+                      Le serveur ne renseigne ce nom que pour les roles qui ont a le
+                      connaitre ; ailleurs il est nul et la ligne reste inchangee. */}
+                  {item.createdByName && (
+                    <p className="text-[11px] text-text-secondary dark:text-neutral-500 truncate">
+                      {t("columns.createdBy", { name: item.createdByName })}
+                    </p>
+                  )}
+                </div>
                 <p className="text-xs text-text-secondary dark:text-neutral-500 truncate">{item.description || "—"}</p>
                 <p className="text-sm font-semibold text-black dark:text-white tabular-nums">{formatPrice(item.basePrice, item.currency)}</p>
                 <span className="text-xs text-text-secondary dark:text-neutral-400 truncate">
-                  {item.categoryId ? (t.has(`categories.${item.categoryId}`) ? t(`categories.${item.categoryId}`) : item.categoryId) : "—"}
+                  {item.categoryPath || "—"}
                 </span>
                 <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[item.status] ?? STATUS_STYLES.DRAFT}`}>
                   {t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status}
@@ -403,24 +554,28 @@ export default function CatalogPage() {
                         </svg>
                         {tc("status")}
                       </button>
-                      <button
-                        onClick={() => openEditModal(item)}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                      >
-                        <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
-                          <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                        </svg>
-                        {tc("edit")}
-                      </button>
-                      <button
-                        onClick={() => { setDeleteTarget(item); setOpenMenuId(null); }}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      >
-                        <svg className="size-4" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        {tc("delete")}
-                      </button>
+                      {canManage && (
+                        <>
+                          <button
+                            onClick={() => openEditModal(item)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                          >
+                            <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none">
+                              <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                            </svg>
+                            {tc("edit")}
+                          </button>
+                          <button
+                            onClick={() => { setDeleteTarget(item); setOpenMenuId(null); }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <svg className="size-4" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            {tc("delete")}
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -490,15 +645,13 @@ export default function CatalogPage() {
                     </select>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.category")}</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input w-full h-10">
-                    <option value="">—</option>
-                    {CATEGORY_LIST.map((c) => (
-                      <option key={c} value={c}>{t.has(`categories.${c}`) ? t(`categories.${c}`) : c}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Le type n'est pas un champ : c'est l'onglet courant. Les listes
+                    ci-dessous ne proposent que les branches de ce type. */}
+                <CategoryPicker
+                  type={editingItem ? editingItem.type : tab}
+                  value={form.category}
+                  onChange={(categoryId) => setForm((f) => ({ ...f, category: categoryId }))}
+                />
 
                 {tab === "PACK" && (
                   <div className="flex flex-col gap-2">
@@ -632,7 +785,7 @@ export default function CatalogPage() {
                 <div className="flex flex-col gap-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.category")}</p>
                   <p className="text-sm font-medium text-black dark:text-white">
-                    {detailItem.categoryId ? (t.has(`categories.${detailItem.categoryId}`) ? t(`categories.${detailItem.categoryId}`) : detailItem.categoryId) : "—"}
+                    {detailItem.categoryPath || "—"}
                   </p>
                 </div>
                 <div className="flex flex-col gap-1">

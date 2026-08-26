@@ -169,18 +169,38 @@ function LogoutIcon({ className }: { className?: string }) {
  */
 const NAV_ITEMS: { href: string; key: string; icon: (p: { className?: string }) => React.ReactElement; anyOf?: string[] }[] = [
   { href: "/", key: "dashboard", icon: DashboardIcon },
-  { href: "/catalog", key: "catalog", icon: CatalogIcon, anyOf: ["CATALOG_READ"] },
-  { href: "/categories", key: "categories", icon: CategoriesIcon, anyOf: ["CATALOG_READ"] },
+
+  // Le catalogue sert de contexte a tous ceux qui interviennent sur une fiche,
+  // mais pas au community manager, qui ne consulte que des offres publiees.
+  // CATALOG_READ ne pouvait pas servir de filtre : tous les roles la detiennent.
+  { href: "/catalog", key: "catalog", icon: CatalogIcon,
+    anyOf: ["CATALOG_MANAGE", "OFFER_ENRICH", "OFFER_VALIDATE", "OFFER_PUBLISH"] },
+
+  // Classer les briques releve de celui qui les cree.
+  { href: "/categories", key: "categories", icon: CategoriesIcon, anyOf: ["CATALOG_MANAGE"] },
+
+  // Seul ecran reellement commun : chaque role y voit sa propre etape du circuit.
   { href: "/offers", key: "offers", icon: OffersIcon, anyOf: ["CATALOG_READ"] },
+
   { href: "/campaigns", key: "campaigns", icon: CampaignIcon, anyOf: ["CAMPAIGN_MANAGE"] },
   { href: "/media", key: "media", icon: MediaIcon, anyOf: ["MEDIA_UPLOAD", "MEDIA_VALIDATE"] },
-  { href: "/ab-tests", key: "abTests", icon: AbTestIcon, anyOf: ["CATALOG_READ"] },
+
+  // Les tests A/B relevent de l'analyste marketing (cahier des charges, l. 104).
+  // La permission d'ecriture est le bon filtre : un ecran de tests que l'on ne
+  // peut ni creer ni lancer n'a pas d'utilite.
+  { href: "/ab-tests", key: "abTests", icon: AbTestIcon, anyOf: ["CATALOG_WRITE"] },
+
   { href: "/rules", key: "rules", icon: RulesIcon, anyOf: ["RULE_MANAGE"] },
   { href: "/users", key: "users", icon: UsersIcon, anyOf: ["USER_MANAGE"] },
   { href: "/notifications", key: "notifications", icon: BellIcon },
   { href: "/analytics", key: "analytics", icon: AnalyticsIcon, anyOf: ["ANALYTICS_VIEW"] },
   { href: "/exports", key: "exports", icon: ExportsIcon, anyOf: ["EXPORT_MANAGE"] },
-  { href: "/ai", key: "ai", icon: AiIcon, anyOf: ["CATALOG_READ"] },
+
+  // Les deux fonctions d'IA sont attribuees : auto-tagging au chef de produit a la
+  // creation, generation de contenu a l'analyste pendant l'enrichissement
+  // (section 7.10). Les valideurs et le community manager n'en ont pas l'usage.
+  { href: "/ai", key: "ai", icon: AiIcon, anyOf: ["CATALOG_MANAGE", "OFFER_ENRICH"] },
+
   { href: "/audit", key: "audit", icon: AuditIcon, anyOf: ["AUDIT_VIEW"] },
   { href: "/settings", key: "settings", icon: SettingsIcon, anyOf: ["CONFIG_MANAGE"] },
 ];

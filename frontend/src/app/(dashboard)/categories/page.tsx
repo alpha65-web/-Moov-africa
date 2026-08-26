@@ -3,32 +3,49 @@
 import { useEffect, useState } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
-import type { Category } from "@/lib/types";
+import { usePermissions, PERM } from "@/lib/permissions";
+import type { Category, ItemType } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
-const EMPTY_FORM = { name: "", description: "", parentId: "" };
+const EMPTY_FORM = { name: "", description: "", type: "", parentId: "" };
+
+/**
+ * Couleur par type de classification.
+ *
+ * Le tableau distinguait les niveaux (racine / sous-catégorie), une information
+ * de structure. Ce qui manquait était la nature de la branche : c'est le type qui
+ * décide quels éléments peuvent s'y ranger.
+ */
+const TYPE_STYLES: Record<ItemType, string> = {
+  PRODUCT: "bg-primary/10 text-primary",
+  OFFER: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  SERVICE: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  PACK: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+};
+
+const TYPES: ItemType[] = ["PRODUCT", "OFFER", "SERVICE", "PACK"];
 
 function Skeleton({ className }: { className: string }) {
   return <div className={`rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse ${className}`} />;
 }
-
-const LEVEL_STYLES: Record<number, string> = {
-  0: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  1: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  2: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-};
 
 const PER_PAGE = 10;
 
 export default function CategoriesPage() {
   const t = useTranslations("categories");
   const tc = useTranslations("common");
+  const tclass = useTranslations("classification");
+  // CategoryController exige CATALOG_MANAGE en creation, modification et
+  // suppression ; la lecture seule reste ouverte a tous les roles metier.
+  const { has } = usePermissions();
+  const canManage = has(PERM.CATALOG_MANAGE);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterLevel, setFilterLevel] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -65,7 +82,7 @@ export default function CategoriesPage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openMenuId]);
 
-  useEffect(() => { setPage(1); }, [search, filterLevel]);
+  useEffect(() => { setPage(1); }, [search, filterType, filterStatus]);
 
   async function loadCategories() {
     try { const { data } = await api.get("/categories"); setCategories(data); }
@@ -96,7 +113,12 @@ export default function CategoriesPage() {
 
   function openEditModal(cat: Category) {
     setEditingCategory(cat);
-    setForm({ name: cat.name, description: cat.description || "", parentId: cat.parentId || "" });
+    setForm({
+      name: cat.name,
+      description: cat.description || "",
+      type: cat.type,
+      parentId: cat.parentId || "",
+    });
     setShowModal(true);
     setOpenMenuId(null);
   }
@@ -106,7 +128,15 @@ export default function CategoriesPage() {
     if (creating) return;
     setCreating(true);
     try {
-      const payload = { name: form.name, description: form.description || null, parentId: form.parentId || null };
+      // Le type n'accompagne que la création d'une racine : une sous-catégorie
+      // hérite de celui de son parent, et le serveur refuse une valeur qui le
+      // contredirait plutôt que de l'écraser en silence.
+      const payload = {
+        name: form.name,
+        description: form.description || null,
+        type: form.parentId ? null : form.type,
+        parentId: form.parentId || null,
+      };
       if (isEditing) {
         await api.put(`/categories/${editingCategory!.id}`, payload);
         toast.success(t("messages.updated"));
@@ -118,6 +148,33 @@ export default function CategoriesPage() {
     } catch (e) {
       toast.error(apiError(e, isEditing ? tc("errors.update") : tc("errors.create")));
     } finally { setCreating(false); }
+  }
+
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  /**
+   * Bascule la mise en service d'une catégorie.
+   *
+   * Remplace la suppression dès qu'une catégorie a servi : désactiver la retire
+   * des listes de classement sans détacher les éléments qui la référencent, et le
+   * geste reste réversible. Le serveur propage la désactivation aux
+   * sous-catégories — une sous-catégorie active sous une catégorie hors service
+   * ne serait jamais atteignable.
+   */
+  async function toggleActive(cat: Category) {
+    if (togglingId) return;
+    setTogglingId(cat.id);
+    setOpenMenuId(null);
+    try {
+      await api.patch(`/categories/${cat.id}/${cat.active ? "deactivate" : "reactivate"}`);
+      toast.success(t(cat.active ? "messages.deactivated" : "messages.reactivated"));
+      setChildrenMap({});
+      loadCategories();
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally {
+      setTogglingId(null);
+    }
   }
 
   async function handleDelete() {
@@ -136,29 +193,30 @@ export default function CategoriesPage() {
 
   const filtered = categories.filter((c) => {
     if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.description.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterLevel !== "" && c.level !== Number(filterLevel)) return false;
+    if (filterType && c.type !== filterType) return false;
+    if (filterStatus === "ACTIVE" && !c.active) return false;
+    if (filterStatus === "INACTIVE" && c.active) return false;
     return true;
   });
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  const levels = [...new Set(categories.map((c) => c.level))].sort();
 
   const stats = {
     total: categories.length,
-    roots: categories.filter((c) => c.level === 0).length,
-    children: categories.filter((c) => c.level > 0).length,
+    types: new Set(categories.map((c) => c.type)).size,
+    inactive: categories.filter((c) => !c.active).length,
   };
 
   const cardData = [
     { key: "total", count: stats.total, label: t("stats.total"), color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /></svg>
     ) },
-    { key: "roots", count: stats.roots, label: t("stats.roots"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
+    { key: "types", count: stats.types, label: t("stats.types"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 8h14M5 16h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     ) },
-    { key: "children", count: stats.children, label: t("stats.children"), color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", icon: (
+    { key: "inactive", count: stats.inactive, label: t("stats.inactive"), color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", icon: (
       <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M6 3v8M6 11h6M12 11v4M18 3v14M18 17h-6M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ) },
   ];
@@ -169,7 +227,7 @@ export default function CategoriesPage() {
     return children.map((child) => (
       <div key={child.id}>
         <div
-          className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr_100px_0.8fr_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
+          className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr_90px_100px_0.7fr_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
           style={{ paddingLeft: `${24 + depth * 24}px` }}
         >
           <div className="min-w-0 flex items-center gap-2">
@@ -181,14 +239,40 @@ export default function CategoriesPage() {
             <p className="text-sm font-semibold text-black dark:text-white truncate">{child.name}</p>
           </div>
           <p className="text-xs text-text-secondary dark:text-neutral-500 truncate">{child.description || "—"}</p>
-          <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold ${LEVEL_STYLES[child.level] || LEVEL_STYLES[2]}`} style={{ borderRadius: 4 }}>
-            {t("level")} {child.level}
+          <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold ${TYPE_STYLES[child.type]}`} style={{ borderRadius: 4 }}>
+            {tclass(`types.${child.type}`)}
           </span>
-          <p className="text-xs text-black dark:text-white truncate">{parentName(child.parentId)}</p>
+          <span
+                    className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold ${
+                      child.active
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : "bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                    }`}
+                    style={{ borderRadius: 4 }}
+                  >
+                    {child.active ? t("active") : t("inactive")}
+                  </span>
+          <p className="text-xs text-black dark:text-white truncate">{child.parentName || parentName(child.parentId)}</p>
           <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => openEditModal(child)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" title={tc("edit")}>
-              <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
-            </button>
+            {canManage && (
+              <>
+                <button onClick={() => openEditModal(child)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer" title={tc("edit")}>
+                  <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+                </button>
+                <button
+                  onClick={() => toggleActive(child)}
+                  disabled={togglingId === child.id}
+                  className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer disabled:opacity-50"
+                  title={child.active ? t("actions.deactivate") : t("actions.reactivate")}
+                >
+                  {child.active ? (
+                    <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" /><path d="M4.5 4.5l7 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                  ) : (
+                    <svg className="size-4 text-emerald-600" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" /><path d="M5.5 8l1.8 1.8L10.5 6.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
         {expandedIds.has(child.id) && (
@@ -209,12 +293,14 @@ export default function CategoriesPage() {
           <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
-        <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
-          <span className="flex items-center gap-2">
-            <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            <p className="text-sm font-medium">{t("newCategory")}</p>
-          </span>
-        </button>
+        {canManage && (
+          <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
+            <span className="flex items-center gap-2">
+              <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              <p className="text-sm font-medium">{t("newCategory")}</p>
+            </span>
+          </button>
+        )}
       </div>
 
       {/* ===== STAT CARDS ===== */}
@@ -239,25 +325,30 @@ export default function CategoriesPage() {
           </svg>
           <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={searchKeyHandler(setSearch)} placeholder={t("searchPlaceholder")} className="input w-full h-10 pl-9" />
         </div>
-        <select value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)} className="input h-10 min-w-[140px]">
-          <option value="">{t("allLevels")}</option>
-          {levels.map((l) => <option key={l} value={l}>{t("level")} {l}{l === 0 ? ` (${t("root")})` : ""}</option>)}
+        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="input h-10 min-w-[150px]">
+          <option value="">{t("allTypes")}</option>
+          {TYPES.map((ty) => <option key={ty} value={ty}>{tclass(`types.${ty}`)}</option>)}
+        </select>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-10 min-w-[140px]">
+          <option value="">{t("allStatuses")}</option>
+          <option value="ACTIVE">{t("active")}</option>
+          <option value="INACTIVE">{t("inactive")}</option>
         </select>
       </div>
 
       {/* ===== TABLE ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1.2fr_1fr_100px_0.8fr_60px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
-          {[t("columns.name"), t("columns.description"), t("columns.level"), t("columns.parent"), t("columns.actions")].map((col, i) => (
-            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white ${i === 4 ? "text-right" : ""}`}>{col}</span>
+        <div className="hidden md:grid grid-cols-[1.1fr_1fr_90px_100px_0.7fr_60px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
+          {[t("columns.name"), t("columns.description"), t("columns.type"), t("columns.status"), t("columns.parent"), t("columns.actions")].map((col, i) => (
+            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white ${i === 5 ? "text-right" : ""}`}>{col}</span>
           ))}
         </div>
 
         {loading ? (
           <div className="px-6 py-4 flex flex-col gap-1">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="hidden md:grid grid-cols-[1.2fr_1fr_100px_0.8fr_60px] gap-3 items-center py-3.5">
-                <Skeleton className="w-28 h-4" /><Skeleton className="w-40 h-4" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-20 h-4" /><Skeleton className="w-6 h-6 ml-auto" />
+              <div key={i} className="hidden md:grid grid-cols-[1.1fr_1fr_90px_100px_0.7fr_60px] gap-3 items-center py-3.5">
+                <Skeleton className="w-28 h-4" /><Skeleton className="w-40 h-4" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-20 h-4" /><Skeleton className="w-6 h-6 ml-auto" />
               </div>
             ))}
           </div>
@@ -279,19 +370,21 @@ export default function CategoriesPage() {
                 <p className="text-base font-bold text-black dark:text-white">{t("emptyTitle")}</p>
                 <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
               </div>
-              <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">
-                <span className="flex items-center gap-2">
-                  <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                  <p className="text-sm font-medium">{t("createFirst")}</p>
-                </span>
-              </button>
+              {canManage && (
+                <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">
+                  <span className="flex items-center gap-2">
+                    <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    <p className="text-sm font-medium">{t("createFirst")}</p>
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
           <div className="divide-y divide-border dark:divide-neutral-800">
             {paginated.map((cat) => (
               <div key={cat.id}>
-                <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr_100px_0.8fr_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
+                <div className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr_90px_100px_0.7fr_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
                   <div className="min-w-0 flex items-center gap-2">
                     <button onClick={() => toggleExpand(cat.id)} className="p-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors shrink-0 cursor-pointer">
                       <svg className={`size-3.5 text-neutral-400 transition-transform ${expandedIds.has(cat.id) ? "rotate-90" : ""}`} viewBox="0 0 12 12" fill="none">
@@ -301,8 +394,18 @@ export default function CategoriesPage() {
                     <p className="text-sm font-semibold text-black dark:text-white truncate">{cat.name}</p>
                   </div>
                   <p className="text-xs text-text-secondary dark:text-neutral-500 truncate">{cat.description || "—"}</p>
-                  <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold ${LEVEL_STYLES[cat.level] || LEVEL_STYLES[2]}`} style={{ borderRadius: 4 }}>
-                    {t("level")} {cat.level}
+                  <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold ${TYPE_STYLES[cat.type]}`} style={{ borderRadius: 4 }}>
+                    {tclass(`types.${cat.type}`)}
+                  </span>
+                  <span
+                    className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold ${
+                      cat.active
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : "bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                    }`}
+                    style={{ borderRadius: 4 }}
+                  >
+                    {cat.active ? t("active") : t("inactive")}
                   </span>
                   <p className="text-xs text-black dark:text-white truncate">{parentName(cat.parentId)}</p>
                   <div className="flex justify-end relative" onClick={(e) => e.stopPropagation()}>
@@ -313,14 +416,26 @@ export default function CategoriesPage() {
                     </button>
                     {openMenuId === cat.id && (
                       <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
-                        <button onClick={() => openEditModal(cat)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
-                          <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
-                          {tc("edit")}
-                        </button>
-                        <button onClick={() => { setDeleteTarget(cat); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                          {tc("delete")}
-                        </button>
+                        {canManage && (
+                          <>
+                            <button onClick={() => openEditModal(cat)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                              <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+                              {tc("edit")}
+                            </button>
+                            <button onClick={() => toggleActive(cat)} disabled={togglingId === cat.id} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50">
+                              {cat.active ? (
+                                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" /><path d="M4.5 4.5l7 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                              ) : (
+                                <svg className="size-4 text-emerald-600" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" /><path d="M5.5 8l1.8 1.8L10.5 6.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                              )}
+                              {cat.active ? t("actions.deactivate") : t("actions.reactivate")}
+                            </button>
+                            <button onClick={() => { setDeleteTarget(cat); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                              <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                              {tc("delete")}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -397,13 +512,58 @@ export default function CategoriesPage() {
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.description")}</label>
                   <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="input w-full resize-none" />
                 </div>
+                {/* Le type est le premier niveau de classification : il conditionne
+                    les catégories parentes proposées juste en dessous. Il est figé
+                    en modification — le changer invaliderait les sous-catégories et
+                    les éléments déjà rangés dans la branche. */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                    {t("form.type")} <span className="text-primary">*</span>
+                  </label>
+                  <select
+                    required
+                    disabled={isEditing || !!form.parentId}
+                    value={form.type}
+                    onChange={(e) => setForm({ ...form, type: e.target.value, parentId: "" })}
+                    className="input w-full h-10 disabled:opacity-60"
+                  >
+                    <option value="">{t("form.chooseType")}</option>
+                    {TYPES.map((ty) => (
+                      <option key={ty} value={ty}>{tclass(`types.${ty}`)}</option>
+                    ))}
+                  </select>
+                  {isEditing && (
+                    <span className="text-[11px] text-text-secondary dark:text-neutral-500">{t("form.typeImmutable")}</span>
+                  )}
+                  {!isEditing && !!form.parentId && (
+                    <span className="text-[11px] text-text-secondary dark:text-neutral-500">{t("form.typeLocked")}</span>
+                  )}
+                </div>
+
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.parent")}</label>
-                  <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })} className="input w-full h-10">
+                  <select
+                    value={form.parentId}
+                    disabled={isEditing || !form.type}
+                    onChange={(e) => {
+                      const parent = categories.find((c) => c.id === e.target.value);
+                      setForm({
+                        ...form,
+                        parentId: e.target.value,
+                        // Une sous-catégorie hérite du type de son parent : on
+                        // aligne l'affichage sur ce que le serveur appliquera.
+                        type: parent ? parent.type : form.type,
+                      });
+                    }}
+                    className="input w-full h-10 disabled:opacity-60"
+                  >
                     <option value="">{t("form.noParent")}</option>
-                    {categories.filter((c) => !editingCategory || c.id !== editingCategory.id).map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {categories
+                      .filter((c) => c.type === form.type && c.active)
+                      .filter((c) => !editingCategory || c.id !== editingCategory.id)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
                   </select>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
+import { usePermissions, PERM } from "@/lib/permissions";
 import type { AbTest, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -24,6 +25,12 @@ function Skeleton({ className }: { className: string }) {
 
 export default function AbTestsPage() {
   const t = useTranslations("abTests");
+  // AbTestController ouvre la lecture a CATALOG_READ mais reserve la creation,
+  // le demarrage, la cloture et l'annulation a CATALOG_WRITE (migration V017,
+  // accordee a l'administrateur et au chef de produit). L'ecran, accessible a
+  // tous les roles metier, proposait ces actions sans distinction.
+  const { has } = usePermissions();
+  const canWrite = has(PERM.CATALOG_WRITE);
   const tc = useTranslations("common");
 
   const [tests, setTests] = useState<AbTest[]>([]);
@@ -157,12 +164,14 @@ export default function AbTestsPage() {
           <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
-        <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
-          <span className="flex items-center gap-2">
-            <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            <p className="text-sm font-medium">{t("newTest")}</p>
-          </span>
-        </button>
+        {canWrite && (
+          <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
+            <span className="flex items-center gap-2">
+              <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              <p className="text-sm font-medium">{t("newTest")}</p>
+            </span>
+          </button>
+        )}
       </div>
 
       {/* ===== 4 STAT CARDS ===== */}
@@ -248,12 +257,14 @@ export default function AbTestsPage() {
                 <p className="text-base font-bold text-black dark:text-white">{t("empty")}</p>
                 <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
               </div>
-              <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">
-                <span className="flex items-center gap-2">
-                  <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                  <p className="text-sm font-medium">{t("createFirst")}</p>
-                </span>
-              </button>
+              {canWrite && (
+                <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">
+                  <span className="flex items-center gap-2">
+                    <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    <p className="text-sm font-medium">{t("createFirst")}</p>
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -274,17 +285,17 @@ export default function AbTestsPage() {
                   )}
                 </div>
                 <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                  {test.status === "DRAFT" && (
+                  {canWrite && test.status === "DRAFT" && (
                     <button onClick={() => handleStart(test)} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title={t("actions.start")}>
                       <svg className="size-4 text-blue-600 dark:text-blue-400" viewBox="0 0 16 16" fill="none"><path d="M5 3l8 5-8 5V3z" fill="currentColor" /></svg>
                     </button>
                   )}
-                  {test.status === "RUNNING" && (
+                  {canWrite && test.status === "RUNNING" && (
                     <button onClick={() => { setCompleteTarget(test); setSelectedWinner("A"); }} className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title={t("actions.complete")}>
                       <svg className="size-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
                   )}
-                  {(test.status === "DRAFT" || test.status === "RUNNING") && (
+                  {canWrite && (test.status === "DRAFT" || test.status === "RUNNING") && (
                     <button onClick={() => handleCancel(test)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title={t("actions.cancel")}>
                       <svg className="size-4 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                     </button>

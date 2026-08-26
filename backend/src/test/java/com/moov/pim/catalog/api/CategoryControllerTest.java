@@ -36,9 +36,9 @@ class CategoryControllerTest {
 
     @Test
     void listRoots_shouldReturn200() {
-        when(categoryService.listRoots()).thenReturn(List.of());
+        when(categoryService.listRoots("OFFER", true)).thenReturn(List.of());
 
-        var result = controller.listRoots();
+        var result = controller.listRoots("OFFER", true);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertTrue(result.getBody().isEmpty());
@@ -47,9 +47,41 @@ class CategoryControllerTest {
     @Test
     void listChildren_shouldReturn200() {
         UUID id = UUID.randomUUID();
-        when(categoryService.listChildren(id)).thenReturn(List.of());
+        when(categoryService.listChildren(id, true)).thenReturn(List.of());
 
-        var result = controller.listChildren(id);
+        var result = controller.listChildren(id, true);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+    }
+
+    @Test
+    void listTypes_shouldReturn200() {
+        when(categoryService.listTypes()).thenReturn(List.of());
+
+        var result = controller.listTypes();
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+    }
+
+    @Test
+    void deactivate_shouldReturn200() {
+        UUID id = UUID.randomUUID();
+        var response = mock(CategoryResponse.class);
+        when(categoryService.deactivate(id)).thenReturn(response);
+
+        var result = controller.deactivate(id);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(response, result.getBody());
+    }
+
+    @Test
+    void reactivate_shouldReturn200() {
+        UUID id = UUID.randomUUID();
+        var response = mock(CategoryResponse.class);
+        when(categoryService.reactivate(id)).thenReturn(response);
+
+        var result = controller.reactivate(id);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
     }

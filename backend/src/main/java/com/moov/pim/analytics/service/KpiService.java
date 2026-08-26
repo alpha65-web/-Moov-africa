@@ -32,8 +32,22 @@ public class KpiService {
         return kpiEventRepository.findByOfferId(offerId, pageable).map(KpiEventResponse::from);
     }
 
+    /**
+     * Flux d'evenements, borne au perimetre du demandeur.
+     *
+     * @param teamScope vrai si le demandeur detient ANALYTICS_TEAM_VIEW. Sans quoi
+     *                  il ne recoit que les evenements dont il est l'auteur, comme
+     *                  la synthese le fait deja. Le perimetre est decide par
+     *                  l'appelant a partir des permissions, jamais par un parametre
+     *                  de requete : sinon il suffirait de modifier l'adresse
+     *                  appelee pour lire les chiffres de ses collegues.
+     */
     @Transactional(readOnly = true)
-    public Page<KpiEventResponse> getByPeriod(LocalDateTime from, LocalDateTime to, Pageable pageable) {
-        return kpiEventRepository.findByPeriod(from, to, pageable).map(KpiEventResponse::from);
+    public Page<KpiEventResponse> getByPeriod(LocalDateTime from, LocalDateTime to,
+                                              boolean teamScope, UUID actorId, Pageable pageable) {
+        return (teamScope
+                ? kpiEventRepository.findByPeriod(from, to, pageable)
+                : kpiEventRepository.findByActorAndPeriod(actorId, from, to, pageable))
+                .map(KpiEventResponse::from);
     }
 }

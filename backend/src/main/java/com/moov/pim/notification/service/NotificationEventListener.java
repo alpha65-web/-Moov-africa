@@ -1,9 +1,12 @@
 package com.moov.pim.notification.service;
 
 import com.moov.pim.notification.domain.NotificationType;
+import com.moov.pim.notification.repository.NotificationRepository;
 import com.moov.pim.permissions.domain.AccountStatus;
 import com.moov.pim.permissions.domain.User;
 import com.moov.pim.permissions.repository.UserRepository;
+import com.moov.pim.shared.event.OfferAssignedEvent;
+import com.moov.pim.shared.event.OfferExpiringEvent;
 import com.moov.pim.shared.event.OfferTransitionEvent;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
@@ -31,11 +34,14 @@ import java.util.UUID;
 public class NotificationEventListener {
 
     private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
     public NotificationEventListener(NotificationService notificationService,
+                                     NotificationRepository notificationRepository,
                                      UserRepository userRepository) {
         this.notificationService = notificationService;
+        this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
     }
 
@@ -54,8 +60,16 @@ public class NotificationEventListener {
 
         Set<UUID> recipients = new LinkedHashSet<>();
         if (routing.permission() != null) {
-            userRepository.findByPermissionCodeAndStatus(routing.permission(), AccountStatus.ACTIVE)
-                    .stream().map(User::getId).forEach(recipients::add);
+            // Une offre confiee a un analyste precis ne concerne que lui : prevenir
+            // toute l'equipe ferait travailler deux personnes sur la meme fiche, et
+            // noierait les autres sous des alertes qui ne les regardent pas. Tant
+            // que la fiche n'est pas repartie, tous les titulaires sont prevenus.
+            if ("OFFER_ENRICH".equals(routing.permission()) && event.assignedToId() != null) {
+                recipients.add(event.assignedToId());
+            } else {
+                userRepository.findByPermissionCodeAndStatus(routing.permission(), AccountStatus.ACTIVE)
+                        .stream().map(User::getId).forEach(recipients::add);
+            }
         }
         if (routing.notifyAuthor() && event.createdById() != null) {
             recipients.add(event.createdById());
@@ -67,6 +81,47 @@ public class NotificationEventListener {
             notificationService.send(recipient, routing.type(), routing.title(),
                     routing.message(), event.offerId());
         }
+    }
+
+    /**
+     * Prévient l'analyste qu'une fiche vient de lui être confiée.
+     *
+     * L'affectation était silencieuse. Or le chef de service répartit le travail
+     * au moment où il constate la charge de chacun, donc le plus souvent *après*
+     * le passage en enrichissement : la notification de transition était alors
+     * déjà partie, et l'analyste désigné n'apprenait jamais que la fiche était
+     * pour lui. Une libération de fiche (analyste nul) ne notifie personne : il
+     * n'y a plus de destinataire, et l'ancien titulaire le verra à sa file.
+     */
+    @ApplicationModuleListener
+    public void on(OfferAssignedEvent event) {
+        if (event.analystId() == null || event.analystId().equals(event.assignedById())) return;
+
+        notificationService.send(event.analystId(), NotificationType.ENRICHMENT_REQUIRED,
+                "Offre qui vous est confiée",
+                "L'offre « " + event.offerName() + " » vous a été confiée pour enrichissement.",
+                event.offerId());
+    }
+
+    /**
+     * Prévient l'auteur qu'une de ses offres publiées arrive à échéance.
+     *
+     * Le balayage est horaire : sans le contrôle de doublon, l'auteur recevrait la
+     * même alerte à chaque passage pendant les sept derniers jours de validité.
+     */
+    @ApplicationModuleListener
+    public void on(OfferExpiringEvent event) {
+        if (event.createdById() == null) return;
+        if (notificationRepository.existsByRecipientIdAndTypeAndRelatedOfferId(
+                event.createdById(), NotificationType.OFFER_EXPIRING, event.offerId())) {
+            return;
+        }
+
+        notificationService.send(event.createdById(), NotificationType.OFFER_EXPIRING,
+                "Offre bientôt expirée",
+                "L'offre « " + event.offerName() + " » cesse d'être valide le " + event.validUntil()
+                        + " : prolongez-la ou préparez son remplacement.",
+                event.offerId());
     }
 
     private Routing routingFor(String fromStatus, String toStatus, String offerName) {

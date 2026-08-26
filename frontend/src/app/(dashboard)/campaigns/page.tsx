@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
+import { usePermissions, PERM } from "@/lib/permissions";
 import type { Campaign, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -37,6 +38,11 @@ function Skeleton({ className }: { className: string }) {
 
 export default function CampaignsPage() {
   const t = useTranslations("campaigns");
+  // CampaignController exige CAMPAIGN_MANAGE sur la totalite de ses endpoints,
+  // lecture comprise. Un compte sans cette permission qui atteint l'ecran par
+  // son URL ne doit pas y trouver des actions qui echoueront toutes.
+  const { has } = usePermissions();
+  const canManage = has(PERM.CAMPAIGN_MANAGE);
   const tc = useTranslations("common");
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -48,7 +54,6 @@ export default function CampaignsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -80,11 +85,10 @@ export default function CampaignsPage() {
   useEffect(() => {
     function handleClickOutside() {
       if (openMenuId) setOpenMenuId(null);
-      if (showCreateMenu) setShowCreateMenu(false);
     }
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [openMenuId, showCreateMenu]);
+  }, [openMenuId]);
 
   useEffect(() => { setPage(1); }, [search, filterStatus, filterChannel, dateFrom, dateTo]);
 
@@ -104,7 +108,7 @@ export default function CampaignsPage() {
   }
 
   function resetForm() { setForm({ ...EMPTY_FORM }); setEditingCampaign(null); }
-  function openCreateModal() { resetForm(); setShowModal(true); setShowCreateMenu(false); }
+  function openCreateModal() { resetForm(); setShowModal(true); }
 
   function openEditModal(c: Campaign) {
     setEditingCampaign(c);
@@ -171,6 +175,36 @@ export default function CampaignsPage() {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
+  /**
+   * Diffusion par canal, recalculee sur les campagnes reellement enregistrees.
+   *
+   * Un canal n'apparait que s'il a servi au moins une fois : lister les neuf
+   * canaux possibles avec des zeros ferait passer pour une absence de resultat
+   * ce qui n'est qu'une absence d'usage.
+   */
+  const channelStats = useMemo(() => {
+    const byChannel = new Map<string, { channel: string; total: number; sent: number; scheduled: number; lastSent: string | null }>();
+
+    for (const campaign of campaigns) {
+      for (const channel of campaign.channels ?? []) {
+        const row = byChannel.get(channel.channelType)
+          ?? { channel: channel.channelType, total: 0, sent: 0, scheduled: 0, lastSent: null };
+        row.total += 1;
+        if (channel.sentAt) {
+          row.sent += 1;
+          if (!row.lastSent || new Date(channel.sentAt) > new Date(row.lastSent)) {
+            row.lastSent = channel.sentAt;
+          }
+        } else if (campaign.status === "SCHEDULED") {
+          row.scheduled += 1;
+        }
+        byChannel.set(channel.channelType, row);
+      }
+    }
+
+    return [...byChannel.values()].sort((a, b) => b.total - a.total);
+  }, [campaigns]);
+
   const stats = {
     total: campaigns.length,
     scheduled: campaigns.filter((c) => c.status === "SCHEDULED").length,
@@ -202,31 +236,18 @@ export default function CampaignsPage() {
           <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
-          <div className="flex">
-            <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 rounded-r-none active-scale">
-              <span className="flex items-center gap-2">
-                <svg className="size-4" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                <p className="text-sm font-medium">{t("newCampaign")}</p>
-              </span>
-            </button>
-            <button onClick={() => setShowCreateMenu(!showCreateMenu)} className="primary-icon px-2 py-2.5 rounded-l-none border-l border-white/20 active-scale">
-              <svg className={`size-4 transition-transform ${showCreateMenu ? "rotate-180" : ""}`} viewBox="0 0 16 16" fill="none">
-                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Le chevron n'ouvrait qu'un menu reprenant a l'identique le bouton
+            voisin : il n'apportait aucune action supplementaire. */}
+        {canManage && (
+          <button onClick={openCreateModal} className="primary-icon px-4 py-2.5 active-scale">
+            <span className="flex items-center gap-2">
+              <svg className="size-4" viewBox="0 0 16 16" fill="none">
+                <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
-            </button>
-          </div>
-          {showCreateMenu && (
-            <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[200px] animate-fade-in">
-              <button onClick={openCreateModal} className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
-                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                {t("newCampaign")}
-              </button>
-            </div>
-          )}
-        </div>
+              <p className="text-sm font-medium">{t("newCampaign")}</p>
+            </span>
+          </button>
+        )}
       </div>
 
       {/* ===== 4 STAT CARDS ===== */}
@@ -329,12 +350,14 @@ export default function CampaignsPage() {
                 <p className="text-base font-bold text-black dark:text-white">{t("emptyTitle")}</p>
                 <p className="text-sm text-text-secondary dark:text-neutral-500 mt-2 max-w-md mx-auto leading-relaxed">{t("emptyDescription")}</p>
               </div>
+              {canManage && (
               <button onClick={openCreateModal} className="primary-icon px-5 py-2.5 active-scale mt-1">
                 <span className="flex items-center gap-2">
                   <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                   <p className="text-sm font-medium">{t("createFirst")}</p>
                 </span>
               </button>
+              )}
             </div>
           </div>
         ) : (
@@ -364,6 +387,8 @@ export default function CampaignsPage() {
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                         {tc("status")}
                       </button>
+                      {canManage && (
+                      <>
                       <button onClick={() => openEditModal(c)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
                         {tc("edit")}
@@ -372,6 +397,8 @@ export default function CampaignsPage() {
                         <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         {tc("delete")}
                       </button>
+                      </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -400,28 +427,59 @@ export default function CampaignsPage() {
         )}
       </div>
 
-      {/* ===== 4 FEATURE CARDS ===== */}
-      {campaigns.length === 0 && !loading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: "plan", title: t("features.planning"), desc: t("features.planningDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
-            { icon: "target", title: t("features.targeting"), desc: t("features.targetingDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
-            { icon: "realtime", title: t("features.realtime"), desc: t("features.realtimeDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
-            { icon: "multi", title: t("features.multichannel"), desc: t("features.multichannelDesc"), color: "text-primary bg-primary/10" },
-          ].map((f) => (
-            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-3">
-              <div className={`rounded-xl p-3 w-fit ${f.color}`}>
-                {f.icon === "plan" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M3 8h14" stroke="currentColor" strokeWidth="1.5" /><path d="M7 2v4M13 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M7 11l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {f.icon === "target" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="1.5" /><circle cx="10" cy="10" r="1.5" fill="currentColor" /><path d="M10 3v2M10 15v2M3 10h2M15 10h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>}
-                {f.icon === "realtime" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M6 17h8M10 14v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M6 9h2l1.5-3 2 6 1.5-3H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {f.icon === "multi" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" /><circle cx="4" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="16" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="4" cy="16" r="1.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="16" cy="16" r="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M5.5 5.5l3 3M14.5 5.5l-3 3M5.5 14.5l3-3M14.5 14.5l-3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
+      {/* ===== STATISTIQUES DE DIFFUSION PAR CANAL =====
+          Le cahier des charges (l. 107) confie au community manager le « suivi des
+          statistiques de diffusion par canal ». L'ecran n'en comptait aucune : il
+          n'affichait que des totaux par statut de campagne, et le canal n'etait
+          qu'un critere de filtrage.
+
+          Les chiffres ci-dessous sont recalcules a partir des campagnes reelles.
+          Ils portent sur ce que la plateforme execute effectivement — combien de
+          campagnes par canal, combien sont parties, combien attendent leur
+          echeance, et quand la derniere est partie. Les vues, clics et taux
+          d'engagement ne figurent volontairement pas : ils supposent un
+          raccordement aux interfaces des reseaux sociaux, dont la plateforme ne
+          dispose pas. Les afficher reviendrait a inventer des chiffres.
+      */}
+      {!loading && channelStats.length > 0 && (
+        <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+          <div className="px-6 py-4 border-b border-border dark:border-neutral-800">
+            <h2 className="text-sm font-bold text-black dark:text-white uppercase tracking-wider">
+              {t("channelStats.title")}
+            </h2>
+            <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1">
+              {t("channelStats.subtitle")}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+                  {[t("channelStats.channel"), t("channelStats.campaigns"), t("channelStats.sent"),
+                    t("channelStats.scheduled"), t("channelStats.lastSent")].map((col, i) => (
+                    <th key={col} className={`px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500 ${i === 0 ? "text-left" : "text-right"}`}>
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border dark:divide-neutral-800">
+                {channelStats.map((row) => (
+                  <tr key={row.channel} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
+                    <td className="px-4 py-3 font-medium text-black dark:text-white">
+                      {t(`channels.${row.channel}`)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-black dark:text-white">{row.total}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{row.sent}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-amber-600 dark:text-amber-400">{row.scheduled}</td>
+                    <td className="px-4 py-3 text-right text-xs text-text-secondary dark:text-neutral-400">
+                      {row.lastSent ? new Date(row.lastSent).toLocaleDateString() : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -532,12 +590,14 @@ export default function CampaignsPage() {
               )}
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              {canManage && (
               <button onClick={() => { openEditModal(detailCampaign); setDetailCampaign(null); }} className="secondary-icon px-4 py-2 active-scale">
                 <span className="flex items-center gap-1.5">
                   <svg className="size-3.5" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
                   <p className="text-sm font-medium">{tc("edit")}</p>
                 </span>
               </button>
+              )}
               <button onClick={() => setDetailCampaign(null)} className="tertiary-icon px-4 py-2 active-scale">
                 <p className="text-sm font-medium">{tc("close")}</p>
               </button>

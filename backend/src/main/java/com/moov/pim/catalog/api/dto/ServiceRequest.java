@@ -12,7 +12,15 @@ public record ServiceRequest(
         @NotBlank String name,
         String description,
         BigDecimal basePrice,
-        UUID categoryId,
+        /**
+         * Categorie ou sous-categorie de classement, obligatoire.
+         *
+         * Elle doit etre de type SERVICE et active : le service le verifie avant
+         * enregistrement et la base l'impose par une cle etrangere composite vers
+         * categories(id, type). Le formulaire envoyait jusqu'ici un libelle pris
+         * dans une liste codee en dur, que l'API ne pouvait pas interpreter.
+         */
+        @NotNull UUID categoryId,
         @NotNull ServiceType serviceType,
         @NotNull BillingCycle billingCycle,
         String characteristics,

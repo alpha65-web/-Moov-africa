@@ -27,6 +27,7 @@ public class BusinessRuleService {
         BusinessRule rule = new BusinessRule();
         rule.setName(request.name());
         rule.setDescription(request.description());
+        rule.setBlocking(request.blockingOrDefault());
         rule.setRuleType(request.ruleType());
         rule.setSourceItemId(request.sourceItemId());
         rule.setTargetItemId(request.targetItemId());
@@ -41,6 +42,7 @@ public class BusinessRuleService {
                 .orElseThrow(() -> new IllegalArgumentException("Règle métier introuvable"));
         rule.setName(request.name());
         rule.setDescription(request.description());
+        rule.setBlocking(request.blockingOrDefault());
         rule.setRuleType(request.ruleType());
         rule.setSourceItemId(request.sourceItemId());
         rule.setTargetItemId(request.targetItemId());

@@ -51,10 +51,23 @@ public class AuditEventListener {
                 null, event.email(), event.ipAddress(), event.userAgent());
     }
 
+    /**
+     * Journalise une tentative de connexion echouee.
+     *
+     * L'identifiant du compte est nul lorsque l'adresse saisie ne correspond a
+     * aucun utilisateur. Le code ecrivait alors l'UUID nul en guise d'identifiant
+     * d'entite pour contourner une contrainte NOT NULL — un identifiant qui ne
+     * designe rien et qui se serait retrouve dans les exports d'audit comme une
+     * vraie reference. La contrainte a ete relachee (migration V043) : l'absence
+     * d'auteur et d'objet est desormais representee par ce qu'elle est, un nul.
+     *
+     * L'adresse saisie, elle, est toujours conservee : c'est la seule donnee qui
+     * permette de reperer une serie d'echecs sur des adresses inconnues.
+     */
     @ApplicationModuleListener
     public void on(LoginFailedEvent event) {
         auditService.log(event.userId(), AuditAction.LOGIN_FAILED, "User",
-                event.userId() != null ? event.userId() : new java.util.UUID(0, 0),
+                event.userId(),
                 null, event.email(), event.ipAddress(), event.userAgent());
     }
 
