@@ -179,17 +179,37 @@ jobs:
       - name: Start application
         run: |
           java -jar backend/target/*.jar \
-            --spring.profiles.active=dev &
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:8092/api/v1/actuator/health && break
+            --spring.profiles.active=dev \
+            --spring.datasource.url=jdbc:postgresql://localhost:5432/pim_db \
+            --spring.datasource.username=pim \
+            --spring.datasource.password=pim_ci \
+            > app.log 2>&1 &
+          APP_PID=$!
+          echo "Waiting for backend (PID $APP_PID) to start..."
+          for i in $(seq 1 40); do
+            if ! kill -0 $APP_PID 2>/dev/null; then
+              echo "Application process died. Logs:"
+              cat app.log
+              exit 1
+            fi
+            if curl -sf http://localhost:8092/api/v1/actuator/health; then
+              echo ""
+              echo "Backend is healthy."
+              break
+            fi
+            if [ $i -eq 40 ]; then
+              echo "Backend failed to start within 80s. Logs:"
+              tail -100 app.log
+              exit 1
+            fi
             sleep 2
           done
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/pim_db
-          SPRING_DATASOURCE_USERNAME: pim
-          SPRING_DATASOURCE_PASSWORD: pim_ci
           PIM_VAULT_ENABLED: "false"
           SPRING_CLOUD_VAULT_ENABLED: "false"
+          PIM_ENCRYPTION_KEY: "ci-test-encryption-key-32chars!!"
+          PIM_CLAMAV_ENABLED: "false"
+          PIM_DLP_ENABLED: "false"
 
       - name: OWASP ZAP baseline scan
         uses: zaproxy/action-baseline@v0.14.0
