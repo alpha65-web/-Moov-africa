@@ -95,17 +95,33 @@ CREATE DATABASE pim_db OWNER pim;
 ```
 
 **Backend** — les identifiants n'ont volontairement aucune valeur par défaut, le
-service refuse de démarrer sans eux :
+service refuse de démarrer sans eux. Ils sont déjà dans `.env`, mais ce fichier n'est
+lu que par Docker Compose : lancé à la main, `mvn spring-boot:run` ne le voit pas et
+s'arrête sur `Could not resolve placeholder 'JWT_SECRET'`. Le script de démarrage fait
+le pont, depuis la racine du dépôt :
+
+```powershell
+.\demarrer-backend.ps1
+```
+
+Il lit `.env`, en déduit les variables `SPRING_DATASOURCE_*`, choisit entre le
+PostgreSQL natif (5432) et celui de Docker Compose (5433) en vérifiant lequel héberge
+réellement `pim_db`, relève le service ou le conteneur s'il est arrêté, contrôle que le
+port 8092 est libre, puis lance Maven. Chaque échec est annoncé en clair avec la
+commande qui le corrige, au lieu d'une trace Java.
+
+```powershell
+.\demarrer-backend.ps1 -Diagnostic   # vérifie tout et s'arrête sans démarrer
+```
+
+Sous Linux ou macOS, l'équivalent manuel reste :
 
 ```bash
 cd backend
+set -a; source ../.env; set +a
 SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/pim_db" \
-SPRING_DATASOURCE_USERNAME=pim \
-SPRING_DATASOURCE_PASSWORD=pim_local \
-JWT_SECRET='...32 caractères minimum...' \
-PIM_ENCRYPTION_KEY='...32 caractères minimum...' \
-MINIO_ACCESS_KEY=minioadmin \
-MINIO_SECRET_KEY=minioadmin123 \
+SPRING_DATASOURCE_USERNAME="$POSTGRES_USER" \
+SPRING_DATASOURCE_PASSWORD="$POSTGRES_PASSWORD" \
 mvn spring-boot:run
 ```
 
