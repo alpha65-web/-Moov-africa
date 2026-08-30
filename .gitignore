@@ -46,3 +46,6 @@ docker-compose.override.yml
 .vscode/launch.json
 *.suo
 *.user
+
+# Journaux de demarrage local
+logs/

@@ -252,12 +252,56 @@ Etape "4/6  MinIO (stockage des medias)"
 if (-not $env:PIM_MINIO_ENDPOINT) { $env:PIM_MINIO_ENDPOINT = 'http://localhost:9000' }
 $portMinio = 9000
 if ($env:PIM_MINIO_ENDPOINT -match ':(\d+)') { $portMinio = [int]$Matches[1] }
+
+# MinIO doit ecouter AVANT que Spring ne demarre : le bean MinioConfig cree le bucket
+# pim-media pendant l'initialisation du contexte et n'y revient jamais. Si MinIO monte
+# apres coup, le backend tourne mais tout televersement echoue sur un bucket absent.
+if (-not (Test-PortOuvert $hote $portMinio 1000)) {
+    Souci "MinIO ne repond pas sur $($env:PIM_MINIO_ENDPOINT), tentative de demarrage..."
+    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $docker) {
+        Souci "docker est introuvable dans le PATH, MinIO ne peut pas etre demarre."
+    } else {
+        # Le daemon peut etre absent alors que le client existe : Docker Desktop non lance.
+        & docker info *> $null
+        if ($LASTEXITCODE -ne 0) {
+            $bureau = 'C:\Program Files\Docker\Docker\Docker Desktop.exe'
+            if (Test-Path $bureau) {
+                Info "Daemon Docker arrete, lancement de Docker Desktop (compter une minute)..."
+                Start-Process $bureau | Out-Null
+                $attente = 0
+                while ($attente -lt 180) {
+                    Start-Sleep -Seconds 5
+                    $attente += 5
+                    & docker info *> $null
+                    if ($LASTEXITCODE -eq 0) { break }
+                }
+            } else {
+                Souci "Docker Desktop est introuvable a $bureau."
+            }
+        }
+
+        & docker info *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Souci "Le daemon Docker ne repond toujours pas."
+        } else {
+            Push-Location $racine
+            try { & docker compose up -d minio *> $null } catch { } finally { Pop-Location }
+            $attente = 0
+            while ($attente -lt 60 -and -not (Test-PortOuvert $hote $portMinio 1000)) {
+                Start-Sleep -Seconds 3
+                $attente += 3
+            }
+        }
+    }
+}
+
 if (Test-PortOuvert $hote $portMinio 1000) {
     Ok "MinIO : $($env:PIM_MINIO_ENDPOINT)"
 } else {
-    Souci "MinIO ne repond pas sur $($env:PIM_MINIO_ENDPOINT)."
+    Souci "MinIO reste injoignable sur $($env:PIM_MINIO_ENDPOINT)."
     Info "Le backend demarre quand meme, mais tout televersement de media echouera."
-    Info "Pour l'activer : docker compose up -d minio"
+    Info "Pour l'activer a la main : docker compose up -d minio"
 }
 
 # ---------------------------------------------------------------------------
