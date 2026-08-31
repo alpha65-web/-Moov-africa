@@ -213,16 +213,68 @@ public class MediaAssetService {
         return MediaAssetResponse.from(asset);
     }
 
+    /**
+     * Rattache un visuel a une offre.
+     *
+     * Le rattachement est cumulatif — une offre porte une galerie, pas un visuel
+     * unique — mais il refuse desormais le doublon : rien n'empechait d'inserer
+     * deux fois le meme visuel sur la meme offre, et la fiche affichait alors la
+     * meme vignette en double sans qu'on puisse distinguer les deux lignes.
+     */
     @Transactional
     public void linkToOffer(UUID offerId, LinkMediaRequest request) {
-        findAsset(request.mediaAssetId());
+        MediaAsset asset = findAsset(request.mediaAssetId());
+
+        if (offerMediaRepository.existsByOfferIdAndMediaAssetId(offerId, asset.getId())) {
+            throw new IllegalStateException(
+                    "Ce visuel est déjà rattaché à cette offre : " + asset.getFileName());
+        }
 
         OfferMedia link = new OfferMedia();
         link.setOfferId(offerId);
-        link.setMediaAsset(findAsset(request.mediaAssetId()));
+        link.setMediaAsset(asset);
         link.setPrimary(request.isPrimary());
         link.setDisplayOrder(request.displayOrder());
         offerMediaRepository.save(link);
+    }
+
+    /**
+     * Detache un visuel d'une offre, sans toucher au visuel lui-meme.
+     *
+     * Le rattachement n'avait aucune operation inverse : un visuel associe par
+     * erreur — non conforme, ou simplement pas le bon — restait sur la fiche
+     * definitivement. En rattacher un second ne remplacait pas le premier, et le
+     * verrou de validation graphique bloque la soumission tant qu'un seul des
+     * visuels rattaches n'est pas approuve : l'offre devenait insoumettable. La
+     * seule issue etait {@code DELETE /media/{id}}, qui supprime le fichier de la
+     * mediatheque entiere et de MinIO — donc aussi pour les autres offres qui
+     * l'utilisent — et que l'analyste ne peut de toute facon exercer que sur ses
+     * propres depots.
+     *
+     * Le visuel principal retire, le suivant dans l'ordre d'affichage prend sa
+     * place : une galerie sans visuel principal laisserait les consommateurs de
+     * la fiche sans image de tete.
+     */
+    @Transactional
+    public void unlinkFromOffer(UUID offerId, UUID mediaAssetId) {
+        OfferMedia link = offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, mediaAssetId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Ce visuel n'est pas rattaché à cette offre"));
+
+        boolean wasPrimary = link.isPrimary();
+        offerMediaRepository.delete(link);
+
+        if (wasPrimary) {
+            offerMediaRepository.findByOfferIdOrderByDisplayOrderAsc(offerId).stream()
+                    .filter(remaining -> !remaining.getId().equals(link.getId()))
+                    .findFirst()
+                    .ifPresent(promoted -> {
+                        promoted.setPrimary(true);
+                        offerMediaRepository.save(promoted);
+                    });
+        }
+
+        log.info("Visuel {} détaché de l'offre {}", mediaAssetId, offerId);
     }
 
     @Transactional

@@ -102,4 +102,20 @@ class MediaAssetControllerTest {
         assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
         verify(mediaAssetService).delete(id);
     }
+
+    /**
+     * Le detachement ne doit pas se confondre avec la suppression : il retire le
+     * lien entre l'offre et le visuel, et laisse le fichier dans la mediatheque.
+     */
+    @Test
+    void unlinkFromOffer_shouldReturn204AndKeepTheAsset() {
+        UUID offerId = UUID.randomUUID();
+        UUID mediaAssetId = UUID.randomUUID();
+
+        var result = controller.unlinkFromOffer(offerId, mediaAssetId);
+
+        assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
+        verify(mediaAssetService).unlinkFromOffer(offerId, mediaAssetId);
+        verify(mediaAssetService, never()).delete(mediaAssetId);
+    }
 }

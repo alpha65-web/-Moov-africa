@@ -95,6 +95,22 @@ public class MediaAssetController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    /**
+     * Detache un visuel d'une offre.
+     *
+     * Meme permission que le rattachement : c'est l'analyste marketing qui pose
+     * les visuels sur la fiche, c'est donc a lui de retirer celui qu'il a pose
+     * par erreur. La route ne supprime que le lien — le visuel reste dans la
+     * mediatheque, ou d'autres offres peuvent l'utiliser.
+     */
+    @DeleteMapping("/offers/{offerId}/link/{mediaAssetId}")
+    @PreAuthorize("hasAuthority('MEDIA_UPLOAD')")
+    public ResponseEntity<Void> unlinkFromOffer(@PathVariable UUID offerId,
+                                                @PathVariable UUID mediaAssetId) {
+        mediaAssetService.unlinkFromOffer(offerId, mediaAssetId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/offers/{offerId}")
     @PreAuthorize("hasAuthority('CATALOG_READ')")
     public ResponseEntity<List<MediaAssetResponse>> listByOffer(@PathVariable UUID offerId) {

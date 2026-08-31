@@ -114,6 +114,9 @@ export default function OffersPage() {
   const t = useTranslations("offers");
   const tc = useTranslations("common");
   const tclass = useTranslations("classification");
+  // Les etats de conformite d'un visuel sont deja traduits pour la mediatheque :
+  // les redefinir ici ferait deriver les deux ecrans.
+  const tmedia = useTranslations("media");
   const { has, hasAny } = usePermissions();
   // Le tableau de bord renvoie ici avec un statut deja choisi : ses chiffres
   // n'etaient jusqu'ici que du texte, sans destination.
@@ -178,6 +181,9 @@ export default function OffersPage() {
   const [libraryMedia, setLibraryMedia] = useState<OfferMedia[]>([]);
   const [pickedMediaId, setPickedMediaId] = useState("");
   const [attaching, setAttaching] = useState(false);
+  // Identifiant du visuel en cours de detachement : la vignette concernee est la
+  // seule a se griser, pas toute la galerie.
+  const [detaching, setDetaching] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<Offer | null>(null);
   // Analystes marketing avec leur charge du moment. Les deux compteurs viennent
   // du serveur et sont comptes sur les offres reellement affectees : le chef de
@@ -431,6 +437,27 @@ export default function OffersPage() {
     } catch (e) {
       toast.error(apiError(e, tc("errors.action")));
     } finally { setAttaching(false); }
+  }
+
+  /**
+   * Retire un visuel de la fiche, sans le supprimer de la mediatheque.
+   *
+   * Rattacher un second visuel ne remplace pas le premier : la fiche porte une
+   * galerie. Un visuel pose par erreur restait donc definitivement associe, et
+   * comme la soumission en validation est bloquee tant qu'un seul des visuels
+   * rattaches n'est pas approuve, une offre habillee d'un visuel non conforme ne
+   * pouvait plus avancer du tout.
+   */
+  async function handleDetachMedia(mediaAssetId: string) {
+    if (!editingOffer || detaching) return;
+    setDetaching(mediaAssetId);
+    try {
+      await api.delete(`/media/offers/${editingOffer.id}/link/${mediaAssetId}`);
+      toast.success(t("messages.mediaDetached"));
+      await loadEnrichMedia(editingOffer.id);
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally { setDetaching(null); }
   }
 
   /**
@@ -1163,10 +1190,32 @@ export default function OffersPage() {
                       {enrichMedia.length > 0 && (
                         <div className="grid grid-cols-3 gap-2">
                           {enrichMedia.map((m) => (
-                            <div key={m.id} className="flex flex-col gap-1">
-                              <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName}
-                                className="w-full h-16 rounded-lg border border-border dark:border-neutral-800 object-cover" />
+                            <div key={m.id} className={`flex flex-col gap-1 ${detaching === m.id ? "opacity-50 pointer-events-none" : ""}`}>
+                              <div className="relative">
+                                <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName}
+                                  className="w-full h-16 rounded-lg border border-border dark:border-neutral-800 object-cover" />
+                                {/* Retrait du visuel. Le bouton porte le nom du
+                                    fichier en infobulle : trois vignettes de
+                                    seize pixels de haut ne se distinguent pas
+                                    toujours a l'oeil. */}
+                                <button type="button" onClick={() => handleDetachMedia(m.id)} disabled={detaching !== null}
+                                  title={`${t("form.mediaDetach")} — ${m.fileName}`}
+                                  aria-label={`${t("form.mediaDetach")} — ${m.fileName}`}
+                                  className="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 shadow-sm flex items-center justify-center text-text-secondary dark:text-neutral-400 hover:text-red-600 hover:border-red-300 dark:hover:text-red-400 transition-colors disabled:opacity-50">
+                                  <svg viewBox="0 0 12 12" fill="none" className="size-2.5"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                                </button>
+                              </div>
                               <p className="text-[10px] text-text-secondary dark:text-neutral-500 truncate" title={m.fileName}>{m.fileName}</p>
+                              {/* Etat de conformite affiche des la galerie : c'est
+                                  lui qui decide si la fiche pourra partir en
+                                  validation, et l'analyste le decouvrait
+                                  autrement au moment ou la soumission echouait. */}
+                              <span className={`text-[10px] font-medium ${
+                                m.conformityStatus === "COMPLIANT" ? "text-emerald-600 dark:text-emerald-400"
+                                : m.conformityStatus === "NON_COMPLIANT" ? "text-red-600 dark:text-red-400"
+                                : "text-amber-600 dark:text-amber-400"}`}>
+                                {tmedia(`status.${m.conformityStatus}`)}
+                              </span>
                             </div>
                           ))}
                         </div>

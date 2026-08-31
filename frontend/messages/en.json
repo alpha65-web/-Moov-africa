@@ -189,6 +189,7 @@
       "seoDescription": "SEO meta description",
       "mediaChoose": "Pick a media from the library…",
       "mediaAttach": "Attach",
+      "mediaDetach": "Remove this media from the offer",
       "mediaUpload": "Upload a media",
       "mediaTooLarge": "File too large: 50 MB maximum."
     },
@@ -269,6 +270,7 @@
       "saved": "Offer saved",
       "enriched": "Offer enriched successfully",
       "mediaAttached": "Media attached to the offer",
+      "mediaDetached": "Media removed from the offer",
       "sentToValidation": "Offer enriched and sent for validation"
     },
     "empty": "No offers found",

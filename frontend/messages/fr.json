@@ -189,6 +189,7 @@
       "seoDescription": "Méta-description SEO",
       "mediaChoose": "Choisir un visuel de la bibliothèque…",
       "mediaAttach": "Associer",
+      "mediaDetach": "Retirer ce visuel de l'offre",
       "mediaUpload": "Déposer un visuel",
       "mediaTooLarge": "Fichier trop volumineux : 50 Mo maximum."
     },
@@ -269,6 +270,7 @@
       "saved": "Offre enregistrée",
       "enriched": "Offre enrichie avec succès",
       "mediaAttached": "Visuel associé à l'offre",
+      "mediaDetached": "Visuel retiré de l'offre",
       "sentToValidation": "Offre enrichie et envoyée en validation"
     },
     "empty": "Aucune offre trouvée",

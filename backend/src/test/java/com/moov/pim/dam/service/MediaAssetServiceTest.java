@@ -1,5 +1,6 @@
 package com.moov.pim.dam.service;
 
+import com.moov.pim.dam.api.dto.LinkMediaRequest;
 import com.moov.pim.dam.api.dto.MediaAssetResponse;
 import com.moov.pim.dam.api.dto.MediaValidationRequest;
 import com.moov.pim.dam.domain.AssetMediaType;
@@ -189,6 +190,81 @@ class MediaAssetServiceTest {
 
         assertEquals(1, results.size());
         assertEquals("linked.jpg", results.get(0).fileName());
+    }
+
+    @Test
+    void linkToOffer_shouldRejectAlreadyLinkedMedia() {
+        UUID offerId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+        MediaAsset asset = createAsset(assetId, "charte.png", "image/png");
+
+        when(mediaAssetRepository.findById(assetId)).thenReturn(Optional.of(asset));
+        when(offerMediaRepository.existsByOfferIdAndMediaAssetId(offerId, assetId)).thenReturn(true);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> mediaAssetService.linkToOffer(offerId, new LinkMediaRequest(assetId, false, 1)));
+
+        assertTrue(error.getMessage().contains("charte.png"));
+        verify(offerMediaRepository, never()).save(any(OfferMedia.class));
+    }
+
+    @Test
+    void unlinkFromOffer_shouldRemoveOnlyTheLink() {
+        UUID offerId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+        OfferMedia link = new OfferMedia();
+        link.setOfferId(offerId);
+        link.setMediaAsset(createAsset(assetId, "non-conforme.png", "image/png"));
+        setField(OfferMedia.class, link, "id", UUID.randomUUID());
+
+        when(offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, assetId))
+                .thenReturn(Optional.of(link));
+
+        mediaAssetService.unlinkFromOffer(offerId, assetId);
+
+        verify(offerMediaRepository).delete(link);
+        // Le visuel reste dans la mediatheque : c'est le lien qui disparait, pas
+        // le fichier, que d'autres offres peuvent utiliser.
+        verify(mediaAssetRepository, never()).delete(any(MediaAsset.class));
+        verifyNoInteractions(minioClient);
+    }
+
+    @Test
+    void unlinkFromOffer_shouldPromoteNextMediaWhenPrimaryIsRemoved() {
+        UUID offerId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+        OfferMedia removed = new OfferMedia();
+        removed.setOfferId(offerId);
+        removed.setMediaAsset(createAsset(assetId, "principal.png", "image/png"));
+        removed.setPrimary(true);
+        setField(OfferMedia.class, removed, "id", UUID.randomUUID());
+
+        OfferMedia remaining = new OfferMedia();
+        remaining.setOfferId(offerId);
+        remaining.setMediaAsset(createAsset(UUID.randomUUID(), "secondaire.png", "image/png"));
+        remaining.setDisplayOrder(1);
+        setField(OfferMedia.class, remaining, "id", UUID.randomUUID());
+
+        when(offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, assetId))
+                .thenReturn(Optional.of(removed));
+        when(offerMediaRepository.findByOfferIdOrderByDisplayOrderAsc(offerId))
+                .thenReturn(List.of(remaining));
+
+        mediaAssetService.unlinkFromOffer(offerId, assetId);
+
+        assertTrue(remaining.isPrimary());
+        verify(offerMediaRepository).save(remaining);
+    }
+
+    @Test
+    void unlinkFromOffer_shouldThrowWhenLinkDoesNotExist() {
+        UUID offerId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+        when(offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, assetId))
+                .thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> mediaAssetService.unlinkFromOffer(offerId, assetId));
     }
 
     private MediaAsset createAsset(UUID id, String fileName, String mimeType) {
