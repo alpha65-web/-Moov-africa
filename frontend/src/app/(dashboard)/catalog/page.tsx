@@ -6,6 +6,7 @@ import { searchKeyHandler } from "@/lib/search";
 import { usePermissions, PERM } from "@/lib/permissions";
 import type { CatalogItem, Category } from "@/lib/types";
 import CategoryPicker from "@/components/CategoryPicker";
+import ActionMenu from "@/components/ActionMenu";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
@@ -542,8 +543,7 @@ export default function CatalogPage() {
                       <circle cx="8" cy="13" r="1.2" fill="currentColor" />
                     </svg>
                   </button>
-                  {openMenuId === item.id && (
-                    <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[140px] animate-fade-in">
+                  <ActionMenu open={openMenuId === item.id} onClose={() => setOpenMenuId(null)} minWidth={140}>
                       <button
                         onClick={() => { setDetailItem(item); setOpenMenuId(null); }}
                         className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
@@ -576,8 +576,7 @@ export default function CatalogPage() {
                           </button>
                         </>
                       )}
-                    </div>
-                  )}
+                  </ActionMenu>
                 </div>
               </div>
             ))}

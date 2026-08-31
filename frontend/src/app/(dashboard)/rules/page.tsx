@@ -6,6 +6,7 @@ import { searchKeyHandler } from "@/lib/search";
 import type { BusinessRule, CatalogItem } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import ActionMenu from "@/components/ActionMenu";
 
 const RULE_TYPE_LIST = ["COMPATIBILITY", "INCOMPATIBILITY", "MANDATORY_COMPOSITION", "PACK_ONLY"];
 
@@ -234,8 +235,7 @@ export default function RulesPage() {
               </svg>
             </button>
           </div>
-          {showCreateMenu && (
-            <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[220px] animate-fade-in">
+          <ActionMenu open={showCreateMenu} onClose={() => setShowCreateMenu(false)} minWidth={220}>
               <button
                 onClick={openCreateModal}
                 className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
@@ -245,8 +245,7 @@ export default function RulesPage() {
                 </svg>
                 {t("newRule")}
               </button>
-            </div>
-          )}
+          </ActionMenu>
         </div>
       </div>
 
@@ -405,8 +404,7 @@ export default function RulesPage() {
                       <circle cx="8" cy="13" r="1.2" fill="currentColor" />
                     </svg>
                   </button>
-                  {openMenuId === rule.id && (
-                    <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
+                  <ActionMenu open={openMenuId === rule.id} onClose={() => setOpenMenuId(null)} minWidth={160}>
                       <button onClick={() => { setDetailRule(rule); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                         {tc("status")}
@@ -429,8 +427,7 @@ export default function RulesPage() {
                         <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         {tc("delete")}
                       </button>
-                    </div>
-                  )}
+                  </ActionMenu>
                 </div>
               </div>
             ))}

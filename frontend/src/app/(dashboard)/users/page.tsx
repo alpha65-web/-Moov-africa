@@ -7,6 +7,7 @@ import type { User } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/types";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/PhoneInput";
+import ActionMenu from "@/components/ActionMenu";
 import { useTranslations } from "next-intl";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -479,8 +480,7 @@ export default function UsersPage() {
                       <circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" />
                     </svg>
                   </button>
-                  {openMenuId === u.id && (
-                    <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
+                  <ActionMenu open={openMenuId === u.id} onClose={() => setOpenMenuId(null)} minWidth={160}>
                       <button onClick={() => { setDetailUser(u); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                         {tc("status")}
@@ -504,8 +504,7 @@ export default function UsersPage() {
                         <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         {tc("delete")}
                       </button>
-                    </div>
-                  )}
+                  </ActionMenu>
                 </div>
               </div>
             ))}

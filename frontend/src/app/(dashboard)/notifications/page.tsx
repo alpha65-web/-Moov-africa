@@ -9,6 +9,7 @@ import { notifyNotificationsUpdated } from "@/lib/notifications";
 import type { Notification } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import ActionMenu from "@/components/ActionMenu";
 
 /**
  * Les cles reprennent exactement l'enum NotificationType du backend
@@ -313,8 +314,7 @@ export default function NotificationsPage() {
                         <circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" />
                       </svg>
                     </button>
-                    {openMenuId === notif.id && (
-                      <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[180px] animate-fade-in">
+                    <ActionMenu open={openMenuId === notif.id} onClose={() => setOpenMenuId(null)} minWidth={180}>
                         {!notif.read && (
                           <button onClick={() => { markAsRead(notif.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                             <svg className="size-4 text-emerald-500" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -327,8 +327,7 @@ export default function NotificationsPage() {
                             {t("markAllRead")}
                           </button>
                         )}
-                      </div>
-                    )}
+                    </ActionMenu>
                   </div>
                 </div>
               );

@@ -7,6 +7,7 @@ import { usePermissions, PERM } from "@/lib/permissions";
 import type { Campaign, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import ActionMenu from "@/components/ActionMenu";
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
@@ -407,8 +408,7 @@ export default function CampaignsPage() {
                   <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                     <svg className="size-5 text-neutral-500 dark:text-neutral-400" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" /></svg>
                   </button>
-                  {openMenuId === c.id && (
-                    <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[150px] animate-fade-in">
+                  <ActionMenu open={openMenuId === c.id} onClose={() => setOpenMenuId(null)} minWidth={150}>
                       <button onClick={() => { setDetailCampaign(c); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                         {tc("status")}
@@ -438,8 +438,7 @@ export default function CampaignsPage() {
                       </button>
                       </>
                       )}
-                    </div>
-                  )}
+                  </ActionMenu>
                 </div>
               </div>
             ))}

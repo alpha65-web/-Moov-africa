@@ -7,6 +7,7 @@ import { usePermissions, PERM } from "@/lib/permissions";
 import type { Category, ItemType } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import ActionMenu from "@/components/ActionMenu";
 
 const EMPTY_FORM = { name: "", description: "", type: "", parentId: "" };
 
@@ -414,8 +415,7 @@ export default function CategoriesPage() {
                         <circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" />
                       </svg>
                     </button>
-                    {openMenuId === cat.id && (
-                      <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
+                    <ActionMenu open={openMenuId === cat.id} onClose={() => setOpenMenuId(null)} minWidth={160}>
                         {canManage && (
                           <>
                             <button onClick={() => openEditModal(cat)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
@@ -436,8 +436,7 @@ export default function CategoriesPage() {
                             </button>
                           </>
                         )}
-                      </div>
-                    )}
+                    </ActionMenu>
                   </div>
                 </div>
                 {expandedIds.has(cat.id) && (

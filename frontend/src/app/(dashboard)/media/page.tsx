@@ -5,6 +5,7 @@ import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
 import { usePermissions, PERM } from "@/lib/permissions";
 import MediaPreview from "@/components/MediaPreview";
+import ActionMenu from "@/components/ActionMenu";
 import type { Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
@@ -569,8 +570,7 @@ export default function MediaPage() {
                   <button onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)} className="p-1.5 rounded-lg bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm border border-border dark:border-neutral-700 shadow-sm hover:bg-white dark:hover:bg-neutral-800 transition-colors cursor-pointer">
                     <svg className="size-4 text-neutral-600 dark:text-neutral-300" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" /></svg>
                   </button>
-                  {openMenuId === m.id && (
-                    <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
+                  <ActionMenu open={openMenuId === m.id} onClose={() => setOpenMenuId(null)} minWidth={160}>
                       <button onClick={() => { openDetail(m); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                         {t("actions.details")}
@@ -599,8 +599,7 @@ export default function MediaPage() {
                           {tc("delete")}
                         </button>
                       )}
-                    </div>
-                  )}
+                  </ActionMenu>
                 </div>
               </div>
             ))}
