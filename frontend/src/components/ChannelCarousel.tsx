@@ -138,9 +138,11 @@ function AnalyticsIcon() {
       <circle cx="115" cy="42" r="3" fill="white" fillOpacity="0.6" />
       <circle cx="143" cy="28" r="3" fill="white" fillOpacity="0.6" />
       {/* KPI badge haut droit */}
-      <rect x="140" y="10" width="50" height="22" rx="6" fill="white" fillOpacity="0.12" />
-      <path d="M150 18 l4 5 l8 -8" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="170" y="24" fill="white" fillOpacity="0.5" fontSize="9" fontWeight="600">+24%</text>
+      {/* Le badge portait « +24 % », un chiffre invente : sur une illustration
+          d'analytique, il se lit comme un resultat de la plateforme. Seule la
+          coche reste, qui ne pretend rien. */}
+      <rect x="152" y="10" width="38" height="22" rx="6" fill="white" fillOpacity="0.12" />
+      <path d="M164 18 l4 5 l8 -8" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
