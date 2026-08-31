@@ -45,6 +45,13 @@ class MediaAssetServiceTest {
     @Mock private OfferMediaRepository offerMediaRepository;
     @Mock private MinioClient minioClient;
     @Mock private ClamAvScanService clamAvScanService;
+    /**
+     * L'inspection est verifiee pour elle-meme dans MediaConformityServiceTest.
+     * Elle est simulee ici pour que le service sous test recoive bien toutes ses
+     * dependances : sans ce mock, l'injection par constructeur lui passerait null
+     * et le premier depot reussi echouerait sans rapport avec ce qu'on teste.
+     */
+    @Mock private MediaConformityService conformityService;
 
     @InjectMocks private MediaAssetService mediaAssetService;
 

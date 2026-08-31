@@ -438,7 +438,8 @@
       "version": "V.",
       "status": "Statut",
       "date": "Date",
-      "actions": "Actions"
+      "actions": "Actions",
+      "resolution": "Résolution"
     },
     "uploadForm": {
       "selectFile": "Sélectionner un fichier",
@@ -474,6 +475,13 @@
       "primary": "Visuel principal de l'offre",
       "confirm": "Associer",
       "noOffer": "Aucune offre n'est actuellement ouverte à l'enrichissement. Un média ne peut être associé qu'à une offre en brouillon ou en enrichissement."
+    },
+    "notMeasurable": "Non mesurée",
+    "conformityReport": "Constat d'inspection",
+    "copyright": {
+      "badge": "Droits",
+      "riskTitle": "Risque lié aux droits d'auteur",
+      "riskDetail": "Le fichier porte la mention « {notice} », qui ne désigne pas Moov Africa. À vérifier avant publication."
     }
   },
   "users": {

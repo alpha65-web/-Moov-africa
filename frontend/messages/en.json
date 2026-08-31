@@ -438,7 +438,8 @@
       "version": "V.",
       "status": "Status",
       "date": "Date",
-      "actions": "Actions"
+      "actions": "Actions",
+      "resolution": "Resolution"
     },
     "uploadForm": {
       "selectFile": "Select a file",
@@ -474,6 +475,13 @@
       "primary": "Primary visual for the offer",
       "confirm": "Attach",
       "noOffer": "No offer is currently open for enrichment. Media can only be attached to an offer in draft or in enrichment."
+    },
+    "notMeasurable": "Not measured",
+    "conformityReport": "Inspection report",
+    "copyright": {
+      "badge": "Rights",
+      "riskTitle": "Copyright risk",
+      "riskDetail": "The file carries the notice “{notice}”, which does not name Moov Africa. To be checked before publication."
     }
   },
   "users": {

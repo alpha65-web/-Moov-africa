@@ -49,6 +49,20 @@ public class MediaAsset {
     @Column(name = "copyright_risk", nullable = false)
     private boolean copyrightRisk = false;
 
+    /**
+     * Constat d'inspection, en clair, tel qu'il est presente au chef de service.
+     *
+     * Stocke et non recalcule a l'affichage : il decrit le fichier tel qu'il a ete
+     * recu, et doit rester lisible a l'identique si les seuils de la plateforme
+     * changent par la suite.
+     */
+    @Column(name = "conformity_report", columnDefinition = "text")
+    private String conformityReport;
+
+    /** Mention de droits trouvee dans le fichier lui-meme, s'il en porte une. */
+    @Column(name = "copyright_notice")
+    private String copyrightNotice;
+
     @Column(name = "parent_media_id")
     private UUID parentMediaId;
 
@@ -97,4 +111,8 @@ public class MediaAsset {
     public void setUploadedById(UUID uploadedById) { this.uploadedById = uploadedById; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public List<MediaValidation> getValidations() { return validations; }
+    public String getConformityReport() { return conformityReport; }
+    public void setConformityReport(String conformityReport) { this.conformityReport = conformityReport; }
+    public String getCopyrightNotice() { return copyrightNotice; }
+    public void setCopyrightNotice(String copyrightNotice) { this.copyrightNotice = copyrightNotice; }
 }

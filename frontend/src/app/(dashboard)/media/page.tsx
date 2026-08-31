@@ -16,6 +16,15 @@ interface MediaAsset {
   fileSize: number;
   storageKey: string;
   conformityStatus: string;
+  /** Dimensions mesurées au dépôt. 0 quand le type de fichier ne s'y prête pas. */
+  width: number;
+  height: number;
+  /** Densité déclarée par le fichier, en ppp. 0 quand il n'en déclare aucune. */
+  resolution: number;
+  copyrightRisk: boolean;
+  copyrightNotice: string | null;
+  /** Constat d'inspection en clair, ce que le chef de service doit pouvoir lire. */
+  conformityReport: string | null;
   mediaVersion: number;
   createdAt: string;
 }
@@ -433,9 +442,21 @@ export default function MediaPage() {
                     <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[m.conformityStatus] ?? STATUS_STYLES.PENDING}`}>
                       {t(`status.${m.conformityStatus}`)}
                     </span>
+                    {/* Le risque de droits se voit sur la vignette : le chef de
+                        service doit repérer les visuels à vérifier sans avoir à
+                        ouvrir chaque fiche une par une. */}
+                    {m.copyrightRisk && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title={m.copyrightNotice ?? undefined}>
+                        <svg className="size-3" viewBox="0 0 20 20" fill="none"><path d="M10 3l7 13H3l7-13z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M10 8v3.5M10 13.5v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                        {t("copyright.badge")}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-neutral-500">
-                    <span className="tabular-nums">{formatSize(m.fileSize)} · v{m.mediaVersion}</span>
+                    <span className="tabular-nums">
+                      {formatSize(m.fileSize)} · v{m.mediaVersion}
+                      {m.width > 0 && ` · ${m.width}×${m.height}`}
+                    </span>
                     <span>{formatDate(m.createdAt)}</span>
                   </div>
                 </div>
@@ -570,7 +591,50 @@ export default function MediaPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.date")}</p>
                   <p className="text-sm font-bold text-black dark:text-white">{formatDate(detailMedia.createdAt)}</p>
                 </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.resolution")}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">
+                    {detailMedia.width > 0
+                      ? `${detailMedia.width} × ${detailMedia.height} px` +
+                        (detailMedia.resolution > 0 ? ` · ${detailMedia.resolution} ppp` : "")
+                      : t("notMeasurable")}
+                  </p>
+                </div>
               </div>
+
+              {/* Constat d'inspection.
+                  Le chef de service doit juger « le format, la résolution et les
+                  droits d'auteur » du visuel (cahier des charges 7.6). Il ne
+                  disposait que du statut de conformité, sans savoir ce qui
+                  l'avait produit : il jugeait à l'œil nu. */}
+              {detailMedia.copyrightRisk && (
+                <div className="flex items-start gap-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+                  <svg className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 3l7 13H3l7-13z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                    <path d="M10 8v3.5M10 13.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t("copyright.riskTitle")}</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 break-words">
+                      {t("copyright.riskDetail", { notice: detailMedia.copyrightNotice ?? "" })}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {detailMedia.conformityReport && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("conformityReport")}</p>
+                  <ul className="flex flex-col gap-1">
+                    {detailMedia.conformityReport.split("\n").filter(Boolean).map((line, i) => (
+                      <li key={i} className="text-xs text-text-secondary dark:text-neutral-400 flex gap-2">
+                        <span className="text-neutral-400 dark:text-neutral-600">·</span>
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
               {canValidate && detailMedia.conformityStatus === "PENDING" && (

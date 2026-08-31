@@ -57,6 +57,7 @@ public class MediaAssetService {
     private final OfferMediaRepository offerMediaRepository;
     private final MinioClient minioClient;
     private final ClamAvScanService clamAvScanService;
+    private final MediaConformityService conformityService;
 
     @Value("${pim.minio.bucket}")
     private String bucket;
@@ -65,12 +66,14 @@ public class MediaAssetService {
                              MediaValidationRepository mediaValidationRepository,
                              OfferMediaRepository offerMediaRepository,
                              MinioClient minioClient,
-                             ClamAvScanService clamAvScanService) {
+                             ClamAvScanService clamAvScanService,
+                             MediaConformityService conformityService) {
         this.mediaAssetRepository = mediaAssetRepository;
         this.mediaValidationRepository = mediaValidationRepository;
         this.offerMediaRepository = offerMediaRepository;
         this.minioClient = minioClient;
         this.clamAvScanService = clamAvScanService;
+        this.conformityService = conformityService;
     }
 
     @Transactional
@@ -111,15 +114,30 @@ public class MediaAssetService {
             throw new IllegalStateException("Impossible d'uploader le fichier vers le stockage");
         }
 
+        // Verification automatique exigee par le cahier des charges (7.5) :
+        // resolution, format, et signalement des risques de droits d'auteur. Elle
+        // ne declare jamais un media conforme — c'est la validation graphique du
+        // chef de service qui le fait — mais elle mesure ce qu'il doit juger, et
+        // ecarte d'emblee ce qui ne peut pas convenir.
+        MediaConformityService.ConformityReport report = conformityService.inspect(file, detectedMime);
+
         MediaAsset asset = new MediaAsset();
         asset.setFileName(originalName);
         asset.setMimeType(detectedMime);
         asset.setFileSize(file.getSize());
         asset.setStorageKey(safeKey);
         asset.setUploadedById(currentUserId());
-        asset.setConformityStatus(ConformityStatus.PENDING);
+        asset.setWidth(report.width());
+        asset.setHeight(report.height());
+        asset.setResolution(report.resolution());
+        asset.setConformityStatus(report.status());
+        asset.setCopyrightRisk(report.copyrightRisk());
+        asset.setCopyrightNotice(report.copyrightNotice());
+        asset.setConformityReport(report.findingsAsText());
 
         asset = mediaAssetRepository.save(asset);
+        log.info("Média '{}' déposé : {} — {}", originalName, report.status(),
+                String.join(" ; ", report.findings()));
         return MediaAssetResponse.from(asset);
     }
 
