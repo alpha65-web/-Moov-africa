@@ -2,23 +2,31 @@ package com.moov.pim.integration.service;
 
 import com.moov.pim.integration.api.dto.IntegrationExportResponse;
 import com.moov.pim.integration.api.dto.OfferDiffusionRow;
+import com.moov.pim.integration.domain.DeliveryMode;
 import com.moov.pim.integration.domain.ExportStatus;
 import com.moov.pim.integration.domain.ExportType;
 import com.moov.pim.integration.domain.IntegrationExport;
 import com.moov.pim.integration.domain.TargetSystem;
+import com.moov.pim.integration.domain.IntegrationEndpoint;
+import com.moov.pim.integration.repository.IntegrationEndpointRepository;
 import com.moov.pim.integration.repository.IntegrationExportRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -28,9 +36,15 @@ public class IntegrationExportService {
     private static final int MAX_RETRY = 3;
 
     private final IntegrationExportRepository exportRepository;
+    private final IntegrationEndpointRepository endpointRepository;
+    private final RestClient restClient;
 
-    public IntegrationExportService(IntegrationExportRepository exportRepository) {
+    public IntegrationExportService(IntegrationExportRepository exportRepository,
+                                    IntegrationEndpointRepository endpointRepository,
+                                    RestClient.Builder restClientBuilder) {
         this.exportRepository = exportRepository;
+        this.endpointRepository = endpointRepository;
+        this.restClient = restClientBuilder.build();
     }
 
     /**
@@ -50,8 +64,17 @@ public class IntegrationExportService {
         for (TargetSystem target : TargetSystem.values()) {
             String idempotencyKey = offerId + "_" + target + "_" + System.currentTimeMillis();
 
-            if (exportRepository.existsByOfferIdAndTargetSystemAndStatus(offerId, target, ExportStatus.SUCCESS)) {
-                log.info("Offre {} déjà diffusée vers {} : rien à faire", offerId, target);
+            // Idempotence : une meme fiche deja remise avec succes n'est pas rediffusee.
+            // Le controle porte sur la derniere ligne et non sur l'existence d'un
+            // succes quelconque — sinon une offre retiree puis remise en ligne ne
+            // repartait jamais, son ancien succes suffisant a la faire ignorer.
+            Optional<IntegrationExport> last = exportRepository
+                    .findFirstByOfferIdAndTargetSystemOrderByCreatedAtDesc(offerId, target);
+            if (last.isPresent()
+                    && last.get().getStatus() == ExportStatus.SUCCESS
+                    && last.get().getExportType() == ExportType.AUTO_PUBLISH
+                    && payload.equals(last.get().getPayload())) {
+                log.info("Offre {} déjà diffusée vers {} dans cette version : rien à faire", offerId, target);
                 continue;
             }
 
@@ -69,19 +92,55 @@ public class IntegrationExportService {
     }
 
     /**
+     * Signale aux systemes destinataires qu'une offre n'est plus en ligne.
+     *
+     * Le corps transporte l'identifiant et le nouvel etat, pas la fiche : le
+     * destinataire n'a pas besoin du detail d'une offre qu'il doit retirer, il a
+     * besoin de savoir laquelle et pourquoi. C'est aussi ce qui permet au flux de
+     * distinguer une offre retiree d'une offre simplement absente de la page
+     * courante.
+     */
+    @Transactional
+    public void triggerWithdrawal(UUID offerId, String newStatus) {
+        String payload = "{\"offerId\":\"" + offerId + "\",\"state\":\"WITHDRAWN\",\"status\":\""
+                + newStatus + "\"}";
+
+        for (TargetSystem target : TargetSystem.values()) {
+            IntegrationExport export = new IntegrationExport();
+            export.setOfferId(offerId);
+            export.setTargetSystem(target);
+            export.setExportType(ExportType.WITHDRAWAL);
+            export.setIdempotencyKey(offerId + "_" + target + "_WITHDRAWAL_" + System.currentTimeMillis());
+            export.setPayload(payload);
+            export.setStatus(ExportStatus.PENDING);
+
+            deliver(export);
+            exportRepository.save(export);
+        }
+    }
+
+    /**
      * Remise de la fiche au systeme destinataire.
      *
-     * Point de raccordement unique : c'est ici, et nulle part ailleurs, qu'un
-     * appel reel au CRM, au centre d'appel ou au site web viendra se brancher. En
-     * l'absence d'acces a ces systemes — aucun n'a ete ouvert pendant le projet —
-     * l'etape se limite a constituer la fiche et a la deposer, ce qui est
-     * reellement fait et verifiable : le corps de l'export est lisible en base.
+     * Cette methode affirmait une diffusion qui n'avait pas lieu : elle basculait
+     * l'export en SUCCESS sans appeler personne, son propre journal precisant
+     * « adaptateur de destination non raccorde ». L'ecran annoncait donc « diffuse »
+     * pour une fiche que personne n'avait recue et que personne ne pouvait lire.
      *
-     * Le statut refuse volontairement de mentir dans les deux sens : une fiche
-     * vide n'est pas une diffusion et part en echec, une fiche constituee est un
-     * succes de production. Ce que le statut ne dit pas — que la destination est
-     * un adaptateur et non le systeme de production — est documente ici et affiche
-     * comme tel dans l'ecran Exports.
+     * Les deux canaux prevus par le sujet — « API ou export » — sont desormais
+     * distingues, et dans les deux cas le statut repose sur un fait verifiable :
+     *
+     *   PUSH — une URL est renseignee pour ce systeme : la fiche lui est envoyee en
+     *   HTTP et c'est le code de reponse qui decide du statut. Un refus reste un
+     *   echec, avec le code et le message du destinataire.
+     *
+     *   PULL — aucune URL n'est renseignee : la fiche est mise a disposition sur le
+     *   flux /feed, que le destinataire interroge avec sa cle. L'export reste alors
+     *   PENDING, c'est-a-dire « constituee, pas encore lue », et ne passera en
+     *   SUCCESS qu'au moment ou le systeme tiers l'aura effectivement consommee.
+     *
+     * Une fiche vide reste un echec dans les deux cas : ce n'est pas une diffusion,
+     * c'est une trace de diffusion.
      */
     private void deliver(IntegrationExport export) {
         if (export.getPayload() == null || export.getPayload().isBlank()
@@ -93,12 +152,76 @@ public class IntegrationExportService {
             return;
         }
 
-        export.setStatus(ExportStatus.SUCCESS);
-        export.setCompletedAt(LocalDateTime.now());
-        export.setErrorMessage(null);
-        log.info("Offre {} : fiche constituée et déposée pour {} ({} caractères) — "
-                        + "adaptateur de destination non raccordé à un système de production",
-                export.getOfferId(), export.getTargetSystem(), export.getPayload().length());
+        IntegrationEndpoint endpoint = endpointRepository.findById(export.getTargetSystem()).orElse(null);
+
+        if (endpoint == null || !endpoint.isReachable()) {
+            export.setDeliveryMode(DeliveryMode.PULL);
+            export.setStatus(ExportStatus.PENDING);
+            export.setErrorMessage(null);
+            export.setCompletedAt(null);
+            log.info("Offre {} : fiche mise à disposition de {} sur le flux de consommation "
+                            + "({} caractères) — aucune URL de remise n'est configurée pour ce système",
+                    export.getOfferId(), export.getTargetSystem(), export.getPayload().length());
+            return;
+        }
+
+        push(export, endpoint);
+    }
+
+    /**
+     * Envoi HTTP effectif de la fiche au systeme destinataire.
+     *
+     * Le corps part tel quel, en JSON. Le statut suit le code de reponse et rien
+     * d'autre : un systeme qui repond 500 n'a pas recu la fiche, et l'ecran doit le
+     * dire. L'erreur conservee est celle du destinataire, pas une reformulation.
+     */
+    private void push(IntegrationExport export, IntegrationEndpoint endpoint) {
+        export.setDeliveryMode(DeliveryMode.PUSH);
+        export.setEndpointUrl(endpoint.getUrl());
+
+        try {
+            ResponseEntity<String> response = restClient.post()
+                    .uri(endpoint.getUrl())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> {
+                        if (endpoint.getAuthHeader() != null && !endpoint.getAuthHeader().isBlank()) {
+                            headers.set(HttpHeaders.AUTHORIZATION, endpoint.getAuthHeader());
+                        }
+                    })
+                    .body(export.getPayload())
+                    .retrieve()
+                    .onStatus(status -> true, (request, res) -> { })
+                    .toEntity(String.class);
+
+            export.setHttpStatus(response.getStatusCode().value());
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                export.setStatus(ExportStatus.SUCCESS);
+                export.setCompletedAt(LocalDateTime.now());
+                export.setErrorMessage(null);
+                log.info("Offre {} remise à {} sur {} — HTTP {}",
+                        export.getOfferId(), export.getTargetSystem(), endpoint.getUrl(),
+                        response.getStatusCode().value());
+            } else {
+                export.setStatus(ExportStatus.FAILED);
+                export.setErrorMessage("Le système destinataire a répondu HTTP "
+                        + response.getStatusCode().value()
+                        + (response.getBody() == null ? "" : " : " + truncate(response.getBody())));
+                log.warn("Offre {} refusée par {} — HTTP {}",
+                        export.getOfferId(), export.getTargetSystem(), response.getStatusCode().value());
+            }
+        } catch (Exception e) {
+            export.setStatus(ExportStatus.FAILED);
+            export.setErrorMessage("Système destinataire injoignable : " + e.getMessage());
+            log.error("Remise vers {} impossible ({}) : {}",
+                    export.getTargetSystem(), endpoint.getUrl(), e.getMessage());
+        }
+    }
+
+    /** Les messages d'erreur des systemes tiers peuvent etre volumineux. */
+    private static String truncate(String value) {
+        String cleaned = value.replaceAll("\s+", " ").trim();
+        return cleaned.length() > 300 ? cleaned.substring(0, 300) + "…" : cleaned;
     }
 
     /**

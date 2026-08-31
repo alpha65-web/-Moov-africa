@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
-import type { IntegrationExport, Offer } from "@/lib/types";
+import type { IntegrationApiKey, IntegrationEndpoint, IntegrationExport, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 
@@ -26,9 +26,12 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 const SYSTEMS = ["CRM", "CALL_CENTER", "WEBSITE"] as const;
-const EXPORT_TYPES = ["AUTO_PUBLISH", "MANUAL_EXPORT", "RESYNC", "CATALOG_EXPORT"] as const;
+const EXPORT_TYPES = ["AUTO_PUBLISH", "MANUAL_EXPORT", "RESYNC", "CATALOG_EXPORT", "WITHDRAWAL"] as const;
 
 const PER_PAGE = 10;
+
+/** Base d'appel du flux, telle qu'un systeme tiers doit la saisir chez lui. */
+const FEED_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8092/api/v1") + "/feed/offers";
 
 function Skeleton({ className }: { className: string }) {
   return <div className={`rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse ${className}`} />;
@@ -37,6 +40,8 @@ function Skeleton({ className }: { className: string }) {
 export default function ExportsPage() {
   const t = useTranslations("exports");
   const tc = useTranslations("common");
+
+  const [tab, setTab] = useState<"deliveries" | "connection">("deliveries");
 
   const [exports, setExports] = useState<IntegrationExport[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -51,16 +56,32 @@ export default function ExportsPage() {
   const [triggering, setTriggering] = useState(false);
   const [form, setForm] = useState({ offerId: "", targetSystem: "", exportType: "" });
 
+  // ===== Raccordement =====
+  const [endpoints, setEndpoints] = useState<IntegrationEndpoint[]>([]);
+  const [endpointDrafts, setEndpointDrafts] = useState<Record<string, { url: string; active: boolean }>>({});
+  const [savingEndpoint, setSavingEndpoint] = useState<string | null>(null);
+  const [keys, setKeys] = useState<IntegrationApiKey[]>([]);
+  const [keyForm, setKeyForm] = useState({ label: "", targetSystem: "CRM" });
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [issuedSecret, setIssuedSecret] = useState<{ label: string; secret: string } | null>(null);
+  const [connectionLoading, setConnectionLoading] = useState(false);
+
   useEffect(() => { loadExports(); loadOffers(); }, []);
   useEffect(() => { setPage(1); }, [search, filterStatus, filterSystem, filterType]);
 
   useEffect(() => {
+    if (tab === "connection" && endpoints.length === 0) { loadConnection(); }
+  }, [tab]);
+
+  useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
-      if (e.key === "Escape" && showModal) { setShowModal(false); resetForm(); }
+      if (e.key !== "Escape") return;
+      if (issuedSecret) { setIssuedSecret(null); return; }
+      if (showModal) { setShowModal(false); resetForm(); }
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [showModal]);
+  }, [showModal, issuedSecret]);
 
   async function loadExports() {
     try {
@@ -73,6 +94,26 @@ export default function ExportsPage() {
   async function loadOffers() {
     try { const { data } = await api.get("/offers", { params: { size: 500 } }); setOffers(Array.isArray(data) ? data : data.content ?? []); }
     catch { /* */ }
+  }
+
+  async function loadConnection() {
+    setConnectionLoading(true);
+    try {
+      const [endpointsRes, keysRes] = await Promise.all([
+        api.get("/exports/endpoints"),
+        api.get("/exports/keys"),
+      ]);
+      const loaded: IntegrationEndpoint[] = endpointsRes.data ?? [];
+      setEndpoints(loaded);
+      setEndpointDrafts(Object.fromEntries(
+        loaded.map((e) => [e.targetSystem, { url: e.url ?? "", active: e.active }])
+      ));
+      setKeys(keysRes.data ?? []);
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.load")));
+    } finally {
+      setConnectionLoading(false);
+    }
   }
 
   function resetForm() { setForm({ offerId: "", targetSystem: "", exportType: "" }); }
@@ -93,6 +134,61 @@ export default function ExportsPage() {
     } finally { setTriggering(false); }
   }
 
+  async function saveEndpoint(targetSystem: string) {
+    const draft = endpointDrafts[targetSystem];
+    if (!draft) return;
+    setSavingEndpoint(targetSystem);
+    try {
+      const { data } = await api.put(`/exports/endpoints/${targetSystem}`, {
+        url: draft.url.trim() || null,
+        authHeader: null,
+        active: draft.active,
+      });
+      setEndpoints((prev) => prev.map((e) => (e.targetSystem === targetSystem ? data : e)));
+      toast.success(t("connection.endpoints.saved"));
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally {
+      setSavingEndpoint(null);
+    }
+  }
+
+  async function createKey(e: React.FormEvent) {
+    e.preventDefault();
+    if (creatingKey) return;
+    setCreatingKey(true);
+    try {
+      const { data } = await api.post("/exports/keys", keyForm);
+      setIssuedSecret({ label: data.label, secret: data.secret });
+      setKeyForm({ label: "", targetSystem: "CRM" });
+      const { data: refreshed } = await api.get("/exports/keys");
+      setKeys(refreshed ?? []);
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally {
+      setCreatingKey(false);
+    }
+  }
+
+  async function revokeKey(id: string) {
+    try {
+      const { data } = await api.delete(`/exports/keys/${id}`);
+      setKeys((prev) => prev.map((k) => (k.id === id ? data : k)));
+      toast.success(t("connection.keys.revoked"));
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    }
+  }
+
+  async function copySecret(secret: string) {
+    try {
+      await navigator.clipboard.writeText(secret);
+      toast.success(t("connection.keys.copied"));
+    } catch {
+      toast.error(t("connection.keys.copyFailed"));
+    }
+  }
+
   function formatDate(dateStr: string): string {
     const d = new Date(dateStr);
     return d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -100,6 +196,24 @@ export default function ExportsPage() {
 
   function offerName(offerId: string) {
     return offers.find((o) => o.id === offerId)?.name ?? offerId.slice(0, 8) + "...";
+  }
+
+  /**
+   * Ce qui atteste la diffusion, et non ce qu'on en affirme.
+   *
+   * L'ecran se contentait du statut. Or un statut ne dit pas par ou la fiche est
+   * passee : poussee vers le systeme et acceptee par lui, ou mise a disposition
+   * et pas encore lue. La colonne restitue la preuve — le code de reponse du
+   * destinataire, ou la date a laquelle il est venu chercher la fiche.
+   */
+  function deliveryProof(ex: IntegrationExport): string {
+    if (ex.deliveryMode === "PUSH") {
+      return ex.httpStatus ? t("delivery.pushed", { code: ex.httpStatus }) : t("delivery.pushFailed");
+    }
+    if (ex.deliveryMode === "PULL") {
+      return ex.consumedAt ? t("delivery.read", { date: formatDate(ex.consumedAt) }) : t("delivery.awaitingRead");
+    }
+    return t("delivery.none");
   }
 
   const filtered = useMemo(() => {
@@ -151,17 +265,41 @@ export default function ExportsPage() {
           <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="primary-icon px-4 py-2.5 active-scale">
-          <span className="flex items-center gap-2">
-            <svg className="size-4" viewBox="0 0 16 16" fill="none">
-              <path d="M4 10v3a1 1 0 001 1h6a1 1 0 001-1v-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-              <path d="M8 2v8M5.5 4.5L8 2l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <p className="text-sm font-medium">{t("triggerExport")}</p>
-          </span>
-        </button>
+        {tab === "deliveries" && (
+          <button onClick={() => setShowModal(true)} className="primary-icon px-4 py-2.5 active-scale">
+            <span className="flex items-center gap-2">
+              <svg className="size-4" viewBox="0 0 16 16" fill="none">
+                <path d="M4 10v3a1 1 0 001 1h6a1 1 0 001-1v-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <path d="M8 2v8M5.5 4.5L8 2l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <p className="text-sm font-medium">{t("triggerExport")}</p>
+            </span>
+          </button>
+        )}
       </div>
 
+      {/* ===== ONGLETS ===== */}
+      <div className="flex items-center gap-1 border-b border-border dark:border-neutral-800">
+        {([
+          { id: "deliveries" as const, label: t("tabs.deliveries") },
+          { id: "connection" as const, label: t("tabs.connection") },
+        ]).map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setTab(item.id)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
+              tab === item.id
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary dark:text-neutral-500 hover:text-black dark:hover:text-white"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "deliveries" && (
+      <>
       {/* ===== 3 STAT CARDS ===== */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {statCards.map((card) => (
@@ -213,8 +351,8 @@ export default function ExportsPage() {
 
       {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_1fr_120px_90px_80px_140px_140px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
-          {[t("columns.system"), t("columns.offerId"), t("columns.type"), t("columns.status"), t("columns.retries"), t("columns.createdAt"), t("columns.completedAt")].map((col, i) => (
+        <div className="hidden md:grid grid-cols-[1fr_1fr_110px_90px_170px_70px_130px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
+          {[t("columns.system"), t("columns.offerId"), t("columns.type"), t("columns.status"), t("columns.channel"), t("columns.retries"), t("columns.createdAt")].map((col, i) => (
             <span key={i} className="text-[11px] font-semibold uppercase tracking-wider text-white">{col}</span>
           ))}
         </div>
@@ -222,8 +360,8 @@ export default function ExportsPage() {
         {loading ? (
           <div className="px-6 py-4 flex flex-col gap-1">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="hidden md:grid grid-cols-[1fr_1fr_120px_90px_80px_140px_140px] gap-3 items-center py-3.5">
-                <Skeleton className="w-24 h-4" /><Skeleton className="w-20 h-4" /><Skeleton className="w-20 h-5 !rounded-md" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-8 h-4" /><Skeleton className="w-28 h-4" /><Skeleton className="w-28 h-4" />
+              <div key={i} className="hidden md:grid grid-cols-[1fr_1fr_110px_90px_170px_70px_130px] gap-3 items-center py-3.5">
+                <Skeleton className="w-24 h-4" /><Skeleton className="w-20 h-4" /><Skeleton className="w-20 h-5 !rounded-md" /><Skeleton className="w-16 h-5 !rounded-md" /><Skeleton className="w-32 h-4" /><Skeleton className="w-8 h-4" /><Skeleton className="w-28 h-4" />
               </div>
             ))}
           </div>
@@ -256,7 +394,7 @@ export default function ExportsPage() {
         ) : (
           <div className="divide-y divide-border dark:divide-neutral-800">
             {paginated.map((ex) => (
-              <div key={ex.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_120px_90px_80px_140px_140px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
+              <div key={ex.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_110px_90px_170px_70px_130px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${STATUS_STYLES[ex.status] ?? STATUS_STYLES.PENDING}`}>
                     {STATUS_ICONS[ex.status] ?? STATUS_ICONS.PENDING}
@@ -265,12 +403,21 @@ export default function ExportsPage() {
                 </div>
                 <span className="text-xs text-text-secondary dark:text-neutral-400 font-mono truncate" title={ex.offerId}>{offerName(ex.offerId)}</span>
                 <span className="inline-flex items-center w-fit px-2.5 py-0.5 text-[11px] font-medium rounded-md bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">{t(`exportType.${ex.exportType}`)}</span>
-                <span className={`inline-flex items-center w-fit px-2.5 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[ex.status] ?? STATUS_STYLES.PENDING}`}>
+                <span className={`inline-flex items-center w-fit px-2.5 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[ex.status] ?? STATUS_STYLES.PENDING}`} title={ex.errorMessage ?? undefined}>
                   {t(`status.${ex.status}`)}
                 </span>
+                <div className="flex flex-col min-w-0">
+                  {ex.deliveryMode && (
+                    <span className="text-[11px] font-semibold text-black dark:text-white">
+                      {t(`deliveryMode.${ex.deliveryMode}`)}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-text-secondary dark:text-neutral-400 truncate" title={ex.endpointUrl ?? undefined}>
+                    {deliveryProof(ex)}
+                  </span>
+                </div>
                 <span className="text-xs text-text-secondary dark:text-neutral-400 tabular-nums text-center">{ex.retryCount}</span>
                 <span className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(ex.createdAt)}</span>
-                <span className="text-xs text-text-secondary dark:text-neutral-400">{ex.completedAt ? formatDate(ex.completedAt) : t("notCompleted")}</span>
               </div>
             ))}
           </div>
@@ -303,6 +450,162 @@ export default function ExportsPage() {
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {/* ===================================================================
+           RACCORDEMENT
+
+           Les deux canaux prevus par le sujet, cote a cote : ou la plateforme
+           pousse les fiches, et avec quoi les systemes tiers viennent les lire.
+           =================================================================== */}
+      {tab === "connection" && (
+        <div className="flex flex-col gap-6">
+
+          {/* --- Endpoints --- */}
+          <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-border dark:border-neutral-800">
+              <h2 className="text-base font-bold text-black dark:text-white">{t("connection.endpoints.title")}</h2>
+              <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("connection.endpoints.description")}</p>
+            </div>
+            {connectionLoading ? (
+              <div className="px-6 py-5 flex flex-col gap-3">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="w-full h-12" />)}
+              </div>
+            ) : (
+              <div className="divide-y divide-border dark:divide-neutral-800">
+                {endpoints.map((endpoint) => {
+                  const draft = endpointDrafts[endpoint.targetSystem] ?? { url: "", active: false };
+                  return (
+                    <div key={endpoint.targetSystem} className="px-6 py-4 flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold text-black dark:text-white">{t(`targetSystem.${endpoint.targetSystem}`)}</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-md ${
+                          endpoint.reachable
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                        }`}>
+                          {endpoint.reachable ? t("connection.endpoints.connected") : t("connection.endpoints.notConnected")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <input
+                          value={draft.url}
+                          onChange={(e) => setEndpointDrafts({ ...endpointDrafts, [endpoint.targetSystem]: { ...draft, url: e.target.value } })}
+                          placeholder={t("connection.endpoints.placeholder")}
+                          className="input h-10 flex-1 min-w-[240px] font-mono text-xs"
+                        />
+                        <label className="flex items-center gap-2 text-sm text-text-secondary dark:text-neutral-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={draft.active}
+                            onChange={(e) => setEndpointDrafts({ ...endpointDrafts, [endpoint.targetSystem]: { ...draft, active: e.target.checked } })}
+                            className="size-4 accent-primary cursor-pointer"
+                          />
+                          {t("connection.endpoints.active")}
+                        </label>
+                        <button
+                          onClick={() => saveEndpoint(endpoint.targetSystem)}
+                          disabled={savingEndpoint === endpoint.targetSystem}
+                          className="primary-icon px-4 py-2 active-scale disabled:opacity-60"
+                        >
+                          <p className="text-sm font-medium">
+                            {savingEndpoint === endpoint.targetSystem ? tc("saving") : tc("save")}
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* --- Cles de consommation --- */}
+          <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-border dark:border-neutral-800">
+              <h2 className="text-base font-bold text-black dark:text-white">{t("connection.keys.title")}</h2>
+              <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("connection.keys.description")}</p>
+            </div>
+
+            <form onSubmit={createKey} className="px-6 py-4 flex items-end gap-3 flex-wrap border-b border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/20">
+              <div className="flex flex-col gap-1.5 flex-1 min-w-[200px]">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("connection.keys.label")}</label>
+                <input
+                  required
+                  value={keyForm.label}
+                  onChange={(e) => setKeyForm({ ...keyForm, label: e.target.value })}
+                  placeholder={t("connection.keys.labelPlaceholder")}
+                  className="input h-10 w-full"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5 min-w-[180px]">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.system")}</label>
+                <select value={keyForm.targetSystem} onChange={(e) => setKeyForm({ ...keyForm, targetSystem: e.target.value })} className="input h-10 w-full">
+                  {SYSTEMS.map((s) => <option key={s} value={s}>{t(`targetSystem.${s}`)}</option>)}
+                </select>
+              </div>
+              <button type="submit" disabled={creatingKey} className="primary-icon px-4 py-2.5 active-scale disabled:opacity-60">
+                <p className="text-sm font-medium">{creatingKey ? tc("saving") : t("connection.keys.create")}</p>
+              </button>
+            </form>
+
+            {connectionLoading ? (
+              <div className="px-6 py-5 flex flex-col gap-3">
+                {[...Array(2)].map((_, i) => <Skeleton key={i} className="w-full h-10" />)}
+              </div>
+            ) : keys.length === 0 ? (
+              <p className="px-6 py-10 text-center text-sm text-text-secondary dark:text-neutral-500">{t("connection.keys.empty")}</p>
+            ) : (
+              <div className="divide-y divide-border dark:divide-neutral-800">
+                {keys.map((key) => (
+                  <div key={key.id} className="px-6 py-3.5 flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-semibold text-black dark:text-white truncate">{key.label}</span>
+                      <span className="text-[11px] text-text-secondary dark:text-neutral-400 font-mono">
+                        {key.keyPrefix}… · {t(`targetSystem.${key.targetSystem}`)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-text-secondary dark:text-neutral-400">
+                        {key.lastUsedAt
+                          ? t("connection.keys.lastUsed", { date: formatDate(key.lastUsedAt), count: key.callCount })
+                          : t("connection.keys.neverUsed")}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-md ${
+                        key.active
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                      }`}>
+                        {key.active ? t("connection.keys.active") : t("connection.keys.revokedLabel")}
+                      </span>
+                      {key.active && (
+                        <button onClick={() => revokeKey(key.id)} className="tertiary-icon px-3 py-1.5 active-scale">
+                          <p className="text-xs font-medium">{t("connection.keys.revoke")}</p>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* --- Mode d'emploi --- */}
+          <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card p-6">
+            <h2 className="text-base font-bold text-black dark:text-white">{t("connection.howTo.title")}</h2>
+            <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1 mb-4">{t("connection.howTo.description")}</p>
+            <pre className="overflow-x-auto rounded-xl bg-neutral-900 dark:bg-black text-neutral-100 text-xs p-4 font-mono leading-relaxed">
+{`curl -H "X-Api-Key: mvpim_..." \\
+     ${FEED_BASE}
+
+# synchronisation incrémentale
+curl -H "X-Api-Key: mvpim_..." \\
+     "${FEED_BASE}?since=2026-01-01T00:00:00"`}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {/* ===== MODAL TRIGGER EXPORT ===== */}
       {showModal && (
@@ -350,6 +653,39 @@ export default function ExportsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL : CLE CREEE =====
+           La valeur en clair n'existe qu'ici. La base n'en conserve que
+           l'empreinte : refermer cette fenetre sans l'avoir copiee oblige a en
+           creer une autre, et c'est volontaire. */}
+      {issuedSecret && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setIssuedSecret(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
+              <h2 className="text-base font-bold text-black dark:text-white">{t("connection.keys.createdTitle")}</h2>
+              <button onClick={() => setIssuedSecret(null)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3">
+                {t("connection.keys.copyWarning")}
+              </p>
+              <code className="block break-all rounded-xl bg-neutral-900 dark:bg-black text-neutral-100 text-xs p-4 font-mono">
+                {issuedSecret.secret}
+              </code>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => copySecret(issuedSecret.secret)} className="tertiary-icon px-4 py-2 active-scale">
+                <p className="text-sm font-medium">{t("connection.keys.copy")}</p>
+              </button>
+              <button onClick={() => setIssuedSecret(null)} className="primary-icon px-5 py-2 active-scale">
+                <p className="text-sm font-medium">{tc("close")}</p>
+              </button>
+            </div>
           </div>
         </div>
       )}

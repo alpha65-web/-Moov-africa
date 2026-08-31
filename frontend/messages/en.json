@@ -1235,7 +1235,8 @@
       "status": "Status",
       "retries": "Retries",
       "createdAt": "Created at",
-      "completedAt": "Completed at"
+      "completedAt": "Completed at",
+      "channel": "Channel"
     },
     "allStatuses": "All statuses",
     "allSystems": "All systems",
@@ -1254,7 +1255,8 @@
       "AUTO_PUBLISH": "Auto publish",
       "MANUAL_EXPORT": "Manual export",
       "RESYNC": "Resync",
-      "CATALOG_EXPORT": "Catalog export"
+      "CATALOG_EXPORT": "Catalog export",
+      "WITHDRAWAL": "Withdrawal"
     },
     "form": {
       "selectOffer": "Select an offer",
@@ -1273,7 +1275,56 @@
       "previous": "Previous",
       "next": "Next"
     },
-    "notCompleted": "—"
+    "notCompleted": "—",
+    "tabs": {
+      "deliveries": "Deliveries",
+      "connection": "Connection"
+    },
+    "deliveryMode": {
+      "PUSH": "Pushed",
+      "PULL": "Made available"
+    },
+    "delivery": {
+      "pushed": "Accepted · HTTP {code}",
+      "pushFailed": "Rejected by the target system",
+      "read": "Read on {date}",
+      "awaitingRead": "Awaiting read",
+      "none": "—"
+    },
+    "connection": {
+      "endpoints": {
+        "title": "Target systems",
+        "description": "Address the platform posts records to. While no URL is set, records stay readable on the feed and are never reported as delivered.",
+        "placeholder": "https://crm.moov.bf/pim/offers",
+        "active": "Delivery enabled",
+        "connected": "Connected",
+        "notConnected": "Feed only",
+        "saved": "Connection saved"
+      },
+      "keys": {
+        "title": "Consumer keys",
+        "description": "Each third-party system queries the feed with its own key. It scopes what that system can read and shows whether it actually consumes the data.",
+        "label": "Name",
+        "labelPlaceholder": "CRM production",
+        "create": "Create a key",
+        "createdTitle": "Key created",
+        "copyWarning": "This value is shown once. The platform only stores its fingerprint: copy it now, otherwise you will have to issue a new one.",
+        "copy": "Copy",
+        "copied": "Key copied",
+        "copyFailed": "Copy failed: select the key and copy it manually",
+        "revoke": "Revoke",
+        "revoked": "Key revoked",
+        "active": "Active",
+        "revokedLabel": "Revoked",
+        "neverUsed": "Never used",
+        "lastUsed": "Last call {date} · {count} calls",
+        "empty": "No key has been issued to a third-party system yet."
+      },
+      "howTo": {
+        "title": "Consuming the feed",
+        "description": "The target system calls this address with its key. The \"since\" parameter returns only what changed since its last synchronisation."
+      }
+    }
   },
   "login": {
     "title": "Login",

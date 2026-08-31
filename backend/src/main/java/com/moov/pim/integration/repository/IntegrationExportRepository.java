@@ -1,6 +1,7 @@
 package com.moov.pim.integration.repository;
 
 import com.moov.pim.integration.domain.ExportStatus;
+import com.moov.pim.integration.domain.ExportType;
 import com.moov.pim.integration.domain.IntegrationExport;
 import com.moov.pim.integration.domain.TargetSystem;
 import org.springframework.data.domain.Page;
@@ -35,4 +36,20 @@ public interface IntegrationExportRepository extends JpaRepository<IntegrationEx
     Optional<IntegrationExport> findFirstByOfferIdAndPayloadIsNotNullOrderByCreatedAtDesc(UUID offerId);
 
     boolean existsByOfferIdAndTargetSystemAndStatus(UUID offerId, TargetSystem targetSystem, ExportStatus status);
+
+    /**
+     * Exports d'un systeme destinataire, du plus recent au plus ancien.
+     *
+     * Sert a constituer le flux de consommation : pour chaque offre, seule la
+     * derniere ligne compte, c'est elle qui porte l'etat courant de la fiche du
+     * point de vue de ce canal.
+     */
+    List<IntegrationExport> findByTargetSystemAndPayloadIsNotNullOrderByCreatedAtDesc(TargetSystem targetSystem);
+
+    boolean existsByOfferIdAndTargetSystemAndExportTypeAndCreatedAtAfter(
+            UUID offerId, TargetSystem targetSystem, ExportType exportType, java.time.LocalDateTime after);
+
+    /** Derniere ligne ouverte pour un couple offre / systeme destinataire. */
+    Optional<IntegrationExport> findFirstByOfferIdAndTargetSystemOrderByCreatedAtDesc(
+            UUID offerId, TargetSystem targetSystem);
 }

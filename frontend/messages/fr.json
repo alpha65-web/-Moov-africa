@@ -1235,7 +1235,8 @@
       "status": "Statut",
       "retries": "Tentatives",
       "createdAt": "Créé le",
-      "completedAt": "Terminé le"
+      "completedAt": "Terminé le",
+      "channel": "Canal"
     },
     "allStatuses": "Tous les statuts",
     "allSystems": "Tous les systèmes",
@@ -1254,7 +1255,8 @@
       "AUTO_PUBLISH": "Publication auto",
       "MANUAL_EXPORT": "Export manuel",
       "RESYNC": "Resynchronisation",
-      "CATALOG_EXPORT": "Export catalogue"
+      "CATALOG_EXPORT": "Export catalogue",
+      "WITHDRAWAL": "Retrait"
     },
     "form": {
       "selectOffer": "Sélectionner une offre",
@@ -1273,7 +1275,56 @@
       "previous": "Précédent",
       "next": "Suivant"
     },
-    "notCompleted": "—"
+    "notCompleted": "—",
+    "tabs": {
+      "deliveries": "Diffusions",
+      "connection": "Raccordement"
+    },
+    "deliveryMode": {
+      "PUSH": "Poussée",
+      "PULL": "Mise à disposition"
+    },
+    "delivery": {
+      "pushed": "Acceptée · HTTP {code}",
+      "pushFailed": "Refusée par le destinataire",
+      "read": "Lue le {date}",
+      "awaitingRead": "En attente de lecture",
+      "none": "—"
+    },
+    "connection": {
+      "endpoints": {
+        "title": "Systèmes destinataires",
+        "description": "Adresse à laquelle la plateforme envoie les fiches. Tant qu'aucune URL n'est renseignée, les fiches restent lisibles sur le flux et ne sont pas annoncées comme remises.",
+        "placeholder": "https://crm.moov.bf/pim/offres",
+        "active": "Remise active",
+        "connected": "Raccordé",
+        "notConnected": "Lecture sur le flux",
+        "saved": "Raccordement enregistré"
+      },
+      "keys": {
+        "title": "Clés de consommation",
+        "description": "Chaque système tiers interroge le flux avec sa propre clé. Elle borne ce qu'il peut lire et permet de constater qu'il consomme réellement l'information.",
+        "label": "Intitulé",
+        "labelPlaceholder": "CRM production",
+        "create": "Créer une clé",
+        "createdTitle": "Clé créée",
+        "copyWarning": "Cette valeur n'est affichée qu'une fois. La plateforme n'en conserve que l'empreinte : copiez-la maintenant, sinon il faudra en créer une autre.",
+        "copy": "Copier",
+        "copied": "Clé copiée",
+        "copyFailed": "Copie impossible : sélectionnez la clé et copiez-la à la main",
+        "revoke": "Révoquer",
+        "revoked": "Clé révoquée",
+        "active": "Active",
+        "revokedLabel": "Révoquée",
+        "neverUsed": "Jamais utilisée",
+        "lastUsed": "Dernier appel {date} · {count} appels",
+        "empty": "Aucune clé n'a encore été remise à un système tiers."
+      },
+      "howTo": {
+        "title": "Consommer le flux",
+        "description": "Le système destinataire appelle cette adresse avec sa clé. Le paramètre « since » ne renvoie que ce qui a changé depuis sa dernière synchronisation."
+      }
+    }
   },
   "login": {
     "title": "Connexion",

@@ -256,15 +256,62 @@ export interface AbTest {
   createdAt: string;
 }
 
+/**
+ * Une diffusion vers un systeme tiers.
+ *
+ * Les champs de tracabilite sont ce qui distingue un statut constate d'un statut
+ * affirme : `httpStatus` est le code renvoye par le destinataire quand la fiche
+ * lui a ete poussee, `consumedAt` la date a laquelle il est venu la lire quand
+ * elle est restee a sa disposition. Un succes sans l'un ni l'autre n'aurait
+ * aucune preuve derriere lui.
+ */
 export interface IntegrationExport {
   id: string;
   targetSystem: string;
   offerId: string;
   exportType: string;
   status: string;
+  /** PUSH : la plateforme a appele le systeme. PULL : elle a mis la fiche a disposition. */
+  deliveryMode: string | null;
+  endpointUrl: string | null;
+  httpStatus: number | null;
+  consumedAt: string | null;
+  consumedCount: number;
+  errorMessage: string | null;
   retryCount: number;
   createdAt: string;
   completedAt: string | null;
+}
+
+/** Adresse a laquelle la plateforme pousse les fiches d'un systeme destinataire. */
+export interface IntegrationEndpoint {
+  targetSystem: string;
+  url: string | null;
+  active: boolean;
+  /** Vrai quand la remise HTTP est reellement possible : actif et URL renseignee. */
+  reachable: boolean;
+  updatedById: string | null;
+  updatedAt: string;
+}
+
+/**
+ * Cle remise a un systeme tiers pour interroger le flux des offres publiees.
+ *
+ * `keyPrefix` est le debut de la cle, conserve en clair pour la reconnaitre dans
+ * une liste ; la valeur complete n'existe qu'une fois, a la creation.
+ * `lastUsedAt` et `callCount` disent si le systeme consomme reellement le flux :
+ * une cle creee mais jamais utilisee signale un raccordement qui n'a pas abouti.
+ */
+export interface IntegrationApiKey {
+  id: string;
+  label: string;
+  targetSystem: string;
+  keyPrefix: string;
+  active: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+  callCount: number;
+  revokedAt: string | null;
 }
 
 export const ROLE_LABELS: Record<string, string> = {

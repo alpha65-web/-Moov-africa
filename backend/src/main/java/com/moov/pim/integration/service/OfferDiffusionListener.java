@@ -1,6 +1,7 @@
 package com.moov.pim.integration.service;
 
 import com.moov.pim.shared.event.OfferPublishedEvent;
+import com.moov.pim.shared.event.OfferTransitionEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -37,5 +38,27 @@ public class OfferDiffusionListener {
     public void on(OfferPublishedEvent event) {
         log.info("Publication de l'offre {} : ouverture de la diffusion multicanale", event.offerId());
         exportService.triggerAutoExport(event.offerId(), event.payload());
+    }
+
+    /**
+     * Propage le retrait d'une offre aux systemes destinataires.
+     *
+     * Le circuit ne diffusait que les mises en ligne. Une offre suspendue, retiree
+     * ou devenue obsolete restait donc presente dans le CRM et au centre d'appel,
+     * qui continuaient de la proposer : le conseiller vendait une offre que la
+     * plateforme avait deja retiree, sans aucun moyen de l'apprendre.
+     *
+     * Le retrait part par le meme chemin que la publication, ce qui garantit que le
+     * destinataire le recoit selon les memes regles — pousse s'il est raccorde,
+     * lisible sur le flux sinon.
+     */
+    @ApplicationModuleListener
+    public void on(OfferTransitionEvent event) {
+        if (!"PUBLISHED".equals(event.fromStatus()) || "PUBLISHED".equals(event.toStatus())) {
+            return;
+        }
+        log.info("Offre {} retirée de la ligne ({} → {}) : propagation du retrait",
+                event.offerId(), event.fromStatus(), event.toStatus());
+        exportService.triggerWithdrawal(event.offerId(), event.toStatus());
     }
 }

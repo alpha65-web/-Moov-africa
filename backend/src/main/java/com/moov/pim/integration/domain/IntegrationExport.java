@@ -57,6 +57,29 @@ public class IntegrationExport {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    /**
+     * Canal par lequel la fiche a ete remise. Renseigne a la remise, jamais devine :
+     * un export dont le mode est PULL n'a pas ete pousse, il a ete mis a disposition.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_mode")
+    private DeliveryMode deliveryMode;
+
+    /** URL reellement appelee en mode PUSH, conservee pour le rapprochement. */
+    @Column(name = "endpoint_url")
+    private String endpointUrl;
+
+    /** Code de reponse du systeme destinataire. C'est lui qui fait foi en mode PUSH. */
+    @Column(name = "http_status")
+    private Integer httpStatus;
+
+    /** Premiere lecture effective de la fiche par le destinataire, en mode PULL. */
+    @Column(name = "consumed_at")
+    private LocalDateTime consumedAt;
+
+    @Column(name = "consumed_count", nullable = false)
+    private int consumedCount = 0;
+
     public IntegrationExport() {}
 
     @PrePersist
@@ -84,4 +107,14 @@ public class IntegrationExport {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getCompletedAt() { return completedAt; }
     public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
+    public DeliveryMode getDeliveryMode() { return deliveryMode; }
+    public void setDeliveryMode(DeliveryMode deliveryMode) { this.deliveryMode = deliveryMode; }
+    public String getEndpointUrl() { return endpointUrl; }
+    public void setEndpointUrl(String endpointUrl) { this.endpointUrl = endpointUrl; }
+    public Integer getHttpStatus() { return httpStatus; }
+    public void setHttpStatus(Integer httpStatus) { this.httpStatus = httpStatus; }
+    public LocalDateTime getConsumedAt() { return consumedAt; }
+    public void setConsumedAt(LocalDateTime consumedAt) { this.consumedAt = consumedAt; }
+    public int getConsumedCount() { return consumedCount; }
+    public void setConsumedCount(int consumedCount) { this.consumedCount = consumedCount; }
 }

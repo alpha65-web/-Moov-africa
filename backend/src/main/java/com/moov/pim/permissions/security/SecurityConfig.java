@@ -40,6 +40,13 @@ public class SecurityConfig {
     private final com.moov.pim.shared.security.DlpFilter dlpFilter;
     private final MfaPolicyFilter mfaPolicyFilter;
 
+    /**
+     * Authentification des systemes tiers sur /feed. Elle passe par une cle et non
+     * par un jeton de session : un CRM n'est pas une personne et n'a pas de compte
+     * sur la plateforme.
+     */
+    private final com.moov.pim.shared.security.ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+
     @Autowired(required = false)
     private JwtDecoder oidcJwtDecoder;
 
@@ -57,13 +64,15 @@ public class SecurityConfig {
                           CustomUserDetailsService userDetailsService,
                           SecurityMetricsService metricsService,
                           com.moov.pim.shared.security.DlpFilter dlpFilter,
-                          MfaPolicyFilter mfaPolicyFilter) {
+                          MfaPolicyFilter mfaPolicyFilter,
+                          com.moov.pim.shared.security.ApiKeyAuthenticationFilter apiKeyAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitFilter = rateLimitFilter;
         this.userDetailsService = userDetailsService;
         this.metricsService = metricsService;
         this.dlpFilter = dlpFilter;
         this.mfaPolicyFilter = mfaPolicyFilter;
+        this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
     }
 
     @Bean
@@ -106,6 +115,7 @@ public class SecurityConfig {
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(mfaPolicyFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(dlpFilter, org.springframework.security.web.access.intercept.AuthorizationFilter.class);
