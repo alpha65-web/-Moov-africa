@@ -5,6 +5,7 @@ import com.moov.pim.dam.domain.MediaAsset;
 import com.moov.pim.dam.domain.OfferMedia;
 import com.moov.pim.dam.repository.OfferMediaRepository;
 import com.moov.pim.shared.workflow.GraphicValidationGate;
+import com.moov.pim.shared.workflow.OfferMediaGate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ import java.util.UUID;
  * approuves.
  */
 @Service
-public class GraphicValidationService implements GraphicValidationGate {
+public class GraphicValidationService implements GraphicValidationGate, OfferMediaGate {
 
     private static final Logger log = LoggerFactory.getLogger(GraphicValidationService.class);
 
@@ -84,5 +85,34 @@ public class GraphicValidationService implements GraphicValidationGate {
         log.info("Offre {} retenue avant validation métier : {} visuel(s) non approuvé(s)",
                 offerId, pending.size());
         return Optional.of(reason);
+    }
+
+    /**
+     * Verifie qu'un visuel peut accompagner la diffusion d'une offre.
+     *
+     * Deux conditions, et le refus les distingue : le visuel doit etre rattache
+     * a cette offre — designer le visuel d'une autre offre n'aurait aucun sens —
+     * et il doit etre approuve. La seconde condition est la plus importante :
+     * sans elle, un visuel rejete par le chef de service pourrait ressortir par
+     * la diffusion, alors que le rejet visait precisement a l'empecher de
+     * paraitre.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> rejectionReason(UUID offerId, UUID mediaAssetId) {
+        Optional<OfferMedia> link = offerMediaRepository
+                .findByOfferIdAndMediaAssetId(offerId, mediaAssetId);
+        if (link.isEmpty()) {
+            return Optional.of("Ce visuel n'est pas rattaché à l'offre diffusée : "
+                    + "seuls les visuels de la fiche peuvent accompagner sa diffusion");
+        }
+
+        MediaAsset asset = link.get().getMediaAsset();
+        if (asset == null || asset.getConformityStatus() != ConformityStatus.COMPLIANT) {
+            return Optional.of("Le visuel « " + (asset == null ? "" : asset.getFileName())
+                    + " » n'est pas approuvé : le chef de service doit valider un visuel "
+                    + "avant qu'il ne parte en diffusion");
+        }
+        return Optional.empty();
     }
 }

@@ -12,6 +12,13 @@ import java.util.UUID;
 public record CreateCampaignRequest(
         @NotBlank String name,
         @NotNull UUID offerId,
+        /**
+         * Visuel accompagnant la diffusion, a choisir parmi ceux deja rattaches
+         * a l'offre et deja approuves. Facultatif : une campagne SMS ou USSD
+         * n'en a pas. Le serveur refuse tout autre visuel — le community manager
+         * designe, il ne depose pas.
+         */
+        UUID mediaAssetId,
         LocalDateTime scheduledAt,
         @NotEmpty List<ChannelConfig> channels
 ) {

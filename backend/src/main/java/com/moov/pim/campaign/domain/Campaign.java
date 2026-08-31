@@ -42,6 +42,16 @@ public class Campaign {
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
+    /**
+     * Visuel accompagnant la diffusion, choisi parmi ceux deja rattaches a
+     * l'offre et deja approuves. Le community manager le designe, il ne le
+     * depose pas : le depot reste la charge de l'analyste marketing, et la
+     * validation graphique celle du chef de service. Nul pour une campagne
+     * purement textuelle.
+     */
+    @Column(name = "media_asset_id")
+    private UUID mediaAssetId;
+
     @Column(name = "created_by_id", nullable = false)
     private UUID createdById;
 
@@ -74,6 +84,8 @@ public class Campaign {
     public void setScheduledAt(LocalDateTime scheduledAt) { this.scheduledAt = scheduledAt; }
     public LocalDateTime getPublishedAt() { return publishedAt; }
     public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
+    public UUID getMediaAssetId() { return mediaAssetId; }
+    public void setMediaAssetId(UUID mediaAssetId) { this.mediaAssetId = mediaAssetId; }
     public UUID getCreatedById() { return createdById; }
     public void setCreatedById(UUID createdById) { this.createdById = createdById; }
     public LocalDateTime getCreatedAt() { return createdAt; }

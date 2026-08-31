@@ -111,6 +111,57 @@ class GraphicValidationServiceTest {
     }
 
     // ===================================================================
+    // Visuel accompagnant une diffusion
+    // ===================================================================
+
+    @Test
+    void rejectionReason_refuseUnVisuelEtrangerALOffre() {
+        UUID offerId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        when(offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, mediaId))
+                .thenReturn(Optional.empty());
+
+        assertTrue(service.rejectionReason(offerId, mediaId).orElseThrow()
+                .contains("n'est pas rattaché"));
+    }
+
+    /**
+     * Le point essentiel : un visuel rejete par le chef de service ne doit pas
+     * pouvoir ressortir par la diffusion, le rejet visant precisement a
+     * l'empecher de paraitre.
+     */
+    @Test
+    void rejectionReason_refuseUnVisuelRejete() {
+        UUID offerId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        when(offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, mediaId))
+                .thenReturn(Optional.of(link(offerId, asset("rejete.png", ConformityStatus.NON_COMPLIANT))));
+
+        assertTrue(service.rejectionReason(offerId, mediaId).orElseThrow()
+                .contains("rejete.png"));
+    }
+
+    @Test
+    void rejectionReason_refuseUnVisuelEncoreEnAttente() {
+        UUID offerId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        when(offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, mediaId))
+                .thenReturn(Optional.of(link(offerId, asset("attente.png", ConformityStatus.PENDING))));
+
+        assertTrue(service.rejectionReason(offerId, mediaId).isPresent());
+    }
+
+    @Test
+    void rejectionReason_accepteUnVisuelApprouveDeLOffre() {
+        UUID offerId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        when(offerMediaRepository.findByOfferIdAndMediaAssetId(offerId, mediaId))
+                .thenReturn(Optional.of(link(offerId, asset("approuve.png", ConformityStatus.COMPLIANT))));
+
+        assertTrue(service.rejectionReason(offerId, mediaId).isEmpty());
+    }
+
+    // ===================================================================
 
     private static OfferMedia link(UUID offerId, MediaAsset asset) {
         OfferMedia link = new OfferMedia();

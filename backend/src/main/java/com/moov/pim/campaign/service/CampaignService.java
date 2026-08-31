@@ -10,6 +10,7 @@ import com.moov.pim.campaign.repository.CampaignRepository;
 import com.moov.pim.lifecycle.domain.OfferStatus;
 import com.moov.pim.lifecycle.repository.OfferRepository;
 import com.moov.pim.permissions.security.CustomUserDetails;
+import com.moov.pim.shared.workflow.OfferMediaGate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,9 +31,38 @@ public class CampaignService {
     private final CampaignRepository campaignRepository;
     private final OfferRepository offerRepository;
 
-    public CampaignService(CampaignRepository campaignRepository, OfferRepository offerRepository) {
+    /**
+     * Etat des visuels d'une offre. Le module des campagnes ne sait pas ce qu'est
+     * un visuel approuve : il pose la question a celui qui le sait.
+     */
+    private final OfferMediaGate offerMediaGate;
+
+    public CampaignService(CampaignRepository campaignRepository, OfferRepository offerRepository,
+                           OfferMediaGate offerMediaGate) {
         this.campaignRepository = campaignRepository;
         this.offerRepository = offerRepository;
+        this.offerMediaGate = offerMediaGate;
+    }
+
+    /**
+     * Controle le visuel designe pour la diffusion.
+     *
+     * Le community manager choisit parmi les visuels deja rattaches a l'offre et
+     * deja approuves ; il n'en depose aucun, le depot restant la charge de
+     * l'analyste marketing. Le controle vit ici et non seulement dans
+     * l'interface : une requete envoyee directement a l'API accrocherait sinon
+     * n'importe quel fichier de la mediatheque a une campagne, y compris un
+     * visuel rejete par le chef de service.
+     *
+     * @return le visuel valide, ou null pour une campagne sans visuel — une
+     *         diffusion SMS ou USSD n'en comporte pas.
+     */
+    private UUID checkMedia(UUID offerId, UUID mediaAssetId) {
+        if (mediaAssetId == null) return null;
+        offerMediaGate.rejectionReason(offerId, mediaAssetId).ifPresent(reason -> {
+            throw new IllegalArgumentException(reason);
+        });
+        return mediaAssetId;
     }
 
     @Transactional
@@ -41,6 +71,7 @@ public class CampaignService {
         campaign.setName(request.name());
         campaign.setOfferId(request.offerId());
         campaign.setCreatedById(currentUserId());
+        campaign.setMediaAssetId(checkMedia(request.offerId(), request.mediaAssetId()));
         campaign.setScheduledAt(request.scheduledAt());
 
         for (CreateCampaignRequest.ChannelConfig channelConfig : request.channels()) {
@@ -107,6 +138,7 @@ public class CampaignService {
 
         campaign.setName(request.name());
         campaign.setOfferId(request.offerId());
+        campaign.setMediaAssetId(checkMedia(request.offerId(), request.mediaAssetId()));
         campaign.setScheduledAt(request.scheduledAt());
         campaign.getChannels().clear();
 

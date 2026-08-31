@@ -139,6 +139,12 @@ export interface Campaign {
   id: string;
   name: string;
   offerId: string;
+  /**
+   * Visuel accompagnant la diffusion, choisi par le community manager parmi
+   * ceux déjà rattachés à l'offre et déjà approuvés. Nul pour une campagne
+   * purement textuelle — SMS, USSD.
+   */
+  mediaAssetId: string | null;
   status: string;
   scheduledAt: string | null;
   createdById: string;

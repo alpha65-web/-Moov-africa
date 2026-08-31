@@ -8,6 +8,7 @@ import type { Campaign, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 import ActionMenu from "@/components/ActionMenu";
+import MediaPreview from "@/components/MediaPreview";
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
@@ -26,6 +27,7 @@ const CHANNEL_LIST = ["SMS", "EMAIL", "PUSH_NOTIFICATION", "SOCIAL_MEDIA", "USSD
 const EMPTY_FORM = {
   name: "",
   offerId: "",
+  mediaAssetId: "",
   message: "",
   channelType: "SMS",
   scheduledAt: "",
@@ -60,6 +62,29 @@ export default function CampaignsPage() {
   const [creating, setCreating] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  /**
+   * Visuels approuves de l'offre diffusee.
+   *
+   * Le community manager prepare ses campagnes reseaux sociaux sans qu'aucun
+   * visuel n'apparaisse : il programmait une publication Facebook sans voir
+   * l'image qui habille l'offre. Il ne les depose pas — le cahier des charges
+   * (l. 104 et 154) confie le depot a l'analyste marketing — il choisit parmi
+   * ceux que le chef de service a deja approuves.
+   */
+  const [offerMedia, setOfferMedia] = useState<{
+    offerId: string;
+    items: { id: string; fileName: string; mimeType: string }[];
+  }>({ offerId: "", items: [] });
+  // Le chargement se deduit de l'ecart entre l'offre choisie et celle dont les
+  // visuels sont en memoire : un drapeau separe obligerait a le lever dans le
+  // corps de l'effet, donc a declencher un rendu de plus avant meme la requete.
+  const loadingMedia = Boolean(form.offerId) && offerMedia.offerId !== form.offerId;
+  /**
+   * Visuel de la campagne consultee. La reponse du serveur ne porte que son
+   * identifiant : le type reel est necessaire pour l'afficher correctement,
+   * une video ou une notice PDF ne se rendant pas comme une image.
+   */
+  const [detailMedia, setDetailMedia] = useState<{ id: string; fileName: string; mimeType: string } | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
@@ -109,6 +134,48 @@ export default function CampaignsPage() {
     catch { /* */ }
   }
 
+  /**
+   * Recharge les visuels chaque fois que l'offre diffusee change.
+   *
+   * Seuls les visuels approuves sont proposes : le serveur refuse les autres, et
+   * offrir un choix qu'il rejettera ensuite ferait passer une regle metier pour
+   * une panne. Un visuel deja retenu qui ne figure plus dans la liste — l'offre
+   * a change, ou le visuel a ete rejete depuis — est retire de la selection
+   * plutot que d'etre envoye pour se faire refuser.
+   */
+  useEffect(() => {
+    // Rien a charger, et rien a effacer : le bloc des visuels ne s'affiche
+    // qu'une fois une offre choisie, et un changement d'offre montre le
+    // chargement en cours plutot que la liste precedente.
+    if (!showModal || !form.offerId) return;
+    let cancelled = false;
+    const offerId = form.offerId;
+    api.get(`/media/offers/${offerId}`)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const approved = (Array.isArray(data) ? data : [])
+          .filter((m: { conformityStatus: string }) => m.conformityStatus === "COMPLIANT");
+        setOfferMedia({ offerId, items: approved });
+        setForm((f) => approved.some((m: { id: string }) => m.id === f.mediaAssetId)
+          ? f : { ...f, mediaAssetId: "" });
+      })
+      .catch(() => { if (!cancelled) setOfferMedia({ offerId, items: [] }); });
+    return () => { cancelled = true; };
+  }, [showModal, form.offerId]);
+
+  useEffect(() => {
+    const mediaId = detailCampaign?.mediaAssetId;
+    // Le visuel deja charge n'est pas efface ici : l'affichage verifie qu'il
+    // correspond bien a la campagne consultee, ce qui evite qu'un visuel reste
+    // a l'ecran pour une campagne qui n'en a pas.
+    if (!mediaId) return;
+    let cancelled = false;
+    api.get(`/media/${mediaId}`)
+      .then(({ data }) => { if (!cancelled) setDetailMedia(data); })
+      .catch(() => { if (!cancelled) setDetailMedia(null); });
+    return () => { cancelled = true; };
+  }, [detailCampaign]);
+
   function resetForm() { setForm({ ...EMPTY_FORM }); setEditingCampaign(null); }
   function openCreateModal() { resetForm(); setShowModal(true); }
 
@@ -116,6 +183,7 @@ export default function CampaignsPage() {
     setEditingCampaign(c);
     setForm({
       name: c.name, offerId: c.offerId || "",
+      mediaAssetId: c.mediaAssetId || "",
       message: c.channels?.[0]?.message || "",
       channelType: c.channels?.[0]?.channelType || "SMS",
       scheduledAt: c.scheduledAt || "",
@@ -130,6 +198,7 @@ export default function CampaignsPage() {
     try {
       const payload = {
         name: form.name, offerId: form.offerId || null,
+        mediaAssetId: form.mediaAssetId || null,
         scheduledAt: form.scheduledAt || null,
         channels: [{ channelType: form.channelType, message: form.message }],
       };
@@ -544,6 +613,43 @@ export default function CampaignsPage() {
                     {offers.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
+                {/* Visuel de la diffusion. Le community manager choisit parmi les
+                    visuels deja approuves de l'offre : il n'en depose pas, le
+                    depot appartenant a l'analyste marketing, et un visuel non
+                    approuve n'a rien a faire sur un reseau social. Le bloc ne
+                    s'affiche qu'une fois l'offre choisie, faute de quoi il n'y
+                    aurait rien a proposer. */}
+                {form.offerId && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                      {t("form.media")}
+                    </label>
+                    {loadingMedia ? (
+                      <Skeleton className="h-16 w-full" />
+                    ) : offerMedia.items.length === 0 ? (
+                      <p className="text-xs text-text-secondary dark:text-neutral-500">{t("form.noApprovedMedia")}</p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-4 gap-2">
+                          {offerMedia.items.map((m) => (
+                            <button key={m.id} type="button"
+                              onClick={() => setForm({ ...form, mediaAssetId: form.mediaAssetId === m.id ? "" : m.id })}
+                              title={m.fileName}
+                              className={`rounded-lg border-2 p-0.5 transition-colors ${form.mediaAssetId === m.id
+                                ? "border-primary"
+                                : "border-transparent hover:border-neutral-300 dark:hover:border-neutral-600"}`}>
+                              <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName}
+                                className="w-full h-14 rounded-md object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                        <span className="text-[11px] text-text-secondary dark:text-neutral-500">
+                          {form.mediaAssetId ? t("form.mediaSelected") : t("form.mediaOptional")}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.channel")}</label>
@@ -608,6 +714,17 @@ export default function CampaignsPage() {
                   <p className="text-sm font-bold text-black dark:text-white">{formatDate(detailCampaign.createdAt)}</p>
                 </div>
               </div>
+              {/* Le visuel retenu pour la diffusion. Sans lui, le choix fait au
+                  formulaire n'aurait aucune trace visible, et le community
+                  manager ne pourrait pas verifier ce qui partira. */}
+              {detailMedia && detailMedia.id === detailCampaign.mediaAssetId && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.media")}</p>
+                  <MediaPreview mediaId={detailMedia.id} mimeType={detailMedia.mimeType} fileName={detailMedia.fileName}
+                    className="w-full h-32 rounded-xl border border-border dark:border-neutral-700 object-cover" />
+                  <span className="text-[11px] text-text-secondary dark:text-neutral-500 truncate">{detailMedia.fileName}</span>
+                </div>
+              )}
               {detailCampaign.channels.length > 0 && (
                 <div className="flex flex-col gap-2">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.channel")}</p>

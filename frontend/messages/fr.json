@@ -355,6 +355,10 @@
       "name": "Nom de la campagne",
       "offer": "Offre associée",
       "selectOffer": "Sélectionner une offre",
+      "media": "Visuel de la diffusion",
+      "noApprovedMedia": "Aucun visuel approuvé sur cette offre. L'analyste marketing les dépose, le chef de service les valide.",
+      "mediaOptional": "Facultatif — laissez vide pour une diffusion sans visuel.",
+      "mediaSelected": "Ce visuel accompagnera la diffusion.",
       "channel": "Canal de diffusion",
       "message": "Message",
       "scheduledAt": "Date de planification"

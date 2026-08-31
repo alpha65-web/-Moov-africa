@@ -355,6 +355,10 @@
       "name": "Campaign name",
       "offer": "Associated offer",
       "selectOffer": "Select an offer",
+      "media": "Campaign media",
+      "noApprovedMedia": "No approved media on this offer. The marketing analyst uploads them, the service manager approves them.",
+      "mediaOptional": "Optional — leave empty for a campaign without media.",
+      "mediaSelected": "This media will accompany the campaign.",
       "channel": "Distribution channel",
       "message": "Message",
       "scheduledAt": "Scheduled date"

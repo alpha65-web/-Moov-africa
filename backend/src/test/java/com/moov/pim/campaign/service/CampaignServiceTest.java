@@ -36,6 +36,7 @@ class CampaignServiceTest {
 
     @Mock private CampaignRepository campaignRepository;
     @Mock private com.moov.pim.lifecycle.repository.OfferRepository offerRepository;
+    @Mock private com.moov.pim.shared.workflow.OfferMediaGate offerMediaGate;
 
     @InjectMocks private CampaignService campaignService;
 
@@ -58,10 +59,74 @@ class CampaignServiceTest {
         SecurityContextHolder.clearContext();
     }
 
+    /**
+     * Le community manager designe un visuel, il n'en depose pas : celui qu'il
+     * designe doit etre rattache a l'offre diffusee et approuve. Le controle vit
+     * dans le service et non seulement dans l'interface, faute de quoi une
+     * requete adressee directement a l'API accrocherait n'importe quel fichier
+     * de la mediatheque a une campagne Facebook.
+     */
+    @Test
+    void create_shouldRejectMediaThatIsNotApprovedForTheOffer() {
+        UUID offerId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        when(offerMediaGate.rejectionReason(offerId, mediaId))
+                .thenReturn(java.util.Optional.of("Le visuel n'est pas approuvé"));
+
+        CreateCampaignRequest request = new CreateCampaignRequest(
+                "Campagne", offerId, mediaId, null,
+                List.of(new CreateCampaignRequest.ChannelConfig(ChannelType.FACEBOOK, "Message")));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> campaignService.create(request));
+
+        assertEquals("Le visuel n'est pas approuvé", error.getMessage());
+        verify(campaignRepository, never()).save(any(Campaign.class));
+    }
+
+    @Test
+    void create_shouldKeepAnApprovedMediaOfTheOffer() {
+        UUID offerId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        when(offerMediaGate.rejectionReason(offerId, mediaId)).thenReturn(java.util.Optional.empty());
+        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> {
+            Campaign c = inv.getArgument(0);
+            setField(Campaign.class, c, "id", UUID.randomUUID());
+            return c;
+        });
+
+        CreateCampaignRequest request = new CreateCampaignRequest(
+                "Campagne", offerId, mediaId, null,
+                List.of(new CreateCampaignRequest.ChannelConfig(ChannelType.FACEBOOK, "Message")));
+
+        assertEquals(mediaId, campaignService.create(request).mediaAssetId());
+    }
+
+    /**
+     * Une campagne SMS ou USSD n'a pas de visuel : l'absence ne doit pas etre
+     * traitee comme un refus, et le module des medias n'a meme pas a etre
+     * interroge.
+     */
+    @Test
+    void create_withoutMedia_shouldNotConsultTheMediaModule() {
+        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> {
+            Campaign c = inv.getArgument(0);
+            setField(Campaign.class, c, "id", UUID.randomUUID());
+            return c;
+        });
+
+        CreateCampaignRequest request = new CreateCampaignRequest(
+                "Campagne SMS", UUID.randomUUID(), null, null,
+                List.of(new CreateCampaignRequest.ChannelConfig(ChannelType.SMS, "Message")));
+
+        assertNull(campaignService.create(request).mediaAssetId());
+        verifyNoInteractions(offerMediaGate);
+    }
+
     @Test
     void create_shouldReturnCampaignWithDraftStatus() {
         CreateCampaignRequest request = new CreateCampaignRequest(
-                "Campagne Été", UUID.randomUUID(), null,
+                "Campagne Été", UUID.randomUUID(), null, null,
                 List.of(new CreateCampaignRequest.ChannelConfig(ChannelType.FACEBOOK, "Promo été")));
 
         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> {
@@ -82,7 +147,7 @@ class CampaignServiceTest {
     void create_withScheduledAt_shouldSetScheduledStatus() {
         LocalDateTime scheduled = LocalDateTime.now().plusDays(7);
         CreateCampaignRequest request = new CreateCampaignRequest(
-                "Campagne Planifiée", UUID.randomUUID(), scheduled,
+                "Campagne Planifiée", UUID.randomUUID(), null, scheduled,
                 List.of(new CreateCampaignRequest.ChannelConfig(ChannelType.INSTAGRAM, "Message")));
 
         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> {
@@ -149,7 +214,7 @@ class CampaignServiceTest {
         setField(Campaign.class, campaign, "id", campaignId);
 
         CreateCampaignRequest request = new CreateCampaignRequest(
-                "Nouveau nom", UUID.randomUUID(), null,
+                "Nouveau nom", UUID.randomUUID(), null, null,
                 List.of(new CreateCampaignRequest.ChannelConfig(ChannelType.LINKEDIN, "Msg")));
 
         when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(campaign));
@@ -169,7 +234,7 @@ class CampaignServiceTest {
         setField(Campaign.class, campaign, "id", campaignId);
 
         CreateCampaignRequest request = new CreateCampaignRequest(
-                "Modif", UUID.randomUUID(), null,
+                "Modif", UUID.randomUUID(), null, null,
                 List.of(new CreateCampaignRequest.ChannelConfig(ChannelType.FACEBOOK, "Msg")));
 
         when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(campaign));

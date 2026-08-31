@@ -10,6 +10,8 @@ public record CampaignResponse(
         UUID id,
         String name,
         UUID offerId,
+        /** Visuel designe pour la diffusion, nul si la campagne est textuelle. */
+        UUID mediaAssetId,
         String status,
         LocalDateTime scheduledAt,
         LocalDateTime publishedAt,
@@ -27,6 +29,7 @@ public record CampaignResponse(
                 .toList();
         return new CampaignResponse(
                 campaign.getId(), campaign.getName(), campaign.getOfferId(),
+                campaign.getMediaAssetId(),
                 campaign.getStatus().name(), campaign.getScheduledAt(),
                 campaign.getPublishedAt(), campaign.getCreatedById(),
                 campaign.getCreatedAt(), channels
