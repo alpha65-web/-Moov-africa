@@ -7,7 +7,28 @@ import api, { apiError } from "@/lib/api";
 import { usePermissions, PERM } from "@/lib/permissions";
 import type { CatalogItem, Offer } from "@/lib/types";
 
-type Tab = "assistant" | "generation" | "insights";
+type Tab = "assistant" | "generation" | "extraction" | "insights";
+
+/**
+ * Proposition issue de la lecture d'une fiche technique.
+ *
+ * Tous les champs sont nullables : la lecture ne remplit jamais ce qu'elle n'a
+ * pas trouvé. `notes` dit ce qui a été reconnu et ce qui a manqué — c'est ce qui
+ * distingue une extraction vérifiable d'un formulaire prérempli par magie.
+ */
+interface SheetExtraction {
+  name: string | null;
+  itemType: string | null;
+  serviceType: string | null;
+  billingCycle: string | null;
+  basePrice: number | null;
+  currency: string | null;
+  categoryId: string | null;
+  categoryPath: string | null;
+  characteristics: string | null;
+  tags: string[];
+  notes: string[];
+}
 type GenType = "DESCRIPTION" | "TAGS" | "TRANSLATION" | "SEO";
 type Tone = "PROFESSIONAL" | "CREATIVE";
 type SourceMode = "catalog" | "offer" | "free";
@@ -89,6 +110,27 @@ function Skeleton({ className }: { className: string }) {
   return <div className={`rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse ${className}`} />;
 }
 
+
+/**
+ * Champ d'une proposition d'extraction.
+ *
+ * Un champ non trouvé s'affiche explicitement comme tel plutôt que vide : une
+ * case vide se lit comme un écran incomplet, alors qu'elle dit ici que la fiche
+ * ne portait pas l'information.
+ */
+function Field({ label, value, empty }: { label: string; value: string | null; empty: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{label}</p>
+      {value ? (
+        <p className="text-sm font-semibold text-primary dark:text-white break-words">{value}</p>
+      ) : (
+        <p className="text-sm italic text-neutral-400 dark:text-neutral-600">{empty}</p>
+      )}
+    </div>
+  );
+}
+
 export default function AiPage() {
   const t = useTranslations("ai");
   const tc = useTranslations("common");
@@ -102,6 +144,54 @@ export default function AiPage() {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  /* ===== EXTRACTION DE FICHE TECHNIQUE ===== */
+  /**
+   * Auto-tagging au sens du cahier des charges (7.10) : « extraction automatique
+   * de donnees depuis des fiches techniques, cote chef de produit, a la
+   * creation ». Le type TAGS de l'onglet Generation part, lui, des champs deja
+   * saisis en base — c'est-a-dire du resultat que cette extraction produit.
+   *
+   * La proposition n'est jamais appliquee d'office : le chef de produit relit et
+   * recopie ce qu'il retient. Une extraction qui creerait l'element lui ferait
+   * porter des valeurs qu'il n'a pas choisies.
+   */
+  const [sheetText, setSheetText] = useState("");
+  const [sheetItemType, setSheetItemType] = useState("SERVICE");
+  const [extracting, setExtracting] = useState(false);
+  const [extraction, setExtraction] = useState<SheetExtraction | null>(null);
+
+  async function handleExtract() {
+    if (!sheetText.trim() || extracting) return;
+    setExtracting(true);
+    setExtraction(null);
+    try {
+      const { data } = await api.post("/ai/extract", {
+        content: sheetText,
+        itemType: sheetItemType,
+      });
+      setExtraction(data);
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  /**
+   * Lecture locale d'un fichier texte deposé.
+   *
+   * Le contenu est chargé dans la zone de saisie plutôt qu'envoyé tel quel : le
+   * chef de produit voit exactement ce que le serveur va lire, et peut le
+   * corriger avant. Seuls les formats texte sont acceptés — annoncer le PDF sans
+   * savoir l'ouvrir produirait une extraction vide sans explication.
+   */
+  function handleSheetFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => setSheetText(String(reader.result ?? ""));
+    reader.onerror = () => toast.error(t("extraction.readError"));
+    reader.readAsText(file);
+  }
 
   /* ===== GENERATION ===== */
   /**
@@ -346,6 +436,19 @@ export default function AiPage() {
         </svg>
       ),
     },
+    // L'extraction depuis une fiche technique est l'auto-tagging du cahier des
+    // charges (7.10) : elle se situe cote chef de produit, a la creation.
+    ...(canTag ? [{
+      key: "extraction" as Tab,
+      label: t("tabs.extraction"),
+      icon: (
+        <svg className="size-4" viewBox="0 0 20 20" fill="none">
+          <path d="M5 2.5h6l4 4V17a.5.5 0 01-.5.5h-9A.5.5 0 015 17V3a.5.5 0 010-.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+          <path d="M11 2.5v4h4" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+          <path d="M7.5 11h5M7.5 13.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      ),
+    }] : []),
     // L'analyse de qualite porte sur le referentiel produit : elle releve de celui
     // qui le construit, pas de celui qui habille les fiches ni de qui les valide.
     ...(canTag ? [{
@@ -679,6 +782,173 @@ export default function AiPage() {
       )}
 
       {/* ===== TAB : INSIGHTS ===== */}
+      {/* ===================================================================
+           EXTRACTION DEPUIS UNE FICHE TECHNIQUE
+
+           Auto-tagging au sens de la section 7.10 du cahier des charges. La
+           proposition est présentée pour relecture, jamais appliquée d'office :
+           le chef de produit reste l'auteur de ce qui entre au catalogue.
+           =================================================================== */}
+      {tab === "extraction" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card p-5 flex flex-col gap-4">
+            <div>
+              <h2 className="text-base font-bold text-primary dark:text-white">{t("extraction.title")}</h2>
+              <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("extraction.subtitle")}</p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                {t("extraction.itemType")}
+              </label>
+              <select
+                value={sheetItemType}
+                onChange={(e) => setSheetItemType(e.target.value)}
+                className="input h-10 w-full"
+              >
+                <option value="PRODUCT">{t("extraction.types.PRODUCT")}</option>
+                <option value="SERVICE">{t("extraction.types.SERVICE")}</option>
+                <option value="PACK">{t("extraction.types.PACK")}</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                {t("extraction.sheet")}
+              </label>
+              <textarea
+                value={sheetText}
+                onChange={(e) => setSheetText(e.target.value)}
+                rows={14}
+                placeholder={t("extraction.placeholder")}
+                className="input w-full resize-y font-mono text-xs leading-relaxed"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <label className="text-xs text-text-secondary dark:text-neutral-400 cursor-pointer hover:text-primary dark:hover:text-white transition-colors">
+                <input
+                  type="file"
+                  accept=".txt,.csv,.md,text/plain"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleSheetFile(file);
+                    e.target.value = "";
+                  }}
+                />
+                {t("extraction.loadFile")}
+              </label>
+              <button
+                onClick={handleExtract}
+                disabled={extracting || !sheetText.trim()}
+                className="primary-icon px-5 py-2.5 active-scale disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="flex items-center gap-2">
+                  {extracting && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                  <p className="text-sm font-medium">{extracting ? t("extraction.reading") : t("extraction.run")}</p>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card p-5 flex flex-col gap-4">
+            <div>
+              <h2 className="text-base font-bold text-primary dark:text-white">{t("extraction.proposalTitle")}</h2>
+              <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("extraction.proposalSubtitle")}</p>
+            </div>
+
+            {!extraction ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-14 text-center">
+                <svg className="size-20" viewBox="0 0 120 120" fill="none">
+                  <rect x="30" y="18" width="60" height="80" rx="7" className="fill-violet-50 dark:fill-violet-900/15 stroke-violet-200 dark:stroke-violet-800/30" strokeWidth="1.5" />
+                  <path d="M43 40h34M43 52h34M43 64h22" className="stroke-violet-200 dark:stroke-violet-800/40" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="78" cy="80" r="12" className="fill-white dark:fill-neutral-900 stroke-violet-300 dark:stroke-violet-700/50" strokeWidth="1.6" />
+                  <path d="M74 80l3 3 5-6" className="stroke-violet-400 dark:stroke-violet-500" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p className="text-sm text-text-secondary dark:text-neutral-500 max-w-xs leading-relaxed">
+                  {t("extraction.emptyState")}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={t("extraction.fields.name")} value={extraction.name} empty={t("extraction.notFound")} />
+                  <Field
+                    label={t("extraction.fields.price")}
+                    value={extraction.basePrice != null ? `${extraction.basePrice.toLocaleString()} ${extraction.currency ?? ""}`.trim() : null}
+                    empty={t("extraction.notFound")}
+                  />
+                  <Field
+                    label={t("extraction.fields.serviceType")}
+                    value={extraction.serviceType ? t(`extraction.serviceTypes.${extraction.serviceType}`) : null}
+                    empty={t("extraction.notFound")}
+                  />
+                  <Field
+                    label={t("extraction.fields.billingCycle")}
+                    value={extraction.billingCycle ? t(`extraction.billingCycles.${extraction.billingCycle}`) : null}
+                    empty={t("extraction.notFound")}
+                  />
+                  <div className="col-span-2">
+                    <Field label={t("extraction.fields.category")} value={extraction.categoryPath} empty={t("extraction.notFound")} />
+                  </div>
+                </div>
+
+                {extraction.characteristics && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                      {t("extraction.fields.characteristics")}
+                    </p>
+                    <pre className="rounded-xl bg-neutral-50 dark:bg-neutral-800/40 p-3 text-xs text-primary dark:text-neutral-200 whitespace-pre-wrap font-sans leading-relaxed">
+{extraction.characteristics}
+                    </pre>
+                  </div>
+                )}
+
+                {extraction.tags.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                      {t("extraction.fields.tags")}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {extraction.tags.map((tag) => (
+                        <span key={tag} className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ce que la lecture a reconnu, et ce qu'elle a manqué. Sans ce
+                    compte rendu, un champ vide serait indiscernable d'un champ
+                    que la fiche ne renseignait pas. */}
+                {extraction.notes.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                      {t("extraction.report")}
+                    </p>
+                    <ul className="flex flex-col gap-1">
+                      {extraction.notes.map((note, i) => (
+                        <li key={i} className="text-xs text-text-secondary dark:text-neutral-400 flex gap-2">
+                          <span className="text-neutral-400 dark:text-neutral-600">·</span>
+                          <span>{note}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <p className="text-xs text-text-secondary dark:text-neutral-500 border-t border-border dark:border-neutral-800 pt-3 leading-relaxed">
+                  {t("extraction.disclaimer")}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {tab === "insights" && (
         <div className="space-y-6">
           {loadingInsights || !insights ? (

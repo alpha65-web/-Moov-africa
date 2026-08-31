@@ -1374,7 +1374,8 @@
     "tabs": {
       "assistant": "Assistant",
       "generation": "Génération",
-      "insights": "Insights"
+      "insights": "Insights",
+      "extraction": "Fiche technique"
     },
     "assistant": {
       "placeholder": "Posez une question sur vos données...",
@@ -1453,7 +1454,50 @@
         "businessRules": "Règles métier"
       }
     },
-    "poweredBy": "Calculé sur les données de la plateforme"
+    "poweredBy": "Calculé sur les données de la plateforme",
+    "extraction": {
+      "title": "Lire une fiche technique",
+      "subtitle": "Collez la fiche du fournisseur : la plateforme en extrait le nom, le prix, les caractéristiques, la catégorie et les mots-clés.",
+      "itemType": "Type d'élément",
+      "types": {
+        "PRODUCT": "Produit",
+        "SERVICE": "Service",
+        "PACK": "Pack"
+      },
+      "sheet": "Contenu de la fiche",
+      "placeholder": "Nom commercial : Forfait Internet Max\nVolume : 25 Go\nValidité : 30 jours\nPrix : 12 500 FCFA\nFacturation : par mois",
+      "loadFile": "Charger un fichier texte (.txt, .csv, .md)",
+      "readError": "Fichier illisible",
+      "run": "Extraire",
+      "reading": "Lecture...",
+      "proposalTitle": "Proposition",
+      "proposalSubtitle": "À relire et à corriger avant de créer l'élément.",
+      "emptyState": "Collez une fiche technique à gauche, puis lancez l'extraction. Le résultat s'affichera ici.",
+      "notFound": "Non trouvé dans la fiche",
+      "report": "Compte rendu de lecture",
+      "disclaimer": "Cette proposition n'est pas enregistrée. Reportez ce que vous retenez dans le formulaire de création : vous restez l'auteur de ce qui entre au catalogue.",
+      "fields": {
+        "name": "Nom",
+        "price": "Prix",
+        "serviceType": "Nature",
+        "billingCycle": "Facturation",
+        "category": "Catégorie proposée",
+        "characteristics": "Caractéristiques",
+        "tags": "Mots-clés"
+      },
+      "serviceTypes": {
+        "DATA": "Data",
+        "VOICE": "Voix",
+        "MOBILE_MONEY": "Mobile Money",
+        "OTHER": "Autre"
+      },
+      "billingCycles": {
+        "MONTHLY": "Mensuelle",
+        "WEEKLY": "Hebdomadaire",
+        "DAILY": "Journalière",
+        "ONE_TIME": "Paiement unique"
+      }
+    }
   },
   "classification": {
     "type": "Type",

@@ -1374,7 +1374,8 @@
     "tabs": {
       "assistant": "Assistant",
       "generation": "Generation",
-      "insights": "Insights"
+      "insights": "Insights",
+      "extraction": "Datasheet"
     },
     "assistant": {
       "placeholder": "Ask a question about your data...",
@@ -1453,7 +1454,50 @@
         "businessRules": "Business rules"
       }
     },
-    "poweredBy": "Computed from platform data"
+    "poweredBy": "Computed from platform data",
+    "extraction": {
+      "title": "Read a datasheet",
+      "subtitle": "Paste the supplier datasheet: the platform extracts the name, price, characteristics, category and keywords.",
+      "itemType": "Item type",
+      "types": {
+        "PRODUCT": "Product",
+        "SERVICE": "Service",
+        "PACK": "Pack"
+      },
+      "sheet": "Datasheet content",
+      "placeholder": "Name: Internet Max plan\nVolume: 25 GB\nValidity: 30 days\nPrice: 12,500 FCFA\nBilling: monthly",
+      "loadFile": "Load a text file (.txt, .csv, .md)",
+      "readError": "File could not be read",
+      "run": "Extract",
+      "reading": "Reading...",
+      "proposalTitle": "Proposal",
+      "proposalSubtitle": "Review and correct before creating the item.",
+      "emptyState": "Paste a datasheet on the left, then run the extraction. The result will appear here.",
+      "notFound": "Not found in the datasheet",
+      "report": "Reading report",
+      "disclaimer": "This proposal is not saved. Carry over what you keep into the creation form: you remain the author of what enters the catalogue.",
+      "fields": {
+        "name": "Name",
+        "price": "Price",
+        "serviceType": "Nature",
+        "billingCycle": "Billing",
+        "category": "Suggested category",
+        "characteristics": "Characteristics",
+        "tags": "Keywords"
+      },
+      "serviceTypes": {
+        "DATA": "Data",
+        "VOICE": "Voice",
+        "MOBILE_MONEY": "Mobile Money",
+        "OTHER": "Other"
+      },
+      "billingCycles": {
+        "MONTHLY": "Monthly",
+        "WEEKLY": "Weekly",
+        "DAILY": "Daily",
+        "ONE_TIME": "One-time"
+      }
+    }
   },
   "classification": {
     "type": "Type",
