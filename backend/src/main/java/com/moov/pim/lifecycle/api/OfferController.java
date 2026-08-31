@@ -6,6 +6,7 @@ import com.moov.pim.lifecycle.api.dto.CreateOfferRequest;
 import com.moov.pim.lifecycle.api.dto.EnrichOfferRequest;
 import com.moov.pim.lifecycle.api.dto.OfferHistoryEntryResponse;
 import com.moov.pim.lifecycle.api.dto.OfferResponse;
+import com.moov.pim.lifecycle.api.dto.OfferStatsResponse;
 import com.moov.pim.lifecycle.api.dto.OfferVersionResponse;
 import com.moov.pim.lifecycle.api.dto.StatusTransitionRequest;
 import com.moov.pim.lifecycle.api.dto.UpdateOfferRequest;
@@ -149,6 +150,19 @@ public class OfferController {
     public ResponseEntity<Page<OfferResponse>> myOffers(@AuthenticationPrincipal CustomUserDetails principal,
                                                         Pageable pageable) {
         return ResponseEntity.ok(offerService.listByUser(principal.getUserId(), pageable));
+    }
+
+    /**
+     * Effectif des offres par statut, pour les compteurs du tableau de bord.
+     *
+     * Ces chiffres se calculaient dans le navigateur sur une page de cinq cents
+     * offres : exacts tant que le catalogue tient sous cette limite, faux et
+     * silencieux au-dela. Le comptage revient a la base, qui le fait juste.
+     */
+    @GetMapping("/stats")
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public ResponseEntity<OfferStatsResponse> stats() {
+        return ResponseEntity.ok(offerService.statsByStatus());
     }
 
     @GetMapping

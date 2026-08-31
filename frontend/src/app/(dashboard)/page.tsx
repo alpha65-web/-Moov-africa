@@ -245,6 +245,11 @@ export default function DashboardPage() {
     inValidation: 0,
   });
   const [allOffers, setAllOffers] = useState<Offer[]>([]);
+  // Effectif par statut, compte par la base et non dans le navigateur. Les
+  // compteurs et l'anneau de repartition s'en servent : ils restent exacts quel
+  // que soit le volume du catalogue, la ou un comptage sur la page chargee
+  // devenait faux — sans le dire — au-dela de cinq cents fiches.
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [recentOffers, setRecentOffers] = useState<Offer[]>([]);
   // Medias en attente de validation graphique : c'est la file du chef de service
   // sur le circuit dedie, distinct du circuit metier. Chargee seulement pour lui.
@@ -253,32 +258,44 @@ export default function DashboardPage() {
 
   // Recalcule des que le profil arrive, sans relancer le chargement.
   const queueCount = useMemo(() => {
-    const wanted = new Set(queueKey ? queueKey.split(",") : []);
-    return allOffers.filter((o) => wanted.has(o.status)).length;
-  }, [allOffers, queueKey]);
+    const wanted = queueKey ? queueKey.split(",") : [];
+    return wanted.reduce((sum, status) => sum + (statusCounts[status] ?? 0), 0);
+  }, [statusCounts, queueKey]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [offersRes, catalogRes, usersRes, campaignsRes] = await Promise.all([
-          api.get("/offers", { params: { size: 500 } }).catch(() => ({ data: [] })),
-          api.get("/catalog", { params: { size: 500 } }).catch(() => ({ data: [] })),
+        const [statsRes, offersRes, catalogRes, usersRes, campaignsRes] = await Promise.all([
+          api.get("/offers/stats").catch(() => ({ data: null })),
+          // Le tri est explicite : sans lui, la base renvoie les fiches dans
+          // l'ordre qui l'arrange, et les « offres recentes » n'etaient recentes
+          // que par hasard. Il rend aussi la coupure a cinq cents deterministe
+          // pour les deux analyses ci-dessous, qui ont besoin des lignes elles-memes.
+          api.get("/offers", { params: { size: 500, sort: "createdAt,desc" } }).catch(() => ({ data: [] })),
+          api.get("/catalog", { params: { size: 1 } }).catch(() => ({ data: [] })),
           api.get("/users").catch(() => ({ data: [] })),
           api.get("/campaigns/mine").catch(() => ({ data: [] })),
         ]);
 
         // /offers et /catalog renvoient des Page<> ; /users et /campaigns/mine des tableaux nus.
         const offers: Offer[] = offersRes.data.content ?? offersRes.data;
-        const catalogItems = catalogRes.data.content ?? catalogRes.data;
+        // Le catalogue n'est plus telecharge pour etre compte : la page en porte
+        // deja l'effectif total.
+        const catalogTotal: number = catalogRes.data?.totalElements
+          ?? (catalogRes.data?.content ?? catalogRes.data ?? []).length;
+        const counts: Record<string, number> = statsRes.data?.byStatus ?? {};
+        const countOf = (status: string) => counts[status] ?? 0;
+
+        setStatusCounts(counts);
         setStats({
-          totalOffers: offers.length,
-          publishedOffers: offers.filter((o) => o.status === "PUBLISHED").length,
-          draftOffers: offers.filter((o) => o.status === "DRAFT").length,
-          catalogItems: catalogItems.length,
+          totalOffers: statsRes.data?.total ?? offers.length,
+          publishedOffers: countOf("PUBLISHED"),
+          draftOffers: countOf("DRAFT"),
+          catalogItems: catalogTotal,
           totalUsers: usersRes.data.length,
           activeCampaigns: campaignsRes.data.filter((c: { status: string }) => c.status === "PUBLISHED" || c.status === "SCHEDULED").length,
-          inEnrichment: offers.filter((o) => o.status === "IN_ENRICHMENT").length,
-          inValidation: offers.filter((o) => o.status === "IN_VALIDATION").length,
+          inEnrichment: countOf("IN_ENRICHMENT"),
+          inValidation: countOf("IN_VALIDATION"),
         });
         setAllOffers(offers);
         setRecentOffers(offers.slice(0, 5));
@@ -330,10 +347,10 @@ export default function DashboardPage() {
       .map((status) => ({
         status,
         label: ts.has(status) ? ts(status) : status,
-        value: allOffers.filter((o) => o.status === status).length,
+        value: statusCounts[status] ?? 0,
       }))
       .filter((row) => row.value > 0);
-  }, [allOffers, ts]);
+  }, [statusCounts, ts]);
 
   /**
    * Somme des parts effectivement dessinees.
@@ -388,6 +405,11 @@ export default function DashboardPage() {
    * mais nulle part en synthese : rien n'indiquait par ou commencer. Cette carte
    * repond a « quelle fiche dois-je completer en premier ». Les fiches deja
    * publiees en sont exclues : leur completude n'appelle plus d'action.
+   *
+   * Contrairement aux compteurs, ce classement porte sur les cinq cents fiches
+   * les plus recentes et non sur tout le catalogue : il lui faut les lignes
+   * elles-memes, que le comptage par statut ne transporte pas. La distinction
+   * reste sans effet tant que le catalogue tient sous cette limite.
    */
   const leastComplete = useMemo(
     () => allOffers
@@ -525,7 +547,7 @@ export default function DashboardPage() {
       {/* ===== HEADER ===== */}
       <div>
         <h1 className="text-2xl font-bold text-black dark:text-white">
-          {greeting}, {user?.firstName} 👋
+          {greeting}, {user?.firstName}
         </h1>
         <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">
           {t("subtitle")}

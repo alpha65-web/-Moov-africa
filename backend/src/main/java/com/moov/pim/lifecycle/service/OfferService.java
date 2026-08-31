@@ -12,6 +12,7 @@ import com.moov.pim.lifecycle.api.dto.EnrichOfferRequest;
 import com.moov.pim.lifecycle.api.dto.OfferHistoryEntryResponse;
 import com.moov.pim.lifecycle.api.dto.OfferVersionResponse;
 import com.moov.pim.lifecycle.api.dto.OfferResponse;
+import com.moov.pim.lifecycle.api.dto.OfferStatsResponse;
 import com.moov.pim.lifecycle.api.dto.StatusTransitionRequest;
 import com.moov.pim.lifecycle.api.dto.UpdateOfferRequest;
 import com.moov.pim.lifecycle.domain.Offer;
@@ -699,6 +700,40 @@ public class OfferService {
             return withNames(offerRepository.search(status, search, pageable));
         }
         return withNames(offerRepository.searchByOwner(status, search, currentUserId(), pageable));
+    }
+
+    /**
+     * Effectif par statut des offres visibles par le compte connecte.
+     *
+     * Le comptage suit les trois memes regimes que {@link #search} — perimetre de
+     * diffusion, vue transversale, ou seules ses propres fiches — pour qu'un
+     * compteur ne revele jamais l'existence d'une offre que la liste refuserait
+     * d'afficher.
+     */
+    @Transactional(readOnly = true)
+    public OfferStatsResponse statsByStatus() {
+        List<OfferRepository.StatusCount> counts;
+        if (isDiffusionOnly()) {
+            counts = offerRepository.countGroupedByStatusWithin(DIFFUSION_VISIBLE_STATUSES);
+        } else if (hasTransversalScope()) {
+            counts = offerRepository.countGroupedByStatus();
+        } else {
+            counts = offerRepository.countGroupedByStatusForOwner(currentUserId());
+        }
+
+        // Tous les statuts sont poses a zero d'abord : la base ne renvoie aucune
+        // ligne pour un statut sans offre, et l'appelant recevrait une carte
+        // incomplete dont il ne saurait pas distinguer « zero » de « absent ».
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        for (OfferStatus status : OfferStatus.values()) {
+            byStatus.put(status.name(), 0L);
+        }
+        long total = 0;
+        for (OfferRepository.StatusCount count : counts) {
+            byStatus.put(count.getStatus().name(), count.getTotal());
+            total += count.getTotal();
+        }
+        return new OfferStatsResponse(total, byStatus);
     }
 
     /** Resout les identites d'une page en une requete, puis projette. */

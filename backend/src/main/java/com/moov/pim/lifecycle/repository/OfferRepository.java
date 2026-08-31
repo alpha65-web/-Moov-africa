@@ -69,4 +69,34 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
 
     @Query("SELECT o FROM Offer o WHERE o.status = 'PUBLISHED' AND o.validUntil IS NOT NULL AND o.validUntil <= :threshold AND o.validUntil > :now")
     List<Offer> findExpiringOffers(LocalDateTime now, LocalDateTime threshold);
+
+    /**
+     * Effectif des offres par statut, compte par la base.
+     *
+     * Le tableau de bord telechargeait jusqu'a cinq cents fiches pour les compter
+     * dans le navigateur : au-dela, ses compteurs sous-estimaient silencieusement
+     * le catalogue, et chaque affichage transportait la totalite des fiches pour
+     * n'en tirer que des nombres. Le comptage revient ici, ou il est exact quel
+     * que soit le volume.
+     *
+     * Les trois variantes reprennent exactement les trois regimes de visibilite
+     * de {@code OfferService.search} : un compteur qui compterait des fiches que
+     * l'ecran n'a pas le droit d'afficher trahirait leur existence.
+     */
+    @Query("SELECT o.status AS status, COUNT(o) AS total FROM Offer o GROUP BY o.status")
+    List<StatusCount> countGroupedByStatus();
+
+    @Query("SELECT o.status AS status, COUNT(o) AS total FROM Offer o"
+            + " WHERE o.status IN :statuses GROUP BY o.status")
+    List<StatusCount> countGroupedByStatusWithin(java.util.Collection<OfferStatus> statuses);
+
+    @Query("SELECT o.status AS status, COUNT(o) AS total FROM Offer o"
+            + " WHERE o.createdById = :ownerId GROUP BY o.status")
+    List<StatusCount> countGroupedByStatusForOwner(UUID ownerId);
+
+    /** Une ligne du comptage : un statut et son effectif. */
+    interface StatusCount {
+        OfferStatus getStatus();
+        long getTotal();
+    }
 }

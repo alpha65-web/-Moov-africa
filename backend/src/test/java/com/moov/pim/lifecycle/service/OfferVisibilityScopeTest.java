@@ -118,6 +118,67 @@ class OfferVisibilityScopeTest {
         verify(offerRepository, never()).searchByOwner(any(), any(), any(), any());
     }
 
+    /**
+     * Les compteurs du tableau de bord suivent le meme perimetre que la liste.
+     *
+     * Un comptage global renverrait a un chef de produit le nombre total d'offres
+     * de la plateforme : il ne verrait aucune des fiches des autres acteurs, mais
+     * saurait combien il y en a. Le cloisonnement doit valoir pour les nombres
+     * comme pour les lignes.
+     */
+    @Test
+    void statistiques_chefDeProduit_neComptentQueSesPropresOffres() throws Exception {
+        UUID userId = authenticate(RoleName.CHEF_PRODUIT);
+        when(offerRepository.countGroupedByStatusForOwner(userId))
+                .thenReturn(List.of(statusCount(OfferStatus.DRAFT, 3)));
+
+        var stats = offerService.statsByStatus();
+
+        assertEquals(3, stats.total());
+        assertEquals(3L, stats.byStatus().get("DRAFT"));
+        verify(offerRepository).countGroupedByStatusForOwner(userId);
+        verify(offerRepository, never()).countGroupedByStatus();
+    }
+
+    @Test
+    void statistiques_chefDeService_comptentToutesLesOffres() throws Exception {
+        authenticate(RoleName.CHEF_SERVICE);
+        when(offerRepository.countGroupedByStatus())
+                .thenReturn(List.of(statusCount(OfferStatus.PUBLISHED, 7),
+                                    statusCount(OfferStatus.IN_VALIDATION, 2)));
+
+        var stats = offerService.statsByStatus();
+
+        assertEquals(9, stats.total());
+        verify(offerRepository).countGroupedByStatus();
+        verify(offerRepository, never()).countGroupedByStatusForOwner(any());
+    }
+
+    /**
+     * Un statut sans aucune offre ne produit pas de ligne en base. S'il manquait
+     * de la reponse, l'anneau de repartition ferait disparaitre l'etape au lieu
+     * de l'afficher a zero.
+     */
+    @Test
+    void statistiques_portentLesDixStatutsMemeAZero() throws Exception {
+        authenticate(RoleName.CHEF_SERVICE);
+        when(offerRepository.countGroupedByStatus())
+                .thenReturn(List.of(statusCount(OfferStatus.DRAFT, 1)));
+
+        var stats = offerService.statsByStatus();
+
+        assertEquals(OfferStatus.values().length, stats.byStatus().size());
+        assertEquals(0L, stats.byStatus().get("ARCHIVED"));
+        assertEquals(1, stats.total());
+    }
+
+    private static OfferRepository.StatusCount statusCount(OfferStatus status, long total) {
+        return new OfferRepository.StatusCount() {
+            @Override public OfferStatus getStatus() { return status; }
+            @Override public long getTotal() { return total; }
+        };
+    }
+
     @Test
     void chefDeDepartement_analysteEtCommunityManager_ontUneVueTransversale() throws Exception {
         for (RoleName roleName : List.of(RoleName.CHEF_DEPARTEMENT, RoleName.ANALYSTE_MARKETING,
