@@ -105,6 +105,7 @@ public class MediaAsset {
     public boolean isCopyrightRisk() { return copyrightRisk; }
     public void setCopyrightRisk(boolean copyrightRisk) { this.copyrightRisk = copyrightRisk; }
     public UUID getParentMediaId() { return parentMediaId; }
+    public void setParentMediaId(UUID parentMediaId) { this.parentMediaId = parentMediaId; }
     public int getMediaVersion() { return mediaVersion; }
     public void setMediaVersion(int mediaVersion) { this.mediaVersion = mediaVersion; }
     public UUID getUploadedById() { return uploadedById; }

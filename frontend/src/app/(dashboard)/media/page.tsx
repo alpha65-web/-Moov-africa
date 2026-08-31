@@ -25,7 +25,18 @@ interface MediaAsset {
   copyrightNotice: string | null;
   /** Constat d'inspection en clair, ce que le chef de service doit pouvoir lire. */
   conformityReport: string | null;
+  parentMediaId: string | null;
   mediaVersion: number;
+  createdAt: string;
+}
+
+/** Une décision prise sur un visuel, dans le circuit de validation graphique. */
+interface MediaValidation {
+  id: string;
+  status: string;
+  annotation: string | null;
+  mediaType: string;
+  validatedById: string | null;
   createdAt: string;
 }
 
@@ -82,6 +93,15 @@ export default function MediaPage() {
   const [primaryVisual, setPrimaryVisual] = useState(false);
   const [linking, setLinking] = useState(false);
   const canValidate = has(PERM.MEDIA_VALIDATE);
+
+  /* ===== CIRCUIT DE VALIDATION GRAPHIQUE ===== */
+  const [validationTarget, setValidationTarget] = useState<MediaAsset | null>(null);
+  const [validationApproved, setValidationApproved] = useState(true);
+  const [validationNote, setValidationNote] = useState("");
+  const [validating, setValidating] = useState(false);
+  const [detailValidations, setDetailValidations] = useState<MediaValidation[]>([]);
+  const [detailVersions, setDetailVersions] = useState<MediaAsset[]>([]);
+  const [contextLoading, setContextLoading] = useState(false);
   const tc = useTranslations("common");
 
   const [media, setMedia] = useState<MediaAsset[]>([]);
@@ -179,14 +199,99 @@ export default function MediaPage() {
    * Le circuit graphique attend { status, mediaType, annotation } et non un simple
    * booleen : l'ecran envoyait { approved } et l'appel echouait systematiquement en 400.
    */
-  async function handleValidate(media: MediaAsset, approved: boolean) {
+  /**
+   * Décision du chef de service sur un visuel.
+   *
+   * L'annotation vient désormais de lui. L'écran la fabriquait à partir d'un
+   * libellé générique (« Média approuvé » / « Média rejeté ») : la base stockait
+   * des commentaires d'apparence humaine qui ne renseignaient personne, alors que
+   * le cahier des charges (7.6) demande une annotation détaillée et confie à
+   * l'analyste la charge de corriger. Un rejet sans motif est refusé par le
+   * serveur, et l'écran n'en propose donc pas.
+   */
+  async function submitValidation() {
+    if (!validationTarget || validating) return;
+    if (validationApproved === false && !validationNote.trim()) {
+      toast.error(t("validation.reasonRequired"));
+      return;
+    }
+    setValidating(true);
     try {
-      await api.post(`/media/${media.id}/validate`, {
-        status: approved ? "APPROVED" : "REJECTED",
-        mediaType: assetMediaType(media.mimeType),
-        annotation: approved ? t("messages.approved") : t("messages.rejected"),
+      await api.post(`/media/${validationTarget.id}/validate`, {
+        status: validationApproved ? "APPROVED" : "REJECTED",
+        mediaType: assetMediaType(validationTarget.mimeType),
+        annotation: validationNote.trim() || null,
       });
-      toast.success(approved ? t("messages.approved") : t("messages.rejected"));
+      toast.success(validationApproved ? t("messages.approved") : t("messages.rejected"));
+      setValidationTarget(null);
+      setValidationNote("");
+      setDetailMedia(null);
+      loadMedia();
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally {
+      setValidating(false);
+    }
+  }
+
+  /**
+   * Ouvre la fiche d'un visuel avec son contexte de circuit.
+   *
+   * Les décisions passées et la chaîne des versions se chargent avec la fiche :
+   * juger une correction suppose de voir ce qui avait été reproché, et l'analyste
+   * qui vient corriger doit lire le motif du rejet.
+   */
+  function openDetail(media: MediaAsset) {
+    setDetailMedia(media);
+    setDetailValidations([]);
+    setDetailVersions([]);
+    loadMediaContext(media.id);
+  }
+
+  function openValidation(media: MediaAsset, approved: boolean) {
+    setValidationTarget(media);
+    setValidationApproved(approved);
+    setValidationNote("");
+  }
+
+  /**
+   * Historique et chaîne de versions du visuel ouvert.
+   *
+   * Les deux se chargent ensemble : juger une correction suppose de voir à la
+   * fois ce qui avait été reproché et ce à quoi ressemblait la version rejetée.
+   */
+  async function loadMediaContext(mediaId: string) {
+    setContextLoading(true);
+    try {
+      const [validations, versions] = await Promise.all([
+        api.get(`/media/${mediaId}/validations`),
+        api.get(`/media/${mediaId}/versions`),
+      ]);
+      setDetailValidations(validations.data ?? []);
+      setDetailVersions(versions.data ?? []);
+    } catch {
+      setDetailValidations([]);
+      setDetailVersions([]);
+    } finally {
+      setContextLoading(false);
+    }
+  }
+
+  /**
+   * Redépôt d'un visuel corrigé, chaîné sur celui qu'il remplace.
+   *
+   * Passer par l'upload ordinaire créerait un média orphelin : le chef de service
+   * n'aurait aucun moyen de rapprocher la correction du visuel qu'il avait rejeté.
+   */
+  async function handleRevision(media: MediaAsset, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      await api.post(`/media/${media.id}/revision`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(t("validation.revisionUploaded"));
+      setDetailMedia(null);
       loadMedia();
     } catch (e) {
       toast.error(apiError(e, tc("errors.action")));
@@ -431,7 +536,7 @@ export default function MediaPage() {
                 rendrait « approuver » et « rejeter » inatteignables. L'apercu porte donc
                 lui-meme l'arrondi du haut. */}
             {paginated.map((m) => (
-              <div key={m.id} className="group relative rounded-xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setDetailMedia(m)}>
+              <div key={m.id} className="group relative rounded-xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => openDetail(m)}>
                 <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName} className="w-full aspect-[16/9] !rounded-t-xl !rounded-b-none border-b border-border dark:border-neutral-800" />
                 <div className="p-3 flex flex-col gap-2">
                   <p className="text-sm font-semibold text-black dark:text-white truncate pr-7" title={m.fileName}>{m.fileName}</p>
@@ -466,7 +571,7 @@ export default function MediaPage() {
                   </button>
                   {openMenuId === m.id && (
                     <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-neutral-800 border border-border dark:border-neutral-700 rounded-xl shadow-lg p-1 min-w-[160px] animate-fade-in">
-                      <button onClick={() => { setDetailMedia(m); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                      <button onClick={() => { openDetail(m); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-black dark:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                         <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                         {t("actions.details")}
                       </button>
@@ -478,11 +583,11 @@ export default function MediaPage() {
                       )}
                       {canValidate && m.conformityStatus === "PENDING" && (
                         <>
-                          <button onClick={() => { handleValidate(m, true); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
+                          <button onClick={() => { openValidation(m, true); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
                             <svg className="size-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                             {t("actions.approve")}
                           </button>
-                          <button onClick={() => { handleValidate(m, false); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                          <button onClick={() => { openValidation(m, false); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                             <svg className="size-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                             {t("actions.reject")}
                           </button>
@@ -622,6 +727,71 @@ export default function MediaPage() {
                 </div>
               )}
 
+              {/* Circuit de validation graphique.
+                  Le chef de service doit revoir ses avis passés avant de juger
+                  une correction, et l'analyste doit lire le motif du rejet pour
+                  savoir quoi corriger. Ces décisions étaient écrites en base
+                  sans qu'aucun écran ne les affiche. */}
+              {contextLoading ? (
+                <Skeleton className="w-full h-16" />
+              ) : (
+                <>
+                  {detailVersions.length > 1 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">
+                        {t("validation.versions", { count: detailVersions.length })}
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[detailVersions[detailVersions.length - 2], detailVersions[detailVersions.length - 1]].map((version, i) => (
+                          <div key={version.id} className="flex flex-col gap-1.5">
+                            <span className="text-[11px] font-medium text-text-secondary dark:text-neutral-400">
+                              {i === 0 ? t("validation.before") : t("validation.after")} · v{version.mediaVersion}
+                            </span>
+                            <MediaPreview
+                              mediaId={version.id}
+                              mimeType={version.mimeType}
+                              fileName={version.fileName}
+                              className="w-full h-28 border border-border dark:border-neutral-800"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {detailValidations.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">
+                        {t("validation.history")}
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        {detailValidations.map((decision) => (
+                          <div key={decision.id} className="flex gap-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/40 px-3 py-2.5">
+                            <span className={`shrink-0 self-start inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md ${
+                              decision.status === "APPROVED"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                            }`}>
+                              {t(`validation.status.${decision.status}`)}
+                            </span>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              {decision.annotation ? (
+                                <p className="text-xs text-primary dark:text-neutral-200 break-words">{decision.annotation}</p>
+                              ) : (
+                                <p className="text-xs italic text-neutral-400 dark:text-neutral-600">{t("validation.noReason")}</p>
+                              )}
+                              <span className="text-[11px] text-text-secondary dark:text-neutral-500">
+                                {formatDate(decision.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
               {detailMedia.conformityReport && (
                 <div className="flex flex-col gap-1.5">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("conformityReport")}</p>
@@ -639,13 +809,30 @@ export default function MediaPage() {
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
               {canValidate && detailMedia.conformityStatus === "PENDING" && (
                 <>
-                  <button onClick={() => { handleValidate(detailMedia, true); setDetailMedia(null); }} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer">
+                  <button onClick={() => { openValidation(detailMedia, true); }} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer">
                     {t("actions.approve")}
                   </button>
-                  <button onClick={() => { handleValidate(detailMedia, false); setDetailMedia(null); }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer">
+                  <button onClick={() => { openValidation(detailMedia, false); }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer">
                     {t("actions.reject")}
                   </button>
                 </>
+              )}
+              {/* Redépôt d'un visuel corrigé, chaîné sur celui qu'il remplace.
+                  Le cahier des charges (7.6) confie cette correction à l'analyste
+                  marketing, pas au chef de service qui a rejeté. */}
+              {canUpload && detailMedia.conformityStatus === "NON_COMPLIANT" && (
+                <label className="px-4 py-2 bg-primary hover:opacity-90 text-white text-sm font-medium rounded-lg active-scale transition-opacity cursor-pointer">
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleRevision(detailMedia, file);
+                      e.target.value = "";
+                    }}
+                  />
+                  {t("validation.redeposit")}
+                </label>
               )}
               <button onClick={() => setDetailMedia(null)} className="tertiary-icon px-4 py-2 active-scale">
                 <p className="text-sm font-medium">{tc("close")}</p>
@@ -732,6 +919,80 @@ export default function MediaPage() {
           </div>
         </div>
       )}
+
+      {/* ===== MODALE : DÉCISION DU CHEF DE SERVICE =====
+           L'annotation vient de lui. L'écran l'inventait auparavant à partir
+           d'un libellé générique : la base gardait des commentaires d'apparence
+           humaine qui ne disaient rien à l'analyste chargé de corriger. */}
+      {validationTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setValidationTarget(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
+              <h2 className="text-base font-bold text-black dark:text-white">
+                {validationApproved ? t("validation.approveTitle") : t("validation.rejectTitle")}
+              </h2>
+              <button onClick={() => setValidationTarget(null)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <MediaPreview
+                  mediaId={validationTarget.id}
+                  mimeType={validationTarget.mimeType}
+                  fileName={validationTarget.fileName}
+                  className="size-16 shrink-0 border border-border dark:border-neutral-800"
+                />
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <p className="text-sm font-semibold text-black dark:text-white truncate">{validationTarget.fileName}</p>
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">
+                    {t(`validation.mediaTypes.${assetMediaType(validationTarget.mimeType)}`)}
+                    {validationTarget.width > 0 && ` · ${validationTarget.width} × ${validationTarget.height} px`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">
+                  {validationApproved ? t("validation.noteOptional") : t("validation.noteRequired")}
+                </label>
+                <textarea
+                  value={validationNote}
+                  onChange={(e) => setValidationNote(e.target.value)}
+                  rows={4}
+                  autoFocus
+                  placeholder={validationApproved
+                    ? t(`validation.approvePlaceholder.${assetMediaType(validationTarget.mimeType)}`)
+                    : t(`validation.rejectPlaceholder.${assetMediaType(validationTarget.mimeType)}`)}
+                  className="input w-full resize-y text-sm"
+                />
+                {!validationApproved && (
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500">
+                    {t("validation.reasonHelp")}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => setValidationTarget(null)} className="tertiary-icon px-4 py-2 active-scale">
+                <p className="text-sm font-medium">{tc("cancel")}</p>
+              </button>
+              <button
+                onClick={submitValidation}
+                disabled={validating || (!validationApproved && !validationNote.trim())}
+                className={`px-5 py-2 text-white text-sm font-medium rounded-lg active-scale transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  validationApproved ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"
+                }`}
+              >
+                {validating ? tc("saving") : validationApproved ? t("actions.approve") : t("actions.reject")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -30,6 +30,7 @@ import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.shared.event.OfferAssignedEvent;
 import com.moov.pim.shared.event.OfferCreatedEvent;
 import com.moov.pim.shared.event.OfferPublishedEvent;
+import com.moov.pim.shared.workflow.GraphicValidationGate;
 import com.moov.pim.shared.event.OfferTransitionEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -65,18 +66,26 @@ public class OfferService {
 
     private final OfferRepository offerRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    /**
+     * Etat du circuit de validation graphique. Le cycle de vie ne sait pas ce
+     * qu'est un visuel approuve : il pose la question au module qui le sait.
+     */
+    private final GraphicValidationGate graphicValidationGate;
     private final UserRepository userRepository;
     private final RuleEvaluationService ruleEvaluationService;
     private final CategoryRepository categoryRepository;
 
     public OfferService(OfferRepository offerRepository, ApplicationEventPublisher eventPublisher,
                         UserRepository userRepository, RuleEvaluationService ruleEvaluationService,
-                        CategoryRepository categoryRepository) {
+                        CategoryRepository categoryRepository,
+                        GraphicValidationGate graphicValidationGate) {
         this.offerRepository = offerRepository;
         this.eventPublisher = eventPublisher;
         this.userRepository = userRepository;
         this.ruleEvaluationService = ruleEvaluationService;
         this.categoryRepository = categoryRepository;
+        this.graphicValidationGate = graphicValidationGate;
     }
 
     /**
@@ -398,6 +407,19 @@ public class OfferService {
         if ((to == OfferStatus.IN_ENRICHMENT || to == OfferStatus.IN_VALIDATION) && from == OfferStatus.IN_VALIDATION
                 && (request.comment() == null || request.comment().isBlank())) {
             throw new IllegalArgumentException("Un commentaire est obligatoire en cas de rejet");
+        }
+
+        // Enchainement des deux circuits, cahier des charges 7.6 : « une fois la
+        // validation graphique obtenue, l'offre poursuit vers la validation
+        // generale ». Il n'existait pas — une offre partait en validation metier
+        // avec des visuels encore en attente, voire rejetes, et le chef de
+        // departement validait une fiche que le chef de service n'avait pas
+        // approuvee. Le controle ne porte que sur des visuels reellement deposes :
+        // une offre sans media n'a rien a faire valider graphiquement.
+        if (to == OfferStatus.IN_VALIDATION) {
+            graphicValidationGate.blockingReason(offer.getId()).ifPresent(reason -> {
+                throw new IllegalStateException(reason);
+            });
         }
 
         // Derniere barriere avant que la fiche ne quitte les mains de son auteur.

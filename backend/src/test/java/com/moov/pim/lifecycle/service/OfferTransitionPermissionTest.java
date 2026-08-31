@@ -12,6 +12,7 @@ import com.moov.pim.permissions.security.CustomUserDetails;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.moov.pim.shared.workflow.GraphicValidationGate;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -48,6 +49,14 @@ class OfferTransitionPermissionTest {
 
     @Mock private OfferRepository offerRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
+    /**
+     * Verrou du circuit de validation graphique. Simule ici : son comportement
+     * est verifie pour lui-meme dans GraphicValidationServiceTest. Sans ce
+     * mock, l'injection par constructeur passerait null et toute transition
+     * vers la validation metier echouerait sans rapport avec ce qu'on teste.
+     */
+    @Mock private GraphicValidationGate graphicValidationGate;
+
     @InjectMocks private OfferService offerService;
 
     private static final String SUBMIT = "OFFER_SUBMIT";

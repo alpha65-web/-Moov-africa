@@ -482,6 +482,41 @@
       "badge": "Droits",
       "riskTitle": "Risque lié aux droits d'auteur",
       "riskDetail": "Le fichier porte la mention « {notice} », qui ne désigne pas Moov Africa. À vérifier avant publication."
+    },
+    "validation": {
+      "approveTitle": "Approuver le visuel",
+      "rejectTitle": "Rejeter le visuel",
+      "noteOptional": "Commentaire (facultatif)",
+      "noteRequired": "Motif du rejet",
+      "reasonRequired": "Indiquez ce que l'analyste doit corriger",
+      "reasonHelp": "Ce motif est le seul élément dont dispose l'analyste marketing pour corriger et redéposer.",
+      "approvePlaceholder": {
+        "IMAGE": "Cadrage et charte respectés, visuel exploitable en pleine largeur.",
+        "VIDEO": "Montage, durée et sous-titrage conformes.",
+        "PDF": "Notice lisible, mentions légales présentes."
+      },
+      "rejectPlaceholder": {
+        "IMAGE": "Ex. : logo sur fond bleu alors que la fiche s'affiche sur fond blanc ; résolution insuffisante pour un bandeau.",
+        "VIDEO": "Ex. : séquence trop longue pour le format réseau social ; sous-titres absents.",
+        "PDF": "Ex. : mentions légales manquantes ; tarifs non à jour."
+      },
+      "mediaTypes": {
+        "IMAGE": "Image",
+        "VIDEO": "Vidéo",
+        "PDF": "Document"
+      },
+      "history": "Décisions sur ce visuel",
+      "noReason": "Aucun motif renseigné",
+      "status": {
+        "APPROVED": "Approuvé",
+        "REJECTED": "Rejeté",
+        "PENDING": "En attente"
+      },
+      "versions": "Comparaison de versions ({count} au total)",
+      "before": "Avant",
+      "after": "Après",
+      "redeposit": "Redéposer une version corrigée",
+      "revisionUploaded": "Version corrigée déposée"
     }
   },
   "users": {

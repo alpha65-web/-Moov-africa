@@ -14,4 +14,7 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, UUID> {
     List<MediaAsset> findByConformityStatus(ConformityStatus status);
 
     List<MediaAsset> findByParentMediaId(UUID parentMediaId);
+
+    /** Versions successives d'un visuel, dans l'ordre de leur depot. */
+    List<MediaAsset> findByParentMediaIdOrderByMediaVersionAsc(UUID parentMediaId);
 }

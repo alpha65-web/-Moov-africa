@@ -3,6 +3,7 @@ package com.moov.pim.dam.service;
 import com.moov.pim.dam.api.dto.LinkMediaRequest;
 import com.moov.pim.dam.api.dto.MediaAssetResponse;
 import com.moov.pim.dam.api.dto.MediaValidationRequest;
+import com.moov.pim.dam.api.dto.MediaValidationResponse;
 import com.moov.pim.dam.domain.ConformityStatus;
 import com.moov.pim.dam.domain.MediaAsset;
 import com.moov.pim.dam.domain.MediaValidation;
@@ -30,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedInputStream;
 import java.io.InputStream;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -174,9 +176,25 @@ public class MediaAssetService {
         }
     }
 
+    /**
+     * Decision du chef de service sur un visuel.
+     *
+     * Un rejet sans motif est refuse. Le cahier des charges (7.6) confie a
+     * l'analyste marketing la charge de « corriger et redeposer » apres un rejet :
+     * sans motif, il ne sait pas quoi corriger et le circuit tourne a vide. Le
+     * frontend fabriquait jusqu'ici l'annotation lui-meme a partir d'un libelle
+     * generique, ce qui produisait en base des commentaires d'apparence humaine
+     * qui ne renseignaient personne.
+     */
     @Transactional
     public MediaAssetResponse validate(UUID mediaAssetId, MediaValidationRequest request) {
         MediaAsset asset = findAsset(mediaAssetId);
+
+        if (request.status() == ValidationStatus.REJECTED
+                && (request.annotation() == null || request.annotation().isBlank())) {
+            throw new IllegalArgumentException(
+                    "Un rejet doit etre motive : indiquez ce que l'analyste doit corriger");
+        }
 
         MediaValidation validation = new MediaValidation();
         validation.setMediaAsset(asset);
@@ -230,6 +248,71 @@ public class MediaAssetService {
         }
         offerMediaRepository.deleteByMediaAssetId(id);
         mediaAssetRepository.delete(asset);
+    }
+
+    /**
+     * Redepot d'un visuel corrige, en nouvelle version du precedent.
+     *
+     * Le chainage manquait entierement : ni {@code parentMediaId} ni
+     * {@code mediaVersion} n'etaient jamais ecrits — verifie par recherche de
+     * leurs setters sur l'ensemble du depot. Un visuel corrige apres rejet
+     * arrivait donc comme un media orphelin, sans lien avec celui qu'il
+     * remplacait. La « comparaison de versions » du circuit de validation
+     * graphique (7.6) et l'« historique visuel des versions, diff avant/apres »
+     * de la mediatheque (7.5) n'avaient aucune donnee sur laquelle s'appuyer, et
+     * le chef de service jugeait la correction sans voir ce qu'il avait rejete.
+     *
+     * La version se calcule depuis la racine de la chaine et non depuis le media
+     * designe : redeposer deux fois de suite sur une meme version produirait
+     * autrement deux « version 2 » concurrentes.
+     */
+    @Transactional
+    public MediaAssetResponse uploadRevision(UUID previousId, MultipartFile file) {
+        MediaAsset previous = findAsset(previousId);
+        UUID rootId = previous.getParentMediaId() == null ? previous.getId() : previous.getParentMediaId();
+
+        int nextVersion = mediaAssetRepository.findByParentMediaIdOrderByMediaVersionAsc(rootId).stream()
+                .mapToInt(MediaAsset::getMediaVersion)
+                .max()
+                .orElse(findAsset(rootId).getMediaVersion()) + 1;
+
+        MediaAssetResponse created = upload(file);
+        MediaAsset revision = findAsset(created.id());
+        revision.setParentMediaId(rootId);
+        revision.setMediaVersion(nextVersion);
+
+        log.info("Media {} redepose en version {} de la chaine {}",
+                revision.getId(), nextVersion, rootId);
+        return MediaAssetResponse.from(mediaAssetRepository.save(revision));
+    }
+
+    /**
+     * Chaine complete des versions d'un visuel, de la premiere a la derniere.
+     *
+     * Le media designe peut etre n'importe quelle version : c'est toujours la
+     * chaine entiere qui est renvoyee, sans quoi comparer l'avant et l'apres
+     * dependrait de la version par laquelle on est entre.
+     */
+    @Transactional(readOnly = true)
+    public List<MediaAssetResponse> listVersions(UUID mediaAssetId) {
+        MediaAsset asset = findAsset(mediaAssetId);
+        UUID rootId = asset.getParentMediaId() == null ? asset.getId() : asset.getParentMediaId();
+
+        List<MediaAssetResponse> chain = new ArrayList<>();
+        chain.add(MediaAssetResponse.from(findAsset(rootId)));
+        mediaAssetRepository.findByParentMediaIdOrderByMediaVersionAsc(rootId).stream()
+                .map(MediaAssetResponse::from)
+                .forEach(chain::add);
+        return chain;
+    }
+
+    /** Decisions prises sur un visuel, de la plus recente a la plus ancienne. */
+    @Transactional(readOnly = true)
+    public List<MediaValidationResponse> listValidations(UUID mediaAssetId) {
+        findAsset(mediaAssetId);
+        return mediaValidationRepository.findByMediaAssetIdOrderByCreatedAtDesc(mediaAssetId).stream()
+                .map(MediaValidationResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)

@@ -482,6 +482,41 @@
       "badge": "Rights",
       "riskTitle": "Copyright risk",
       "riskDetail": "The file carries the notice “{notice}”, which does not name Moov Africa. To be checked before publication."
+    },
+    "validation": {
+      "approveTitle": "Approve the asset",
+      "rejectTitle": "Reject the asset",
+      "noteOptional": "Comment (optional)",
+      "noteRequired": "Reason for rejection",
+      "reasonRequired": "State what the analyst must correct",
+      "reasonHelp": "This reason is the only thing the marketing analyst has to work from when correcting and resubmitting.",
+      "approvePlaceholder": {
+        "IMAGE": "Framing and brand guidelines respected, usable full width.",
+        "VIDEO": "Edit, length and subtitles compliant.",
+        "PDF": "Readable notice, legal mentions present."
+      },
+      "rejectPlaceholder": {
+        "IMAGE": "E.g. logo on blue background while the page renders on white; resolution too low for a banner.",
+        "VIDEO": "E.g. sequence too long for the social format; subtitles missing.",
+        "PDF": "E.g. legal mentions missing; prices out of date."
+      },
+      "mediaTypes": {
+        "IMAGE": "Image",
+        "VIDEO": "Video",
+        "PDF": "Document"
+      },
+      "history": "Decisions on this asset",
+      "noReason": "No reason recorded",
+      "status": {
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected",
+        "PENDING": "Pending"
+      },
+      "versions": "Version comparison ({count} in total)",
+      "before": "Before",
+      "after": "After",
+      "redeposit": "Upload a corrected version",
+      "revisionUploaded": "Corrected version uploaded"
     }
   },
   "users": {

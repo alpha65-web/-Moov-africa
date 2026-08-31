@@ -12,4 +12,7 @@ public interface MediaValidationRepository extends JpaRepository<MediaValidation
     List<MediaValidation> findByMediaAssetId(UUID mediaAssetId);
 
     List<MediaValidation> findByStatus(ValidationStatus status);
+
+    /** Decisions prises sur un visuel, de la plus recente a la plus ancienne. */
+    List<MediaValidation> findByMediaAssetIdOrderByCreatedAtDesc(UUID mediaAssetId);
 }

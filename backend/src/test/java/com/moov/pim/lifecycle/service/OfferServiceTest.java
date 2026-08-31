@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import com.moov.pim.shared.workflow.GraphicValidationGate;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -51,6 +52,14 @@ class OfferServiceTest {
     // liste vide : aucune violation, ce qui laisse ces tests porter sur ce qu ils
     // verifient reellement — les transitions et les permissions.
     @Mock private com.moov.pim.rules.service.RuleEvaluationService ruleEvaluationService;
+    /**
+     * Verrou du circuit de validation graphique. Simule ici : son comportement
+     * est verifie pour lui-meme dans GraphicValidationServiceTest. Sans ce
+     * mock, l'injection par constructeur passerait null et toute transition
+     * vers la validation metier echouerait sans rapport avec ce qu'on teste.
+     */
+    @Mock private GraphicValidationGate graphicValidationGate;
+
     @InjectMocks private OfferService offerService;
 
     private UUID userId;

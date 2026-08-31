@@ -3,6 +3,7 @@ package com.moov.pim.dam.api;
 import com.moov.pim.dam.api.dto.LinkMediaRequest;
 import com.moov.pim.dam.api.dto.MediaAssetResponse;
 import com.moov.pim.dam.api.dto.MediaValidationRequest;
+import com.moov.pim.dam.api.dto.MediaValidationResponse;
 import com.moov.pim.dam.service.MediaAssetService;
 import jakarta.validation.Valid;
 import org.springframework.http.ContentDisposition;
@@ -45,6 +46,45 @@ public class MediaAssetController {
     public ResponseEntity<MediaAssetResponse> validate(@PathVariable UUID id,
                                                        @Valid @RequestBody MediaValidationRequest request) {
         return ResponseEntity.ok(mediaAssetService.validate(id, request));
+    }
+
+    /**
+     * Redepot d'un visuel corrige, apres un rejet.
+     *
+     * Reserve a MEDIA_UPLOAD, comme le depot initial : le cahier des charges (7.6)
+     * confie a l'analyste marketing la charge de « corriger et redeposer », pas au
+     * chef de service qui a rejete. La nouvelle version est chainee sur la
+     * precedente, ce qui rend la comparaison avant/apres possible — sans ce
+     * chainage, un visuel corrige arrivait comme un media orphelin et le chef de
+     * service jugeait la correction sans voir ce qu'il avait rejete.
+     */
+    @PostMapping(value = "/{id}/revision", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('MEDIA_UPLOAD')")
+    public ResponseEntity<MediaAssetResponse> uploadRevision(@PathVariable UUID id,
+                                                             @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(mediaAssetService.uploadRevision(id, file));
+    }
+
+    /** Chaine des versions d'un visuel, pour la comparaison avant/apres. */
+    @GetMapping("/{id}/versions")
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public ResponseEntity<List<MediaAssetResponse>> listVersions(@PathVariable UUID id) {
+        return ResponseEntity.ok(mediaAssetService.listVersions(id));
+    }
+
+    /**
+     * Decisions successives prises sur un visuel.
+     *
+     * Ouvert en lecture a tout compte pouvant consulter le catalogue : l'analyste
+     * qui a depose doit lire le motif du rejet pour corriger, et le chef de service
+     * doit revoir ses propres avis avant de juger une correction. Les decisions
+     * etaient ecrites en base sans qu'aucune route ne les expose.
+     */
+    @GetMapping("/{id}/validations")
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public ResponseEntity<List<MediaValidationResponse>> listValidations(@PathVariable UUID id) {
+        return ResponseEntity.ok(mediaAssetService.listValidations(id));
     }
 
     @PostMapping("/offers/{offerId}/link")
