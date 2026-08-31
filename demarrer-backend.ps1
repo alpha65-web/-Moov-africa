@@ -16,15 +16,33 @@
 .PARAMETER Diagnostic
     Exécute toutes les vérifications et affiche le rapport sans démarrer le backend.
 
+.PARAMETER Detache
+    Démarre le backend dans un processus indépendant du terminal appelant, et rend
+    la main dès qu'il répond.
+
+    Sans ce commutateur, Maven occupe le terminal et le backend meurt avec lui :
+    fermer la fenêtre, ou perdre le processus parent, coupe la plateforme en pleine
+    séance. Le mode détaché y survit ; la sortie part alors dans
+    logs\backend-detache.log au lieu de l'écran.
+
+    Pour arrêter un backend détaché :
+
+        Get-NetTCPConnection -LocalPort 8092 -State Listen |
+            ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+
 .EXAMPLE
     .\demarrer-backend.ps1
 
 .EXAMPLE
     .\demarrer-backend.ps1 -Diagnostic
+
+.EXAMPLE
+    .\demarrer-backend.ps1 -Detache
 #>
 [CmdletBinding()]
 param(
-    [switch]$Diagnostic
+    [switch]$Diagnostic,
+    [switch]$Detache
 )
 
 $ErrorActionPreference = 'Stop'
@@ -328,6 +346,46 @@ if ($Diagnostic) {
 
 Info "Profil Spring : $($env:SPRING_PROFILES_ACTIVE)"
 Info "API           : http://localhost:8092/api/v1"
+
+if ($Detache) {
+    # Le backend doit survivre a la fermeture du terminal. Le script se relance
+    # donc dans un processus a part, sans le commutateur, avec sa sortie redirigee
+    # vers un journal : demarre depuis le terminal appelant, Maven mourrait avec lui.
+    $journal = Join-Path $racine 'logs\backend-detache.log'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $journal) | Out-Null
+
+    $script = Join-Path $racine 'demarrer-backend.ps1'
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"& '$script' *> '$journal'`""
+    Start-Process -FilePath 'powershell.exe' -ArgumentList $arguments -WindowStyle Hidden
+
+    Info "Journal       : $journal"
+    Write-Host ""
+    Write-Host "  Demarrage detache en cours..." -ForegroundColor White
+
+    # Rendre la main sur une promesse ne vaudrait rien : on attend que l'API
+    # reponde vraiment, et on le dit si elle ne repond pas.
+    $limite = (Get-Date).AddMinutes(5)
+    while ((Get-Date) -lt $limite) {
+        Start-Sleep -Seconds 5
+        try {
+            $sante = Invoke-RestMethod -Uri 'http://localhost:8092/api/v1/actuator/health' -TimeoutSec 5
+            if ($sante.status -eq 'UP') {
+                Ok "Backend en ligne : http://localhost:8092/api/v1"
+                Info "Arret : Get-NetTCPConnection -LocalPort 8092 -State Listen | ForEach-Object { Stop-Process -Id `$_.OwningProcess -Force }"
+                Write-Host ""
+                exit 0
+            }
+        } catch {
+            # Le serveur n'ecoute pas encore : c'est le cas normal pendant la
+            # trentaine de secondes que prend le demarrage.
+        }
+    }
+
+    Souci "Le backend n'a pas repondu dans les cinq minutes."
+    Info "Consultez le journal : $journal"
+    exit 1
+}
+
 Info "Ctrl+C pour arreter."
 Write-Host ""
 
