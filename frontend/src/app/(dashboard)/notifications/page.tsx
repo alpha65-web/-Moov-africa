@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { searchKeyHandler } from "@/lib/search";
@@ -84,6 +85,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  const router = useRouter();
   const { user } = useAuth();
   const canManageConfig = (user?.permissions ?? []).includes("CONFIG_MANAGE");
   const [search, setSearch] = useState("");
@@ -120,6 +122,44 @@ export default function NotificationsPage() {
   async function markAsRead(id: string) {
     try { await api.patch(`/notifications/${id}/read`); loadNotifications(); loadUnreadCount(); }
     catch (e) { toast.error(apiError(e, tc("errors.action"))); }
+  }
+
+  /**
+   * Consulter une notification, c'est la lire et aller voir ce qu'elle annonce.
+   *
+   * Rien ne marquait une notification comme lue : il fallait ouvrir le menu de
+   * la ligne et le demander, ce que personne ne fait, et la pastille du menu
+   * lateral ne redescendait donc jamais. Cliquer sur la ligne la marque lue —
+   * elle reste consultable dans l'onglet « Lues », une notification etant une
+   * trace du circuit et non une alerte jetable — et conduit a l'offre qu'elle
+   * concerne. L'identifiant de cette offre etait renvoye par le serveur depuis
+   * l'origine sans que l'ecran s'en serve : « Offre rejetee » obligeait a
+   * retrouver la fiche a la main pour lire le motif du rejet.
+   */
+  async function openNotification(notif: Notification) {
+    if (!notif.read) {
+      // La navigation ne doit pas dependre de la reussite du marquage : mieux
+      // vaut une notification qui reste non lue qu'un clic qui ne mene nulle part.
+      try {
+        await api.patch(`/notifications/${notif.id}/read`);
+        loadNotifications(); loadUnreadCount();
+      } catch (e) {
+        toast.error(apiError(e, tc("errors.action")));
+      }
+    }
+    if (notif.relatedOfferId) {
+      router.push(`/offers?offer=${notif.relatedOfferId}`);
+    }
+  }
+
+  async function remove(id: string) {
+    try {
+      await api.delete(`/notifications/${id}`);
+      toast.success(t("deleted"));
+      loadNotifications(); loadUnreadCount();
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.delete")));
+    }
   }
 
   async function markAllAsRead() {
@@ -281,7 +321,10 @@ export default function NotificationsPage() {
               const nType = notif.type;
               const style = TYPE_STYLES[nType] ?? TYPE_STYLES.VALIDATION_REQUIRED;
               return (
-                <div key={notif.id} className={`grid grid-cols-1 md:grid-cols-[1fr_120px_160px_100px_40px] gap-2 md:gap-3 items-center px-6 py-4 transition-colors ${!notif.read ? "bg-blue-50/30 dark:bg-blue-900/5" : "hover:bg-neutral-50 dark:hover:bg-neutral-800/30"}`}>
+                <div key={notif.id} onClick={() => openNotification(notif)}
+                  role="button" tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openNotification(notif); } }}
+                  className={`grid grid-cols-1 md:grid-cols-[1fr_120px_160px_100px_40px] gap-2 md:gap-3 items-center px-6 py-4 transition-colors cursor-pointer ${!notif.read ? "bg-blue-50/30 dark:bg-blue-900/5 hover:bg-blue-50/60 dark:hover:bg-blue-900/10" : "hover:bg-neutral-50 dark:hover:bg-neutral-800/30"}`}>
                   {/* Notification */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${style.icon}`}>
@@ -327,6 +370,13 @@ export default function NotificationsPage() {
                             {t("markAllRead")}
                           </button>
                         )}
+                        {/* La suppression existait cote serveur depuis l'origine
+                            sans qu'aucun bouton ne l'appelle : l'utilisateur ne
+                            pouvait pas faire le menage dans ses notifications. */}
+                        <button onClick={() => { remove(notif.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                          <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          {tc("delete")}
+                        </button>
                     </ActionMenu>
                   </div>
                 </div>

@@ -166,6 +166,13 @@ export interface Notification {
   message: string;
   type: string;
   read: boolean;
+  /**
+   * Offre à l'origine de la notification. Le serveur la renvoie depuis
+   * l'origine ; elle manquait ici, si bien que l'écran ne pouvait pas conduire
+   * à la fiche concernée — « Offre rejetée » obligeait à la retrouver à la main.
+   * Nulle pour une notification qui ne porte sur aucune offre.
+   */
+  relatedOfferId: string | null;
   createdAt: string;
 }
 

@@ -699,6 +699,7 @@
     "emptyUnread": "Aucune notification non lue",
     "emptyDescription": "Vous n'avez aucune notification pour le moment. Les nouvelles alertes apparaîtront ici.",
     "allMarkedRead": "Toutes les notifications marquées comme lues",
+    "deleted": "Notification supprimée",
     "pagination": "Affichage de {from} à {to} sur {total} notifications",
     "banner": {
       "title": "Ne manquez rien d'important",

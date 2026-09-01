@@ -123,6 +123,9 @@ export default function OffersPage() {
   // n'etaient jusqu'ici que du texte, sans destination.
   const searchParams = useSearchParams();
   const requestedStatus = searchParams.get("status");
+  // Une notification conduit ici en designant la fiche qu'elle annonce.
+  const requestedOffer = searchParams.get("offer");
+  const openedFromUrl = useRef<string | null>(null);
 
   // Une action ne s'affiche que si la permission exigee par l'endpoint qu'elle
   // appelle est detenue : POST /offers exige OFFER_CREATE, PATCH /enrich exige
@@ -304,6 +307,29 @@ export default function OffersPage() {
 
     return () => { cancelled = true; };
   }, [detailOffer]);
+
+  /**
+   * Ouvre la fiche designee par l'URL.
+   *
+   * Une notification — « Offre rejetee », « Offre publiee » — porte depuis
+   * l'origine l'identifiant de l'offre concernee, mais aucun ecran n'y
+   * conduisait : il fallait retrouver la fiche a la main dans la liste pour
+   * lire le motif du rejet.
+   *
+   * La fiche est demandee au serveur plutot que cherchee dans la liste deja
+   * chargee : elle peut se trouver au-dela de la page en memoire. Si le compte
+   * n'a pas le droit de la voir, le message du serveur s'affiche tel quel —
+   * mieux vaut une erreur exacte qu'une modale vide.
+   */
+  useEffect(() => {
+    if (!requestedOffer || openedFromUrl.current === requestedOffer) return;
+    openedFromUrl.current = requestedOffer;
+    let cancelled = false;
+    api.get(`/offers/${requestedOffer}`)
+      .then(({ data }) => { if (!cancelled) setDetailOffer(data); })
+      .catch((e) => { if (!cancelled) toast.error(apiError(e, tc("errors.load"))); });
+    return () => { cancelled = true; };
+  }, [requestedOffer, tc]);
 
   async function loadOffers() {
     try {
