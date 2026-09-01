@@ -670,10 +670,15 @@ export default function MediaPage() {
               </button>
             </div>
             <div className="px-6 py-5 flex flex-col gap-4">
+              {/* La fiche affiche le contenu reel, pas une icone : le chef de
+                  service doit juger le format, la resolution et les droits du
+                  visuel (7.6), ce qu'il ne peut pas faire sans le voir. La video
+                  s'y lit et le PDF s'y feuillette. */}
               <MediaPreview
                 mediaId={detailMedia.id}
                 mimeType={detailMedia.mimeType}
                 fileName={detailMedia.fileName}
+                playable
                 className="w-full h-56 border border-border dark:border-neutral-800"
               />
               <div className="grid grid-cols-2 gap-4">
