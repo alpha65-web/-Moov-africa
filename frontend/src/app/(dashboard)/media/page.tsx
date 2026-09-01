@@ -470,21 +470,38 @@ export default function MediaPage() {
         </select>
       </div>
 
-      {/* ===== GALERIE =====
-          Une mediatheque se juge sur ses visuels : la liste tabulaire ne montrait que
-          des caracteristiques, sans jamais afficher l'image. Chaque media est
-          desormais une carte — l'apercu en grand, puis le nom, puis ses
-          caracteristiques — de sorte qu'on reconnaisse un visuel sans l'ouvrir. */}
+      {/* ===== LISTE =====
+          Une mediatheque se juge sur ses visuels, mais elle se parcourt comme une
+          liste : la grille de cartes obligeait a defiler longuement pour comparer
+          quelques fichiers, chaque carte occupant la hauteur d'un apercu en 16/9.
+          Chaque media tient desormais sur une ligne, la vignette a gauche puis ses
+          caracteristiques en colonnes — on reconnait le visuel sans l'ouvrir, et on
+          en embrasse une dizaine d'un coup d'oeil.
+
+          La vignette est un carre arrondi et non un disque : un disque rognerait
+          les bords d'une banniere ou d'un logo horizontal, precisement ce qu'il
+          s'agit de reconnaitre. */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
+        <div className="hidden md:grid grid-cols-[64px_1fr_110px_130px_150px_110px_50px] gap-3 px-6 py-3 bg-slate-800 dark:bg-slate-900 rounded-t-2xl">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.file")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-white" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.type")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.status")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.size")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.date")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-white text-right">{t("columns.actions")}</span>
+        </div>
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-border dark:border-neutral-800 overflow-hidden">
-                <Skeleton className="w-full aspect-[16/9] !rounded-none" />
-                <div className="p-3 flex flex-col gap-2">
-                  <Skeleton className="w-3/4 h-4" />
-                  <Skeleton className="w-1/2 h-3" />
-                </div>
+          <div className="px-6 py-4 flex flex-col gap-1">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="grid grid-cols-[64px_1fr_110px_130px_150px_110px_50px] gap-3 items-center py-3">
+                <Skeleton className="size-12 !rounded-lg" />
+                <Skeleton className="w-40 h-4" />
+                <Skeleton className="w-16 h-5 !rounded-md" />
+                <Skeleton className="w-20 h-5 !rounded-md" />
+                <Skeleton className="w-24 h-4" />
+                <Skeleton className="w-20 h-4" />
+                <Skeleton className="w-6 h-6 ml-auto" />
               </div>
             ))}
           </div>
@@ -532,16 +549,16 @@ export default function MediaPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-            {/* Pas d'overflow-hidden sur les cartes : il rognerait le menu d'actions et
-                rendrait « approuver » et « rejeter » inatteignables. L'apercu porte donc
-                lui-meme l'arrondi du haut. */}
+          <div className="divide-y divide-border dark:divide-neutral-800">
             {paginated.map((m) => (
-              <div key={m.id} className="group relative rounded-xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => openDetail(m)}>
-                <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName} className="w-full aspect-[16/9] !rounded-t-xl !rounded-b-none border-b border-border dark:border-neutral-800" />
-                <div className="p-3 flex flex-col gap-2">
-                  <p className="text-sm font-semibold text-black dark:text-white truncate pr-7" title={m.fileName}>{m.fileName}</p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+              <div key={m.id} className="grid grid-cols-[64px_1fr_40px] md:grid-cols-[64px_1fr_110px_130px_150px_110px_50px] gap-3 items-center px-6 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer" onClick={() => openDetail(m)}>
+                <MediaPreview mediaId={m.id} mimeType={m.mimeType} fileName={m.fileName} className="size-12 border border-border dark:border-neutral-800" />
+                <div className="min-w-0 flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-black dark:text-white truncate" title={m.fileName}>{m.fileName}</p>
+                  {/* Sous le nom, les caracteristiques qui n'ont pas leur colonne
+                      sur ecran etroit : la ligne reste lisible sans defilement
+                      horizontal. */}
+                  <div className="flex items-center gap-1.5 flex-wrap md:hidden">
                     <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                       {MIME_LABELS[m.mimeType] || m.mimeType.split("/")[1]?.toUpperCase() || m.mimeType}
                     </span>
@@ -558,16 +575,38 @@ export default function MediaPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-neutral-500">
-                    <span className="tabular-nums">
-                      {formatSize(m.fileSize)} · v{m.mediaVersion}
-                      {m.width > 0 && ` · ${m.width}×${m.height}`}
-                    </span>
-                    <span>{formatDate(m.createdAt)}</span>
-                  </div>
+                  <span className="md:hidden text-[11px] text-text-secondary dark:text-neutral-500 tabular-nums">
+                    {formatSize(m.fileSize)} · v{m.mediaVersion}
+                    {m.width > 0 && ` · ${m.width}×${m.height}`} · {formatDate(m.createdAt)}
+                  </span>
                 </div>
-                <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)} className="p-1.5 rounded-lg bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm border border-border dark:border-neutral-700 shadow-sm hover:bg-white dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+
+                {/* Colonnes propres a l'ecran large. Elles disparaissent en
+                    dessous, ou leur contenu se replie sous le nom du fichier. */}
+                <span className="hidden md:inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                  {MIME_LABELS[m.mimeType] || m.mimeType.split("/")[1]?.toUpperCase() || m.mimeType}
+                </span>
+                <div className="hidden md:flex items-center gap-1.5 flex-wrap">
+                  <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[m.conformityStatus] ?? STATUS_STYLES.PENDING}`}>
+                    {t(`status.${m.conformityStatus}`)}
+                  </span>
+                  {/* Le risque de droits se voit sur la ligne : le chef de service
+                      doit reperer les visuels a verifier sans ouvrir chaque fiche
+                      une par une. */}
+                  {m.copyrightRisk && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title={m.copyrightNotice ?? t("copyright.badge")}>
+                      <svg className="size-3" viewBox="0 0 20 20" fill="none"><path d="M10 3l7 13H3l7-13z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M10 8v3.5M10 13.5v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                    </span>
+                  )}
+                </div>
+                <span className="hidden md:block text-xs text-text-secondary dark:text-neutral-400 tabular-nums">
+                  {formatSize(m.fileSize)} · v{m.mediaVersion}
+                  {m.width > 0 && <span className="block text-[11px] text-neutral-400 dark:text-neutral-500">{m.width}×{m.height}</span>}
+                </span>
+                <span className="hidden md:block text-xs text-text-secondary dark:text-neutral-400">{formatDate(m.createdAt)}</span>
+
+                <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
                     <svg className="size-4 text-neutral-600 dark:text-neutral-300" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.2" fill="currentColor" /><circle cx="8" cy="8" r="1.2" fill="currentColor" /><circle cx="8" cy="13" r="1.2" fill="currentColor" /></svg>
                   </button>
                   <ActionMenu open={openMenuId === m.id} onClose={() => setOpenMenuId(null)} minWidth={160}>
