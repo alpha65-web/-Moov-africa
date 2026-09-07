@@ -66,6 +66,23 @@ function Fatal([string]$message, [string]$remede) {
     exit 1
 }
 
+# docker.exe ecrit ses diagnostics sur la sortie d'erreur. Avec ErrorActionPreference
+# a Stop, PowerShell 5.1 transforme la moindre ligne en exception terminante : le script
+# mourait sur "docker info" quand Docker Desktop n'etait pas lance, sans jamais atteindre
+# le code qui sait justement le demarrer. On isole donc chaque appel dans sa propre portee.
+function Invoke-Docker([string[]]$arguments) {
+    $ErrorActionPreference = 'SilentlyContinue'
+    $global:LASTEXITCODE = 0
+    try {
+        & docker @arguments 2>&1 | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+function Test-DaemonDocker { return (Invoke-Docker @('info')) }
+
 function Test-PortOuvert([string]$hote, [int]$port, [int]$delaiMs = 2000) {
     $client = New-Object System.Net.Sockets.TcpClient
     try {
@@ -241,7 +258,7 @@ if ($env:SPRING_DATASOURCE_URL) {
     if (-not $portBase -and (Get-Command docker -ErrorAction SilentlyContinue)) {
         Souci "Tentative de demarrage du PostgreSQL de Docker Compose..."
         Push-Location $racine
-        try { & docker compose up -d postgres | Out-Null } catch { } finally { Pop-Location }
+        try { Invoke-Docker @('compose', 'up', '-d', 'postgres') | Out-Null } finally { Pop-Location }
         foreach ($candidat in 5433, 5432) {
             if (Test-PortOuvert $hote $candidat 3000) { $portBase = $candidat; break }
         }
@@ -281,8 +298,7 @@ if (-not (Test-PortOuvert $hote $portMinio 1000)) {
         Souci "docker est introuvable dans le PATH, MinIO ne peut pas etre demarre."
     } else {
         # Le daemon peut etre absent alors que le client existe : Docker Desktop non lance.
-        & docker info *> $null
-        if ($LASTEXITCODE -ne 0) {
+        if (-not (Test-DaemonDocker)) {
             $bureau = 'C:\Program Files\Docker\Docker\Docker Desktop.exe'
             if (Test-Path $bureau) {
                 Info "Daemon Docker arrete, lancement de Docker Desktop (compter une minute)..."
@@ -291,20 +307,18 @@ if (-not (Test-PortOuvert $hote $portMinio 1000)) {
                 while ($attente -lt 180) {
                     Start-Sleep -Seconds 5
                     $attente += 5
-                    & docker info *> $null
-                    if ($LASTEXITCODE -eq 0) { break }
+                    if (Test-DaemonDocker) { break }
                 }
             } else {
                 Souci "Docker Desktop est introuvable a $bureau."
             }
         }
 
-        & docker info *> $null
-        if ($LASTEXITCODE -ne 0) {
+        if (-not (Test-DaemonDocker)) {
             Souci "Le daemon Docker ne repond toujours pas."
         } else {
             Push-Location $racine
-            try { & docker compose up -d minio *> $null } catch { } finally { Pop-Location }
+            try { Invoke-Docker @('compose', 'up', '-d', 'minio') | Out-Null } finally { Pop-Location }
             $attente = 0
             while ($attente -lt 60 -and -not (Test-PortOuvert $hote $portMinio 1000)) {
                 Start-Sleep -Seconds 3
