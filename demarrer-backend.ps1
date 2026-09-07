@@ -83,6 +83,30 @@ function Invoke-Docker([string[]]$arguments) {
 
 function Test-DaemonDocker { return (Invoke-Docker @('info')) }
 
+# docker-compose.yml seul ne suffit pas hors Docker : backend-net y est declare
+# `internal: true`, si bien que les ports de postgres et de minio ne sont pas
+# publies sur l'hote. docker-compose.dev.yml, versionne, les rattache a un
+# reseau bridge dedie. docker-compose.override.yml reste ignore par Git et
+# n'est plus charge automatiquement des qu'un -f est passe : on le rajoute donc
+# nous-memes s'il existe, pour ne pas perdre les reglages propres a un poste.
+function Fichiers-Compose([string]$racine) {
+    $fichiers = @('-f', 'docker-compose.yml')
+    foreach ($nom in 'docker-compose.dev.yml', 'docker-compose.override.yml') {
+        if (Test-Path (Join-Path $racine $nom)) { $fichiers += @('-f', $nom) }
+    }
+    return $fichiers
+}
+
+# Secret aleatoire de $octets octets, rendu en hexadecimal : la chaine produite
+# fait donc le double de caracteres, tous imprimables et sans guillemet, ce qui
+# la rend sure a poser telle quelle dans .env comme dans une variable Docker.
+function Nouveau-Secret([int]$octets) {
+    $tampon = New-Object byte[] $octets
+    $source = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $source.GetBytes($tampon) } finally { $source.Dispose() }
+    return (-join ($tampon | ForEach-Object { '{0:x2}' -f $_ }))
+}
+
 function Test-PortOuvert([string]$hote, [int]$port, [int]$delaiMs = 2000) {
     $client = New-Object System.Net.Sockets.TcpClient
     try {
@@ -158,7 +182,34 @@ Etape "2/6  Chargement du fichier .env"
 # ---------------------------------------------------------------------------
 $cheminEnv = Join-Path $racine '.env'
 if (-not (Test-Path $cheminEnv)) {
-    Fatal "Le fichier .env est absent a la racine du depot." "Copiez le modele puis renseignez les valeurs :`n`n    Copy-Item .env.example .env"
+    # Premier demarrage sur un depot fraichement clone. Plutot que d'arreter le
+    # script en demandant de recopier le modele et d'inventer six secrets, on
+    # ecrit le fichier avec des valeurs aleatoires : la plateforme demarre alors
+    # d'une seule commande. Les secrets restent modifiables ensuite.
+    $modeleEnv = Join-Path $racine '.env.example'
+    if (-not (Test-Path $modeleEnv)) {
+        Fatal "Ni .env ni .env.example a la racine du depot." "Le depot est incomplet. Reclonez-le."
+    }
+    Souci ".env absent : premier demarrage, le fichier est cree depuis .env.example."
+    $secrets = @{
+        'POSTGRES_USER'      = 'pim'
+        'POSTGRES_PASSWORD'  = (Nouveau-Secret 16)
+        'MINIO_ACCESS_KEY'   = 'pim' + (Nouveau-Secret 6)
+        'MINIO_SECRET_KEY'   = (Nouveau-Secret 20)
+        'JWT_SECRET'         = (Nouveau-Secret 32)
+        'PIM_ENCRYPTION_KEY' = (Nouveau-Secret 16)
+    }
+    $lignesEnv = foreach ($ligne in (Get-Content $modeleEnv)) {
+        if ($ligne -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*$' -and $secrets.ContainsKey($Matches[1])) {
+            "$($Matches[1])=$($secrets[$Matches[1]])"
+        } else {
+            $ligne
+        }
+    }
+    # Sans BOM : Docker Compose lit ce meme fichier et prendrait la marque
+    # d'ordre des octets pour le debut du premier nom de variable.
+    [System.IO.File]::WriteAllLines($cheminEnv, [string[]]$lignesEnv, (New-Object System.Text.UTF8Encoding($false)))
+    Ok ".env cree avec des secrets aleatoires - modifiez-le si vous avez vos propres identifiants."
 }
 
 $charges = 0
@@ -217,7 +268,7 @@ if ($env:SPRING_DATASOURCE_URL) {
     }
 } else {
     # Deux PostgreSQL coexistent souvent sur ce poste : le natif (5432) et celui de Docker
-    # Compose republie sur 5433 par docker-compose.override.yml. On retient celui qui
+    # Compose republie sur 5433 par docker-compose.dev.yml. On retient celui qui
     # heberge reellement pim_db, pas simplement le premier port ouvert - se tromper de
     # base donne un backend qui demarre sur un catalogue vide.
     $portBase = $null
@@ -258,7 +309,7 @@ if ($env:SPRING_DATASOURCE_URL) {
     if (-not $portBase -and (Get-Command docker -ErrorAction SilentlyContinue)) {
         Souci "Tentative de demarrage du PostgreSQL de Docker Compose..."
         Push-Location $racine
-        try { Invoke-Docker @('compose', 'up', '-d', 'postgres') | Out-Null } finally { Pop-Location }
+        try { Invoke-Docker ((Fichiers-Compose $racine) + @('compose', 'up', '-d', 'postgres')) | Out-Null } finally { Pop-Location }
         foreach ($candidat in 5433, 5432) {
             if (Test-PortOuvert $hote $candidat 3000) { $portBase = $candidat; break }
         }
@@ -269,7 +320,7 @@ if ($env:SPRING_DATASOURCE_URL) {
 Trois pistes, dans l'ordre :
 
   1. PostgreSQL natif arrete   : Start-Service postgresql-x64-18
-  2. PostgreSQL Docker         : docker compose up -d postgres
+  2. PostgreSQL Docker         : docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
   3. Base pas encore creee     : creez-la une seule fois, en tant que postgres -
      CREATE USER $($env:SPRING_DATASOURCE_USERNAME) WITH PASSWORD '$($env:SPRING_DATASOURCE_PASSWORD)';
      CREATE DATABASE pim_db OWNER $($env:SPRING_DATASOURCE_USERNAME);
@@ -318,7 +369,7 @@ if (-not (Test-PortOuvert $hote $portMinio 1000)) {
             Souci "Le daemon Docker ne repond toujours pas."
         } else {
             Push-Location $racine
-            try { Invoke-Docker @('compose', 'up', '-d', 'minio') | Out-Null } finally { Pop-Location }
+            try { Invoke-Docker ((Fichiers-Compose $racine) + @('compose', 'up', '-d', 'minio')) | Out-Null } finally { Pop-Location }
             $attente = 0
             while ($attente -lt 60 -and -not (Test-PortOuvert $hote $portMinio 1000)) {
                 Start-Sleep -Seconds 3
@@ -333,7 +384,7 @@ if (Test-PortOuvert $hote $portMinio 1000) {
 } else {
     Souci "MinIO reste injoignable sur $($env:PIM_MINIO_ENDPOINT)."
     Info "Le backend demarre quand meme, mais tout televersement de media echouera."
-    Info "Pour l'activer a la main : docker compose up -d minio"
+    Info "Pour l'activer a la main : docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d minio"
 }
 
 # ---------------------------------------------------------------------------

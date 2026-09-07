@@ -1,0 +1,33 @@
+# Surcouche de developpement local, versionnee.
+#
+# docker-compose.yml declare backend-net en `internal: true` : Docker refuse
+# alors de publier un port pour un conteneur qui n'est attache qu'a ce reseau,
+# et le mapping est ignore sans le moindre message. Un backend lance hors
+# Docker - ce que font demarrer-backend.ps1 et demarrer-plateforme.ps1 - ne
+# peut donc joindre ni la base ni le stockage.
+#
+# Ce fichier rattache postgres et minio a un reseau bridge dedie au poste de
+# developpement, en plus de backend-net, et publie leurs ports sur l'hote.
+# Sans lui, un depot fraichement clone demarre des conteneurs injoignables.
+#
+# docker-compose.override.yml reste ignore par Git : il sert aux reglages
+# propres a un poste, et les scripts de demarrage l'ajoutent encore s'il existe.
+services:
+  postgres:
+    ports:
+      - "5433:5432"   # 5432 cote hote est souvent pris par un PostgreSQL natif
+    networks:
+      - backend-net
+      - devhost-net
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"   # console MinIO
+    networks:
+      - backend-net
+      - devhost-net
+
+networks:
+  devhost-net:
+    driver: bridge
