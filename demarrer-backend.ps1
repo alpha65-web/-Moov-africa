@@ -309,9 +309,27 @@ if ($env:SPRING_DATASOURCE_URL) {
     if (-not $portBase -and (Get-Command docker -ErrorAction SilentlyContinue)) {
         Souci "Tentative de demarrage du PostgreSQL de Docker Compose..."
         Push-Location $racine
-        try { Invoke-Docker ((Fichiers-Compose $racine) + @('compose', 'up', '-d', 'postgres')) | Out-Null } finally { Pop-Location }
-        foreach ($candidat in 5433, 5432) {
-            if (Test-PortOuvert $hote $candidat 3000) { $portBase = $candidat; break }
+        try { Invoke-Docker (@('compose') + (Fichiers-Compose $racine) + @('up', '-d', 'postgres')) | Out-Null } finally { Pop-Location }
+        # Le conteneur ouvre son port bien avant d'avoir fini d'initialiser le
+        # cluster : on attend que pim_db reponde vraiment. Retenir un port sur
+        # le seul critere « il est ouvert » ferait pointer le backend sur la
+        # base d'a cote - celle du PostgreSQL natif - avec des identifiants
+        # qu'elle refuse, et le demarrage echouerait plus loin, sur Flyway.
+        $attente = 0
+        while (-not $portBase -and $attente -lt 90) {
+            if (-not $psql) {
+                # Sans psql, aucune validation possible : on retient le port du
+                # conteneur qu'on vient de demarrer, et non celui d'un
+                # PostgreSQL natif qui heberge peut-etre une tout autre base.
+                if (Test-PortOuvert $hote 5433 3000) { $portBase = 5433 }
+                break
+            }
+            foreach ($candidat in 5433, 5432) {
+                if (-not (Test-PortOuvert $hote $candidat 2000)) { continue }
+                $valide = Test-BaseValide $psql $candidat $env:SPRING_DATASOURCE_USERNAME $env:SPRING_DATASOURCE_PASSWORD $base
+                if ($valide -eq $true) { $portBase = $candidat; break }
+            }
+            if (-not $portBase) { Start-Sleep -Seconds 3; $attente += 3 }
         }
     }
 
@@ -369,7 +387,7 @@ if (-not (Test-PortOuvert $hote $portMinio 1000)) {
             Souci "Le daemon Docker ne repond toujours pas."
         } else {
             Push-Location $racine
-            try { Invoke-Docker ((Fichiers-Compose $racine) + @('compose', 'up', '-d', 'minio')) | Out-Null } finally { Pop-Location }
+            try { Invoke-Docker (@('compose') + (Fichiers-Compose $racine) + @('up', '-d', 'minio')) | Out-Null } finally { Pop-Location }
             $attente = 0
             while ($attente -lt 60 -and -not (Test-PortOuvert $hote $portMinio 1000)) {
                 Start-Sleep -Seconds 3
