@@ -10,7 +10,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
@@ -42,9 +41,6 @@ public class CampaignChannel {
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
-    @OneToOne(mappedBy = "channel", fetch = FetchType.LAZY)
-    private CampaignStats stats;
-
     public CampaignChannel() {}
 
     public UUID getId() { return id; }
@@ -58,5 +54,4 @@ public class CampaignChannel {
     public void setStatus(ChannelStatus status) { this.status = status; }
     public LocalDateTime getSentAt() { return sentAt; }
     public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
-    public CampaignStats getStats() { return stats; }
 }

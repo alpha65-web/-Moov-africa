@@ -68,8 +68,7 @@ public record CatalogItemResponse(
             type = "PRODUCT";
             details = Map.of(
                     "characteristics", p.getCharacteristics() != null ? p.getCharacteristics() : "{}",
-                    "packOnly", p.isPackOnly(),
-                    "qualityScore", p.getQualityScore()
+                    "packOnly", p.isPackOnly()
             );
         } else if (item instanceof Service s) {
             type = "SERVICE";

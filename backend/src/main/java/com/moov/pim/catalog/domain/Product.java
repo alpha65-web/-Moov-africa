@@ -19,15 +19,10 @@ public class Product extends CatalogItem {
     @Column(name = "pack_only", nullable = false)
     private boolean packOnly = false;
 
-    @Column(name = "quality_score", nullable = false)
-    private float qualityScore = 0f;
-
     public Product() {}
 
     public String getCharacteristics() { return characteristics; }
     public void setCharacteristics(String characteristics) { this.characteristics = characteristics; }
     public boolean isPackOnly() { return packOnly; }
     public void setPackOnly(boolean packOnly) { this.packOnly = packOnly; }
-    public float getQualityScore() { return qualityScore; }
-    public void setQualityScore(float qualityScore) { this.qualityScore = qualityScore; }
 }
