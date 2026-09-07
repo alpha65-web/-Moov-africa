@@ -21,6 +21,10 @@ desktop.ini
 # Environment / Secrets
 .env
 *.env.local
+# Copies de sauvegarde du fichier d'environnement : elles portent les memes
+# secrets que .env et n'ont pas plus que lui leur place dans le depot.
+.env.bak*
+.env.*.bak
 *.pem
 *.key
 
