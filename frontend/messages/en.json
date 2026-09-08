@@ -33,7 +33,8 @@
       "update": "Update failed.",
       "delete": "Deletion failed.",
       "action": "The operation failed."
-    }
+    },
+    "unknownItem": "Unknown item"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -191,7 +192,16 @@
       "mediaAttach": "Attach",
       "mediaDetach": "Remove this media from the offer",
       "mediaUpload": "Upload a media",
-      "mediaTooLarge": "File too large: 50 MB maximum."
+      "mediaTooLarge": "File too large: 50 MB maximum.",
+      "validFrom": "Valid from",
+      "validUntil": "Valid until",
+      "validityHint": "A validated then planned offer is published automatically on the start date and becomes obsolete on the end date.",
+      "composition": "Composition",
+      "compositionEmpty": "No item yet: add products, services or packs from the catalog.",
+      "compositionSearch": "Search a catalog item…",
+      "compositionNoResult": "No item matches.",
+      "compositionNoCatalog": "The catalog is empty: create products, services or packs first.",
+      "compositionRemove": "Remove from composition"
     },
     "status": {
       "DRAFT": "Draft",
@@ -235,19 +245,12 @@
       "date": "Date",
       "filters": "Filters"
     },
-    "features": {
-      "workflow": "Complete workflow",
-      "workflowDesc": "Track every step of the offer lifecycle from creation to publication.",
-      "quality": "Data quality",
-      "qualityDesc": "Monitor completeness levels and ensure information quality.",
-      "multichannel": "Multi-channel distribution",
-      "multichannelDesc": "Publish your offers across all Moov Africa channels with consistency."
-    },
     "detail": {
       "version": "Version",
       "updatedAt": "Updated on",
       "media": "Attached media",
-      "history": "Record history"
+      "history": "Record history",
+      "compositionEmpty": "No catalog item is attached to this offer."
     },
     "transition": {
       "title": "Status transition",
@@ -258,7 +261,11 @@
       "availableTransitions": "Available transitions",
       "commentRequired": "A comment is required for this transition",
       "noneAvailable": "No transition is available to you from this status.",
-      "noLegalMentions": "No legal notice is filled in on this offer. Check before publishing."
+      "noLegalMentions": "No legal notice is filled in on this offer. Check before publishing.",
+      "cancelValidation": "Cancel validation",
+      "reject": "Reject (back to enrichment)",
+      "approve": "Approve",
+      "commentRequiredHint": "A reason is required to reject a submitted offer or cancel a validated one; it is kept in the offer history."
     },
     "messages": {
       "created": "Offer created successfully",
@@ -306,6 +313,23 @@
       "available": "Available",
       "inProgress": "{count} in progress",
       "handled": "{count} offer(s) handled in total"
+    },
+    "rules": {
+      "blocking": "Blocking",
+      "warning": "Warning",
+      "ok": "No business rule is violated by this composition.",
+      "blockedHint": "Fix the composition: a blocking rule is violated."
+    },
+    "versions": {
+      "title": "Versions",
+      "noDescription": "Change",
+      "initial": "initial version",
+      "changedFields": "{count, plural, =0 {no field changed} =1 {1 field changed} other {# fields changed}}",
+      "noChange": "No tracked field changed in this version.",
+      "restore": "Restore this version",
+      "restoreTitle": "Restore version {version}?",
+      "restoreWarning": "The offer content (name, descriptions, SEO, price, legal mentions) will take the values of this version. Status and composition do not change. The operation is recorded as a new version.",
+      "restored": "Version {version} restored."
     }
   },
   "campaigns": {
@@ -332,16 +356,6 @@
       "allChannels": "All channels",
       "period": "Period",
       "filters": "Filters"
-    },
-    "features": {
-      "planning": "Easy scheduling",
-      "planningDesc": "Schedule your campaigns in advance and set automatic launch dates.",
-      "targeting": "Precise targeting",
-      "targetingDesc": "Segment your audiences for personalized and higher-performing campaigns.",
-      "realtime": "Real-time tracking",
-      "realtimeDesc": "Track your campaign performance with detailed live metrics.",
-      "multichannel": "Multi-channel",
-      "multichannelDesc": "Broadcast your campaigns on SMS, email, push and social media simultaneously."
     },
     "columns": {
       "name": "Name",
@@ -426,16 +440,6 @@
       "allStatuses": "All statuses",
       "allTypes": "All types",
       "filters": "Filters"
-    },
-    "features": {
-      "formats": "Multi-format",
-      "formatsDesc": "Support images, PDFs and videos in all common formats for your offers.",
-      "validation": "Validation workflow",
-      "validationDesc": "Approve or reject files before using them in your offers and campaigns.",
-      "versioning": "Versioning",
-      "versioningDesc": "Manage different versions of your files with a complete history.",
-      "organization": "Organization",
-      "organizationDesc": "Classify and easily find your files using search and filters."
     },
     "columns": {
       "file": "File",
@@ -646,17 +650,7 @@
     "notProvided": "Not provided",
     "lastLogin": "Last login",
     "never": "Never",
-    "createdAt": "Created on",
-    "features": {
-      "roles": "Role management",
-      "rolesDesc": "Assign roles and permissions tailored to each user.",
-      "security": "Enhanced security",
-      "securityDesc": "Control access and protect sensitive data.",
-      "history": "Action history",
-      "historyDesc": "View the history of logins and actions performed.",
-      "collaboration": "Collaboration",
-      "collaborationDesc": "Facilitate teamwork with access tailored to each person."
-    }
+    "createdAt": "Created on"
   },
   "notifications": {
     "title": "Notifications",
@@ -701,11 +695,6 @@
     "allMarkedRead": "All notifications marked as read",
     "deleted": "Notification deleted",
     "pagination": "Showing {from} to {to} of {total} notifications",
-    "banner": {
-      "title": "Don't miss anything important",
-      "description": "Enable email notifications to receive important alerts directly in your inbox.",
-      "cta": "Enable email notifications"
-    },
     "timeAgo": {
       "now": "Just now",
       "minutes": "{count} min ago",
@@ -832,15 +821,22 @@
     "createFirst": "Create my first rule",
     "createTitle": "New rule",
     "editTitle": "Edit rule",
-    "features": {
-      "compatibility": "Compatibility",
-      "compatibilityDesc": "Define compatibility rules between products, services, or offers.",
-      "composition": "Composition",
-      "compositionDesc": "Manage composition rules for packs and bundled offers.",
-      "validation": "Validation",
-      "validationDesc": "Automatically validate offers according to your business rules.",
-      "traceability": "Traceability",
-      "traceabilityDesc": "Track the history and impact of each business rule."
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "consistency": {
+      "title": "Overall rule consistency",
+      "ok": "{count, plural, =0 {No active rule.} =1 {The active rule is consistent.} other {The # active rules are mutually consistent.}}",
+      "found": "{count, plural, =1 {1 inconsistency found.} other {# inconsistencies found.}}",
+      "recheck": "Check again",
+      "clearHighlight": "Clear highlight",
+      "rulesInvolved": "{count, plural, =1 {1 rule} other {# rules}}",
+      "codes": {
+        "CONTRADICTION": "Contradiction",
+        "DUPLICATE": "Duplicate",
+        "ARCHIVED_ITEM": "Archived item",
+        "SELF_REFERENCE": "Self-reference",
+        "MANDATORY_CYCLE": "Cycle"
+      }
     }
   },
   "settings": {
@@ -928,19 +924,16 @@
       "notifEnabled": "Notification enabled",
       "notifDisabled": "Notification disabled",
       "types": {
-        "OFFER_CREATED": "Offer created",
-        "OFFER_TRANSITION": "Offer transition",
-        "OFFER_PUBLISHED": "Offer published",
-        "MEDIA_UPLOADED": "Media uploaded",
-        "MEDIA_VALIDATED": "Media validated",
-        "CAMPAIGN_SCHEDULED": "Campaign scheduled",
-        "USER_REGISTERED": "User registered"
+        "ENRICHMENT_REQUIRED": "Enrichment required (marketing analyst)",
+        "VALIDATION_REQUIRED": "Validation required (service manager)",
+        "STRATEGIC_VALIDATION": "Publication decision pending (department head)",
+        "OFFER_REJECTED": "Offer rejected or sent back (author)",
+        "OFFER_PUBLISHED": "Offer published (community manager, author)",
+        "OFFER_EXPIRING": "Offer expiring soon (author)",
+        "CAMPAIGN_READY": "Offer planned, campaign to prepare (community manager)"
       },
       "channels": {
-        "IN_APP": "In-app",
-        "EMAIL": "Email",
-        "SMS": "SMS",
-        "PUSH": "Push"
+        "IN_APP": "In the application"
       }
     },
     "kpi": {
@@ -1068,20 +1061,6 @@
     "emptyDescription": "Create your first categories to organize your catalog.",
     "children": "Subcategories",
     "noChildren": "No subcategories",
-    "features": {
-      "hierarchy": "Hierarchy",
-      "hierarchyDesc": "Organize your categories across multiple levels.",
-      "classification": "Classification",
-      "classificationDesc": "Classify your products and services in a structured way.",
-      "navigation": "Navigation",
-      "navigationDesc": "Facilitate navigation in your catalog.",
-      "flexibility": "Flexibility",
-      "flexibilityDesc": "Add, modify or reorganize your categories at any time.",
-      "organize": "Organisation",
-      "organizeDesc": "Group your offers and catalogue items by theme.",
-      "catalog": "Structured catalogue",
-      "catalogDesc": "Attach every product or service to its category."
-    },
     "searchPlaceholder": "Search for a category...",
     "level": "Level",
     "root": "root",
@@ -1247,20 +1226,6 @@
     },
     "empty": "No A/B tests",
     "emptyDescription": "Create your first A/B test to compare your offer performances.",
-    "features": {
-      "compare": "Comparison",
-      "compareDesc": "Compare two variants of an offer side by side.",
-      "measure": "Measurement",
-      "measureDesc": "Measure performance with precise metrics.",
-      "optimize": "Optimization",
-      "optimizeDesc": "Identify the best variant to maximize your results.",
-      "data": "Data-driven",
-      "dataDesc": "Make decisions based on real data.",
-      "metrics": "Metrics",
-      "metricsDesc": "Track conversion rate, clicks and subscriptions.",
-      "winner": "Winning variant",
-      "winnerDesc": "Designate the retained variant when the test closes."
-    },
     "searchPlaceholder": "Search for a test...",
     "createFirst": "Create my first test",
     "filters": {

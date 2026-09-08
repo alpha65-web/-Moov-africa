@@ -10,6 +10,14 @@ import ActionMenu from "@/components/ActionMenu";
 
 const RULE_TYPE_LIST = ["COMPATIBILITY", "INCOMPATIBILITY", "MANDATORY_COMPOSITION", "PACK_ONLY"];
 
+/** Incoherence de l'ensemble des regles, telle que renvoyee par GET /rules/consistency. */
+interface ConsistencyIssue {
+  code: string;
+  severity: "ERROR" | "WARNING";
+  ruleIds: string[];
+  message: string;
+}
+
 const EMPTY_FORM = {
   name: "",
   description: "",
@@ -54,6 +62,15 @@ export default function RulesPage() {
   const [deleting, setDeleting] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  /**
+   * Coherence globale des regles (cahier des charges 7.3).
+   *
+   * Chaque regle est valide isolement ; c'est leur ensemble qui peut se
+   * contredire ou se repeter. Le controle est recalcule apres chaque
+   * enregistrement, activation ou suppression, sur l'etat reel de la base.
+   */
+  const [issues, setIssues] = useState<ConsistencyIssue[] | null>(null);
+  const [highlightedRuleIds, setHighlightedRuleIds] = useState<string[]>([]);
 
   const isEditing = !!editingRule;
 
@@ -88,6 +105,18 @@ export default function RulesPage() {
       setRules(data);
     } catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
+    loadConsistency();
+  }
+
+  async function loadConsistency() {
+    try {
+      const { data } = await api.get("/rules/consistency");
+      setIssues(Array.isArray(data) ? data : []);
+    } catch (e) {
+      // Sans verdict, on ne dit pas que tout est coherent.
+      setIssues(null);
+      toast.error(apiError(e, tc("errors.load")));
+    }
   }
 
   async function loadItems() {
@@ -276,6 +305,71 @@ export default function RulesPage() {
         ))}
       </div>
 
+      {/* ===== COHERENCE GLOBALE =====
+          Le verdict vient du serveur, calcule sur l'ensemble des regles en base.
+          Un clic sur une incoherence met en evidence les regles concernees dans
+          le tableau. */}
+      {issues !== null && (
+        <div className={`rounded-2xl border shadow-card overflow-hidden ${issues.length === 0
+          ? "border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-900/10"
+          : issues.some((i) => i.severity === "ERROR")
+            ? "border-red-200 dark:border-red-800/40 bg-white dark:bg-neutral-900"
+            : "border-amber-200 dark:border-amber-800/40 bg-white dark:bg-neutral-900"}`}>
+          <div className="flex items-center justify-between gap-3 px-5 py-3.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`size-9 shrink-0 rounded-xl flex items-center justify-center ${issues.length === 0
+                ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                : issues.some((i) => i.severity === "ERROR")
+                  ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                  : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"}`}>
+                {issues.length === 0 ? (
+                  <svg className="size-4.5" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                ) : (
+                  <svg className="size-4.5" viewBox="0 0 16 16" fill="none"><path d="M8 2l6.5 11.5H1.5L8 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M8 6.5v3M8 11.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-black dark:text-white">{t("consistency.title")}</p>
+                <p className="text-xs text-text-secondary dark:text-neutral-500">
+                  {issues.length === 0 ? t("consistency.ok", { count: rules.filter((r) => r.active).length }) : t("consistency.found", { count: issues.length })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {highlightedRuleIds.length > 0 && (
+                <button onClick={() => setHighlightedRuleIds([])} className="text-xs text-text-secondary dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+                  {t("consistency.clearHighlight")}
+                </button>
+              )}
+              <button onClick={loadConsistency} className="tertiary-icon px-3 py-1.5 active-scale">
+                <p className="text-xs font-medium">{t("consistency.recheck")}</p>
+              </button>
+            </div>
+          </div>
+          {issues.length > 0 && (
+            <ul className="border-t border-border dark:border-neutral-800 divide-y divide-border dark:divide-neutral-800">
+              {issues.map((issue, index) => (
+                <li key={`${issue.code}-${index}`}>
+                  <button
+                    type="button"
+                    onClick={() => setHighlightedRuleIds(issue.ruleIds)}
+                    className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer"
+                  >
+                    <span className={`shrink-0 mt-0.5 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded ${issue.severity === "ERROR"
+                      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>
+                      {t(`consistency.codes.${issue.code}`)}
+                    </span>
+                    <span className="flex-1 text-xs text-black dark:text-neutral-200 leading-relaxed">{issue.message}</span>
+                    <span className="shrink-0 text-[11px] text-text-secondary dark:text-neutral-500 tabular-nums">{t("consistency.rulesInvolved", { count: issue.ruleIds.length })}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* ===== RECHERCHE + FILTRES ===== */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
@@ -373,7 +467,7 @@ export default function RulesPage() {
             {paginated.map((rule) => (
               <div
                 key={rule.id}
-                className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_90px_120px_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
+                className={`grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_90px_120px_60px] gap-2 md:gap-3 items-center px-6 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer ${highlightedRuleIds.includes(rule.id) ? "bg-amber-50 dark:bg-amber-900/15 ring-1 ring-inset ring-amber-300 dark:ring-amber-700" : ""}`}
                 onClick={() => setDetailRule(rule)}
               >
                 <div className="min-w-0">
@@ -421,7 +515,7 @@ export default function RulesPage() {
                             <path d="M3 8l3.5 3.5L13 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           )}
                         </svg>
-                        {rule.active ? t("messages.deactivated").replace("Règle d", "D").replace("Rule d", "D") : t("messages.activated").replace("Règle a", "A").replace("Rule a", "A")}
+                        {rule.active ? t("deactivate") : t("activate")}
                       </button>
                       <button onClick={() => { setDeleteTarget(rule); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                         <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -452,53 +546,6 @@ export default function RulesPage() {
           </div>
         )}
       </div>
-
-      {/* ===== 4 FEATURE CARDS ===== */}
-      {rules.length === 0 && !loading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: "compatibility", title: t("features.compatibility"), desc: t("features.compatibilityDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
-            { icon: "composition", title: t("features.composition"), desc: t("features.compositionDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
-            { icon: "validation", title: t("features.validation"), desc: t("features.validationDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
-            { icon: "traceability", title: t("features.traceability"), desc: t("features.traceabilityDesc"), color: "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30" },
-          ].map((f) => (
-            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex items-start gap-4">
-              <div className={`rounded-xl p-3 shrink-0 ${f.color}`}>
-                {f.icon === "compatibility" && (
-                  <svg className="size-6" viewBox="0 0 24 24" fill="none">
-                    <circle cx="8" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
-                    <circle cx="16" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
-                  </svg>
-                )}
-                {f.icon === "composition" && (
-                  <svg className="size-6" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                    <rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M11 7h2M7 11v2M17 11v2M11 17h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                )}
-                {f.icon === "validation" && (
-                  <svg className="size-6" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M12 3l2.5 1.5L17 3v3l2.5 1.5L18 10l1.5 2.5L17 14v3l-2.5 1.5L12 21l-2.5-2.5L7 17v-3l-2.5-1.5L6 10 4.5 7.5 7 6V3l2.5 1.5L12 3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                  </svg>
-                )}
-                {f.icon === "traceability" && (
-                  <svg className="size-6" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 8v4l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M16.5 16.5L19 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ===== MODAL CRÉATION / ÉDITION ===== */}
       {showModal && (

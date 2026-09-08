@@ -57,7 +57,10 @@ public class OfferService {
             OfferStatus.DRAFT, Set.of(OfferStatus.IN_ENRICHMENT),
             OfferStatus.IN_ENRICHMENT, Set.of(OfferStatus.IN_VALIDATION, OfferStatus.DRAFT),
             OfferStatus.IN_VALIDATION, Set.of(OfferStatus.VALIDATED, OfferStatus.IN_ENRICHMENT),
-            OfferStatus.VALIDATED, Set.of(OfferStatus.PLANNED, OfferStatus.PUBLISHED),
+            // Le retour au brouillon depuis VALIDEE est l'annulation strategique du
+            // chef de departement (cahier des charges, section 6) : la fiche revient
+            // a son auteur, qui corrige et resoumet ; le circuit reprend du debut.
+            OfferStatus.VALIDATED, Set.of(OfferStatus.PLANNED, OfferStatus.PUBLISHED, OfferStatus.DRAFT),
             OfferStatus.PLANNED, Set.of(OfferStatus.PUBLISHED, OfferStatus.SUSPENDED),
             OfferStatus.PUBLISHED, Set.of(OfferStatus.SUSPENDED, OfferStatus.OBSOLETE, OfferStatus.WITHDRAWN),
             OfferStatus.SUSPENDED, Set.of(OfferStatus.PUBLISHED, OfferStatus.WITHDRAWN),
@@ -358,13 +361,11 @@ public class OfferService {
         // ne s'interesse qu'au prix ne doit pas vider les briques de l'offre.
         if (request.catalogItemIds() != null) {
             checkComposition(request.catalogItemIds());
-            offer.getItems().clear();
-            for (UUID catalogItemId : request.catalogItemIds()) {
-                offer.addItem(new OfferItem(catalogItemId));
-            }
+            replaceComposition(offer, request.catalogItemIds());
         }
 
         offer.setQualityScore(computeQualityScore(offer));
+        createVersion(offer, currentUserId(), "Modification des champs commerciaux");
         offer = offerRepository.save(offer);
         return project(offer);
     }
@@ -386,6 +387,7 @@ public class OfferService {
 
         offer.setEnrichedById(currentUserId());
         offer.setQualityScore(computeQualityScore(offer));
+        createVersion(offer, currentUserId(), "Enrichissement éditorial");
         offer = offerRepository.save(offer);
         return project(offer);
     }
@@ -408,6 +410,16 @@ public class OfferService {
         if ((to == OfferStatus.IN_ENRICHMENT || to == OfferStatus.IN_VALIDATION) && from == OfferStatus.IN_VALIDATION
                 && (request.comment() == null || request.comment().isBlank())) {
             throw new IllegalArgumentException("Un commentaire est obligatoire en cas de rejet");
+        }
+
+        // Annuler une offre que le chef de service a deja validee est une decision
+        // prise « sur consigne de la direction » : elle doit etre motivee, et le
+        // motif reste dans l'historique de la fiche pour que l'auteur et le
+        // valideur sachent pourquoi leur travail est repris.
+        if (from == OfferStatus.VALIDATED && to == OfferStatus.DRAFT
+                && (request.comment() == null || request.comment().isBlank())) {
+            throw new IllegalArgumentException(
+                    "Un motif est obligatoire pour annuler une offre déjà validée");
         }
 
         // Enchainement des deux circuits, cahier des charges 7.6 : « une fois la
@@ -468,7 +480,7 @@ public class OfferService {
             offer.setPublishDate(LocalDateTime.now());
         }
 
-        createVersion(offer, actorId);
+        createVersion(offer, actorId, "Transition vers " + offer.getStatus());
         Offer saved = offerRepository.save(offer);
 
         eventPublisher.publishEvent(new OfferTransitionEvent(
@@ -763,10 +775,45 @@ public class OfferService {
         return withNames(offerRepository.findByStatusAndCreatedById(status, currentUserId()));
     }
 
+    /**
+     * Aligne la composition sur la liste demandee, par difference.
+     *
+     * Vider la collection puis la remplir a nouveau declenchait la contrainte
+     * d'unicite (offer_id, catalog_item_id) : Hibernate insere les nouvelles
+     * lignes avant de supprimer les anciennes, et une brique conservee d'une
+     * version a l'autre existait donc deux fois l'espace d'un flush. Seules les
+     * briques retirees sont supprimees et seules les nouvelles sont ajoutees.
+     */
+    private void replaceComposition(Offer offer, java.util.Collection<UUID> wantedIds) {
+        Set<UUID> wanted = new java.util.LinkedHashSet<>(wantedIds);
+        offer.getItems().removeIf(item -> !wanted.contains(item.getCatalogItemId()));
+        Set<UUID> present = offer.getItems().stream()
+                .map(OfferItem::getCatalogItemId)
+                .collect(java.util.stream.Collectors.toSet());
+        for (UUID catalogItemId : wanted) {
+            if (!present.contains(catalogItemId)) {
+                offer.addItem(new OfferItem(catalogItemId));
+            }
+        }
+    }
+
+    /**
+     * Supprime un brouillon.
+     *
+     * Seule une fiche qui n'a jamais quitte les mains de son auteur peut
+     * disparaitre : au-dela, d'autres acteurs ont travaille dessus, des
+     * campagnes ou des diffusions peuvent la designer, et le cycle de vie
+     * prevoit le retrait puis l'archivage, pas l'effacement. L'ecran n'offre
+     * l'action que sur les brouillons ; le serveur applique la meme regle.
+     */
     @Transactional
     public void delete(UUID offerId) {
         Offer offer = findOffer(offerId);
         checkOwnership(offer);
+        if (offer.getStatus() != OfferStatus.DRAFT) {
+            throw new IllegalStateException(
+                    "Seul un brouillon peut être supprimé : retirez puis archivez une offre déjà engagée dans le circuit.");
+        }
         offerRepository.delete(offer);
     }
 
@@ -786,13 +833,22 @@ public class OfferService {
                 .orElseThrow(() -> new IllegalArgumentException("Offre introuvable"));
     }
 
-    private void createVersion(Offer offer, UUID actorId) {
+    /**
+     * Fige l'etat courant de la fiche dans une nouvelle version.
+     *
+     * Les versions n'etaient prises qu'aux transitions de statut : une description
+     * reecrite par l'analyste ou un prix corrige par le chef de produit ne
+     * laissaient aucune trace, et l'historique « avec diff avant/apres » demande
+     * par le cahier des charges (7.4, 7.7) ne pouvait montrer que des changements
+     * de statut. Chaque modification de contenu prend desormais sa version.
+     */
+    private void createVersion(Offer offer, UUID actorId, String description) {
         OfferVersion version = new OfferVersion();
         version.setOffer(offer);
         version.setVersionNumber(offer.getCurrentVersion());
         version.setSnapshot(serializeSnapshot(offer));
         version.setChangedById(actorId);
-        version.setChangeDescription("Transition vers " + offer.getStatus());
+        version.setChangeDescription(description);
         offer.getVersions().add(version);
         offer.setCurrentVersion(offer.getCurrentVersion() + 1);
     }
@@ -801,17 +857,26 @@ public class OfferService {
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.registerModule(new JavaTimeModule());
-            Map<String, Object> snapshot = Map.of(
-                    "name", offer.getName(),
-                    "status", offer.getStatus().name(),
-                    "shortDescription", offer.getShortDescription() != null ? offer.getShortDescription() : "",
-                    "longDescription", offer.getLongDescription() != null ? offer.getLongDescription() : "",
-                    "seoTitle", offer.getSeoTitle() != null ? offer.getSeoTitle() : "",
-                    "seoDescription", offer.getSeoDescription() != null ? offer.getSeoDescription() : "",
-                    "promotionalPrice", offer.getPromotionalPrice() != null ? offer.getPromotionalPrice().toString() : "",
-                    "legalMentions", offer.getLegalMentions() != null ? offer.getLegalMentions() : "",
-                    "qualityScore", offer.getQualityScore()
-            );
+            // Ordre d'insertion conserve : c'est celui dans lequel l'ecran presente
+            // le diff d'une version a l'autre.
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("name", offer.getName());
+            snapshot.put("status", offer.getStatus().name());
+            snapshot.put("shortDescription", offer.getShortDescription() != null ? offer.getShortDescription() : "");
+            snapshot.put("longDescription", offer.getLongDescription() != null ? offer.getLongDescription() : "");
+            snapshot.put("seoTitle", offer.getSeoTitle() != null ? offer.getSeoTitle() : "");
+            snapshot.put("seoDescription", offer.getSeoDescription() != null ? offer.getSeoDescription() : "");
+            snapshot.put("promotionalPrice", offer.getPromotionalPrice() != null ? offer.getPromotionalPrice().toString() : "");
+            snapshot.put("legalMentions", offer.getLegalMentions() != null ? offer.getLegalMentions() : "");
+            snapshot.put("qualityScore", offer.getQualityScore());
+            // Champs commerciaux ajoutes a l'instantane : sans eux, une date de
+            // validite ou une brique changee ne laissait aucune trace comparable.
+            snapshot.put("validFrom", offer.getValidFrom() != null ? offer.getValidFrom().toString() : "");
+            snapshot.put("validUntil", offer.getValidUntil() != null ? offer.getValidUntil().toString() : "");
+            snapshot.put("targetSegment", offer.getTargetSegment() != null ? offer.getTargetSegment() : "");
+            snapshot.put("customerType", offer.getCustomerType() != null ? offer.getCustomerType() : "");
+            snapshot.put("catalogItemIds", offer.getItems().stream()
+                    .map(item -> item.getCatalogItemId().toString()).sorted().toList());
             return mapper.writeValueAsString(snapshot);
         } catch (Exception e) {
             return "{}";
@@ -906,8 +971,12 @@ public class OfferService {
      */
     private static Set<String> permissionsFor(OfferStatus from, OfferStatus to) {
         return switch (to) {
-            // Retour a l'auteur : l'enrichisseur comme le soumetteur peuvent rendre la main.
-            case DRAFT -> Set.of("OFFER_SUBMIT", "OFFER_ENRICH");
+            // Retour a l'auteur : l'enrichisseur comme le soumetteur peuvent rendre la
+            // main. Depuis VALIDEE, c'est l'annulation d'une validation acquise :
+            // elle n'appartient qu'au decideur de la mise sur le marche.
+            case DRAFT -> from == OfferStatus.VALIDATED
+                    ? Set.of("OFFER_PUBLISH")
+                    : Set.of("OFFER_SUBMIT", "OFFER_ENRICH");
             // Depuis la validation, un passage en enrichissement est un rejet : il
             // appartient au valideur. Depuis le brouillon, c'est une soumission.
             case IN_ENRICHMENT -> from == OfferStatus.IN_VALIDATION
@@ -953,7 +1022,7 @@ public class OfferService {
     /**
      * Perimetre de visibilite et d'intervention sur une fiche.
      *
-     * Le cahier des charges (regles/PROMPT_MAITRE..., regles de visibilite) impose
+     * Le cahier des charges (section 6, regles de visibilite) impose
      * deux regimes distincts :
      *   « un chef de produit ne voit que les offres qu'il a lui-meme creees,
      *     jamais celles des autres chefs de produit »

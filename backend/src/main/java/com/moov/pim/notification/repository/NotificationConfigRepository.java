@@ -10,4 +10,6 @@ import java.util.UUID;
 public interface NotificationConfigRepository extends JpaRepository<NotificationConfig, UUID> {
 
     List<NotificationConfig> findByTypeAndEnabledTrue(NotificationType type);
+
+    List<NotificationConfig> findByType(NotificationType type);
 }

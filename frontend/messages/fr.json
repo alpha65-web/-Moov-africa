@@ -28,12 +28,13 @@
     "result": "résultat",
     "results": "résultats",
     "errors": {
-      "load": "Impossible de charger les donnees.",
-      "create": "La creation a echoue.",
-      "update": "La modification a echoue.",
-      "delete": "La suppression a echoue.",
-      "action": "L operation a echoue."
-    }
+      "load": "Impossible de charger les données.",
+      "create": "La création a échoué.",
+      "update": "La modification a échoué.",
+      "delete": "La suppression a échoué.",
+      "action": "L'opération a échoué."
+    },
+    "unknownItem": "Élément inconnu"
   },
   "sidebar": {
     "dashboard": "Tableau de bord",
@@ -191,7 +192,16 @@
       "mediaAttach": "Associer",
       "mediaDetach": "Retirer ce visuel de l'offre",
       "mediaUpload": "Déposer un visuel",
-      "mediaTooLarge": "Fichier trop volumineux : 50 Mo maximum."
+      "mediaTooLarge": "Fichier trop volumineux : 50 Mo maximum.",
+      "validFrom": "Début de validité",
+      "validUntil": "Fin de validité",
+      "validityHint": "Une offre validée puis planifiée est publiée automatiquement au début de validité, et devient obsolète à la fin.",
+      "composition": "Composition",
+      "compositionEmpty": "Aucune brique : ajoutez des produits, services ou packs du catalogue.",
+      "compositionSearch": "Rechercher une brique du catalogue…",
+      "compositionNoResult": "Aucune brique ne correspond.",
+      "compositionNoCatalog": "Le catalogue est vide : créez d'abord des produits, services ou packs.",
+      "compositionRemove": "Retirer de la composition"
     },
     "status": {
       "DRAFT": "Brouillon",
@@ -235,19 +245,12 @@
       "date": "Date",
       "filters": "Filtres"
     },
-    "features": {
-      "workflow": "Workflow complet",
-      "workflowDesc": "Suivez chaque étape du cycle de vie de vos offres de la création à la publication.",
-      "quality": "Qualité des données",
-      "qualityDesc": "Contrôlez le niveau de complétude et assurez la qualité des informations.",
-      "multichannel": "Diffusion multi-canal",
-      "multichannelDesc": "Publiez vos offres sur tous les canaux Moov Africa en toute cohérence."
-    },
     "detail": {
       "version": "Version",
       "updatedAt": "Modifiée le",
       "media": "Visuels associés",
-      "history": "Parcours de la fiche"
+      "history": "Parcours de la fiche",
+      "compositionEmpty": "Aucune brique du catalogue n'est rattachée à cette offre."
     },
     "transition": {
       "title": "Transition de statut",
@@ -258,7 +261,11 @@
       "availableTransitions": "Transitions possibles",
       "commentRequired": "Un commentaire est requis pour cette transition",
       "noneAvailable": "Aucune transition ne vous est ouverte depuis ce statut.",
-      "noLegalMentions": "Aucune mention légale n'est renseignée sur cette offre. Vérifiez avant publication."
+      "noLegalMentions": "Aucune mention légale n'est renseignée sur cette offre. Vérifiez avant publication.",
+      "cancelValidation": "Annuler la validation",
+      "reject": "Rejeter (retour en enrichissement)",
+      "approve": "Valider",
+      "commentRequiredHint": "Un motif est obligatoire pour rejeter une offre soumise ou annuler une offre validée ; il est conservé dans l'historique de la fiche."
     },
     "messages": {
       "created": "Offre créée avec succès",
@@ -306,6 +313,23 @@
       "available": "Disponible",
       "inProgress": "{count} en cours",
       "handled": "{count} offre(s) traitée(s) au total"
+    },
+    "rules": {
+      "blocking": "Bloquant",
+      "warning": "Avertissement",
+      "ok": "Aucune règle métier n'est enfreinte par cette composition.",
+      "blockedHint": "Corrigez la composition : une règle bloquante est enfreinte."
+    },
+    "versions": {
+      "title": "Versions",
+      "noDescription": "Modification",
+      "initial": "version initiale",
+      "changedFields": "{count, plural, =0 {aucun champ modifié} =1 {1 champ modifié} other {# champs modifiés}}",
+      "noChange": "Aucun champ suivi n'a changé dans cette version.",
+      "restore": "Restaurer cette version",
+      "restoreTitle": "Restaurer la version {version} ?",
+      "restoreWarning": "Le contenu de la fiche (nom, descriptions, référencement, prix, mentions légales) reprendra les valeurs de cette version. Le statut et la composition ne changent pas. L'opération est tracée comme une nouvelle version.",
+      "restored": "Version {version} restaurée."
     }
   },
   "campaigns": {
@@ -332,16 +356,6 @@
       "allChannels": "Tous les canaux",
       "period": "Période",
       "filters": "Filtres"
-    },
-    "features": {
-      "planning": "Planification facile",
-      "planningDesc": "Programmez vos campagnes à l'avance et définissez des dates de lancement automatiques.",
-      "targeting": "Ciblage précis",
-      "targetingDesc": "Segmentez vos audiences pour des campagnes personnalisées et plus performantes.",
-      "realtime": "Suivi en temps réel",
-      "realtimeDesc": "Suivez les performances de vos campagnes avec des métriques détaillées en direct.",
-      "multichannel": "Multi-canal",
-      "multichannelDesc": "Diffusez vos campagnes sur SMS, email, push et réseaux sociaux simultanément."
     },
     "columns": {
       "name": "Nom",
@@ -426,16 +440,6 @@
       "allStatuses": "Tous les statuts",
       "allTypes": "Tous les types",
       "filters": "Filtres"
-    },
-    "features": {
-      "formats": "Multi-formats",
-      "formatsDesc": "Supportez images, PDF et vidéos dans tous les formats courants pour vos offres.",
-      "validation": "Workflow de validation",
-      "validationDesc": "Approuvez ou rejetez les fichiers avant leur utilisation dans vos offres et campagnes.",
-      "versioning": "Versionnage",
-      "versioningDesc": "Gérez les différentes versions de vos fichiers avec un historique complet.",
-      "organization": "Organisation",
-      "organizationDesc": "Classez et retrouvez facilement vos fichiers grâce à la recherche et aux filtres."
     },
     "columns": {
       "file": "Fichier",
@@ -646,17 +650,7 @@
     "notProvided": "Non renseigné",
     "lastLogin": "Dernière connexion",
     "never": "Jamais",
-    "createdAt": "Créé le",
-    "features": {
-      "roles": "Gestion des rôles",
-      "rolesDesc": "Attribuez des rôles et des permissions adaptés à chaque utilisateur.",
-      "security": "Sécurité renforcée",
-      "securityDesc": "Contrôlez les accès et protégez les données sensibles.",
-      "history": "Historique des actions",
-      "historyDesc": "Consultez l'historique des connexions et des actions effectuées.",
-      "collaboration": "Collaboration",
-      "collaborationDesc": "Facilitez le travail en équipe avec des accès adaptés à chacun."
-    }
+    "createdAt": "Créé le"
   },
   "notifications": {
     "title": "Notifications",
@@ -701,11 +695,6 @@
     "allMarkedRead": "Toutes les notifications marquées comme lues",
     "deleted": "Notification supprimée",
     "pagination": "Affichage de {from} à {to} sur {total} notifications",
-    "banner": {
-      "title": "Ne manquez rien d'important",
-      "description": "Activez les notifications par email pour recevoir les alertes importantes directement dans votre boîte mail.",
-      "cta": "Activer les notifications email"
-    },
     "timeAgo": {
       "now": "A l'instant",
       "minutes": "Il y a {count} min",
@@ -832,15 +821,22 @@
     "createFirst": "Créer ma première règle",
     "createTitle": "Nouvelle règle",
     "editTitle": "Modifier la règle",
-    "features": {
-      "compatibility": "Compatibilité",
-      "compatibilityDesc": "Définissez les règles de compatibilité entre produits, services ou offres.",
-      "composition": "Composition",
-      "compositionDesc": "Gérez les règles de composition des packs et offres groupées.",
-      "validation": "Validation",
-      "validationDesc": "Validez automatiquement les offres selon vos règles métier.",
-      "traceability": "Traçabilité",
-      "traceabilityDesc": "Suivez l'historique et l'impact de chaque règle métier."
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "consistency": {
+      "title": "Cohérence globale des règles",
+      "ok": "{count, plural, =0 {Aucune règle active.} =1 {La règle active est cohérente.} other {Les # règles actives sont cohérentes entre elles.}}",
+      "found": "{count, plural, =1 {1 incohérence relevée.} other {# incohérences relevées.}}",
+      "recheck": "Revérifier",
+      "clearHighlight": "Retirer la mise en évidence",
+      "rulesInvolved": "{count, plural, =1 {1 règle} other {# règles}}",
+      "codes": {
+        "CONTRADICTION": "Contradiction",
+        "DUPLICATE": "Doublon",
+        "ARCHIVED_ITEM": "Brique archivée",
+        "SELF_REFERENCE": "Auto-référence",
+        "MANDATORY_CYCLE": "Boucle"
+      }
     }
   },
   "settings": {
@@ -928,19 +924,16 @@
       "notifEnabled": "Notification activée",
       "notifDisabled": "Notification désactivée",
       "types": {
-        "OFFER_CREATED": "Offre créée",
-        "OFFER_TRANSITION": "Transition d'offre",
-        "OFFER_PUBLISHED": "Offre publiée",
-        "MEDIA_UPLOADED": "Média uploadé",
-        "MEDIA_VALIDATED": "Média validé",
-        "CAMPAIGN_SCHEDULED": "Campagne planifiée",
-        "USER_REGISTERED": "Utilisateur inscrit"
+        "ENRICHMENT_REQUIRED": "Enrichissement requis (analyste marketing)",
+        "VALIDATION_REQUIRED": "Validation requise (chef de service)",
+        "STRATEGIC_VALIDATION": "Publication à arbitrer (chef de département)",
+        "OFFER_REJECTED": "Offre rejetée ou renvoyée (auteur)",
+        "OFFER_PUBLISHED": "Offre publiée (community manager, auteur)",
+        "OFFER_EXPIRING": "Offre bientôt expirée (auteur)",
+        "CAMPAIGN_READY": "Offre planifiée, campagne à préparer (community manager)"
       },
       "channels": {
-        "IN_APP": "Application",
-        "EMAIL": "Email",
-        "SMS": "SMS",
-        "PUSH": "Push"
+        "IN_APP": "Dans l'application"
       }
     },
     "kpi": {
@@ -1068,20 +1061,6 @@
     "emptyDescription": "Créez vos premières catégories pour organiser votre catalogue.",
     "children": "Sous-catégories",
     "noChildren": "Aucune sous-catégorie",
-    "features": {
-      "hierarchy": "Hiérarchie",
-      "hierarchyDesc": "Organisez vos catégories sur plusieurs niveaux.",
-      "classification": "Classification",
-      "classificationDesc": "Classez vos produits et services de manière structurée.",
-      "navigation": "Navigation",
-      "navigationDesc": "Facilitez la navigation dans votre catalogue.",
-      "flexibility": "Flexibilité",
-      "flexibilityDesc": "Ajoutez, modifiez ou réorganisez vos catégories à tout moment.",
-      "organize": "Organisation",
-      "organizeDesc": "Regroupez vos offres et vos éléments de catalogue par thème.",
-      "catalog": "Catalogue structuré",
-      "catalogDesc": "Rattachez chaque produit ou service à sa catégorie."
-    },
     "searchPlaceholder": "Rechercher une catégorie...",
     "level": "Niveau",
     "root": "racine",
@@ -1247,20 +1226,6 @@
     },
     "empty": "Aucun test A/B",
     "emptyDescription": "Créez votre premier test A/B pour comparer les performances de vos offres.",
-    "features": {
-      "compare": "Comparaison",
-      "compareDesc": "Comparez deux variantes d'une offre côte à côte.",
-      "measure": "Mesure",
-      "measureDesc": "Mesurez les performances avec des métriques précises.",
-      "optimize": "Optimisation",
-      "optimizeDesc": "Identifiez la meilleure variante pour maximiser vos résultats.",
-      "data": "Data-driven",
-      "dataDesc": "Prenez des décisions basées sur les données réelles.",
-      "metrics": "Métriques",
-      "metricsDesc": "Suivez le taux de conversion, les clics et les souscriptions.",
-      "winner": "Variante gagnante",
-      "winnerDesc": "Désignez la variante retenue à la clôture du test."
-    },
     "searchPlaceholder": "Rechercher un test...",
     "createFirst": "Créer mon premier test",
     "filters": {

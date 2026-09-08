@@ -1,7 +1,9 @@
 package com.moov.pim.notification.service;
 
 import com.moov.pim.notification.domain.Notification;
+import com.moov.pim.notification.domain.NotificationConfig;
 import com.moov.pim.notification.domain.NotificationType;
+import com.moov.pim.notification.repository.NotificationConfigRepository;
 import com.moov.pim.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.*;
 class NotificationServiceTest {
 
     @Mock private NotificationRepository notificationRepository;
+    @Mock private NotificationConfigRepository configRepository;
 
     @InjectMocks private NotificationService notificationService;
 
@@ -44,6 +47,39 @@ class NotificationServiceTest {
         assertEquals("Offre publiée", result.getTitle());
         assertEquals(recipientId, result.getRecipientId());
         assertFalse(result.isRead());
+        verify(notificationRepository).save(any());
+    }
+
+    /**
+     * La configuration des canaux (Parametres > Notifications) doit commander
+     * l'envoi : un type desactive par l'administrateur n'est pas notifie.
+     */
+    @Test
+    void send_shouldSkipWhenTypeDisabledInApp() {
+        NotificationConfig disabled = mock(NotificationConfig.class);
+        when(disabled.getChannel()).thenReturn("IN_APP");
+        when(disabled.isEnabled()).thenReturn(false);
+        when(configRepository.findByType(NotificationType.ENRICHMENT_REQUIRED)).thenReturn(List.of(disabled));
+
+        Notification result = notificationService.send(
+                UUID.randomUUID(), NotificationType.ENRICHMENT_REQUIRED, "Enrichissement requis",
+                "Une offre attend son enrichissement", UUID.randomUUID());
+
+        assertNull(result);
+        verify(notificationRepository, never()).save(any());
+    }
+
+    /** Un type sans ligne de configuration reste notifie : l'absence de reglage n'est pas un refus. */
+    @Test
+    void send_shouldNotifyWhenNoConfigExists() {
+        when(configRepository.findByType(NotificationType.CAMPAIGN_READY)).thenReturn(List.of());
+        when(notificationRepository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Notification result = notificationService.send(
+                UUID.randomUUID(), NotificationType.CAMPAIGN_READY, "Offre planifiée",
+                "La campagne peut être préparée", UUID.randomUUID());
+
+        assertNotNull(result);
         verify(notificationRepository).save(any());
     }
 

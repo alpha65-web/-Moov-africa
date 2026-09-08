@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
@@ -8,7 +8,7 @@ import { usePermissions, PERM, queueStatusesFor } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth";
 import MediaPreview from "@/components/MediaPreview";
 import ActionMenu from "@/components/ActionMenu";
-import type { Offer, OfferStatus } from "@/lib/types";
+import type { CatalogItem, Offer, OfferStatus } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 import CategoryPicker from "@/components/CategoryPicker";
@@ -19,7 +19,9 @@ const ALLOWED_TRANSITIONS: Record<string, OfferStatus[]> = {
   DRAFT: ["IN_ENRICHMENT"],
   IN_ENRICHMENT: ["IN_VALIDATION", "DRAFT"],
   IN_VALIDATION: ["VALIDATED", "IN_ENRICHMENT"],
-  VALIDATED: ["PLANNED", "PUBLISHED"],
+  // Le retour au brouillon depuis VALIDEE est l'annulation strategique du chef
+  // de departement : la fiche revient a son auteur et le circuit reprend.
+  VALIDATED: ["PLANNED", "PUBLISHED", "DRAFT"],
   PLANNED: ["PUBLISHED", "SUSPENDED"],
   PUBLISHED: ["SUSPENDED", "OBSOLETE", "WITHDRAWN"],
   SUSPENDED: ["PUBLISHED", "WITHDRAWN"],
@@ -36,7 +38,7 @@ const ALLOWED_TRANSITIONS: Record<string, OfferStatus[]> = {
 function permissionsForTransition(from: string, target: OfferStatus): string[] {
   switch (target) {
     case "DRAFT":
-      return ["OFFER_SUBMIT", "OFFER_ENRICH"];
+      return from === "VALIDATED" ? ["OFFER_PUBLISH"] : ["OFFER_SUBMIT", "OFFER_ENRICH"];
     case "IN_ENRICHMENT":
       return from === "IN_VALIDATION" ? ["OFFER_VALIDATE"] : ["OFFER_SUBMIT"];
     case "IN_VALIDATION":
@@ -68,7 +70,64 @@ const EMPTY_FORM = {
   targetSegment: "",
   customerType: "",
   legalMentions: "",
+  /**
+   * Debut et fin de validite, au format date (AAAA-MM-JJ).
+   *
+   * Le serveur s'en sert pour publier automatiquement une offre planifiee et
+   * pour la rendre obsolete a echeance ; sans champ a l'ecran, ces deux
+   * automatismes ne pouvaient jamais se declencher.
+   */
+  validFrom: "",
+  validUntil: "",
+  /**
+   * Briques du catalogue (produits, services, packs) qui composent l'offre.
+   *
+   * Le formulaire envoyait toujours une liste vide : l'assemblage a partir de
+   * briques existantes, responsabilite premiere du chef de produit, n'existait
+   * pas a l'ecran, et le moteur de regles metier n'avait donc rien a evaluer.
+   */
+  catalogItemIds: [] as string[],
 };
+
+/** Violation d'une regle metier, telle que renvoyee par POST /rules/evaluate. */
+interface RuleViolation {
+  ruleId: string | null;
+  ruleName: string | null;
+  ruleType: string;
+  message: string;
+  blocking: boolean;
+}
+
+/** Etat anterieur complet de la fiche, tel que renvoye par GET /offers/{id}/versions. */
+interface OfferVersion {
+  id: string;
+  versionNumber: number;
+  snapshot: string;
+  changeDescription: string | null;
+  changedByName: string | null;
+  createdAt: string;
+}
+
+/** Ordre de presentation des champs d'un instantane, du plus visible au plus technique. */
+const SNAPSHOT_FIELDS = [
+  "name", "status", "promotionalPrice", "validFrom", "validUntil", "targetSegment", "customerType",
+  "catalogItemIds", "shortDescription", "longDescription", "seoTitle", "seoDescription", "legalMentions", "qualityScore",
+] as const;
+
+function parseSnapshot(raw: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Convertit une date de formulaire (AAAA-MM-JJ) en LocalDateTime pour le serveur. */
+function toDateTime(date: string, endOfDay: boolean): string | null {
+  if (!date) return null;
+  return `${date}T${endOfDay ? "23:59:59" : "00:00:00"}`;
+}
 
 /**
  * Statuts sur lesquels le serveur accepte un enrichissement.
@@ -148,6 +207,15 @@ export default function OffersPage() {
   const canAssign = has(PERM.OFFER_ASSIGN);
   // Mettre sur le marche : c'est a ce moment que les mentions legales se verifient.
   const canPublish = has(PERM.OFFER_PUBLISH);
+  // La restauration d'une version anterieure est reservee a l'administrateur
+  // (cahier des charges 7.7) ; le serveur exige AUDIT_VIEW.
+  const canRestore = has(PERM.AUDIT_VIEW);
+  // Nommer les briques d'une fiche suppose de lire le catalogue ; le community
+  // manager n'y a pas acces et n'en a pas l'usage.
+  const canReadCatalog = hasAny(PERM.CATALOG_MANAGE, PERM.OFFER_ENRICH, PERM.OFFER_VALIDATE, PERM.OFFER_PUBLISH);
+  // POST /rules/evaluate : ceux qui assemblent, administrent les regles ou se
+  // prononcent sur une fiche.
+  const canEvaluateRules = hasAny(PERM.OFFER_CREATE, PERM.RULE_MANAGE, PERM.OFFER_VALIDATE, PERM.OFFER_PUBLISH);
 
   // Sert a distinguer « qui m'est confiee » de « confiee a un collegue » sans
   // avoir a resoudre le nom de l'analyste : un analyste n'a pas acces a
@@ -189,6 +257,29 @@ export default function OffersPage() {
   // seule a se griser, pas toute la galerie.
   const [detaching, setDetaching] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<Offer | null>(null);
+  // Briques disponibles pour composer une offre, et resultat de l'evaluation
+  // des regles sur la composition en cours de saisie. Le catalogue n'est charge
+  // qu'a l'ouverture d'un formulaire ou d'une fiche : la liste des offres n'a
+  // pas a le payer.
+  const [catalog, setCatalog] = useState<CatalogItem[] | null>(null);
+  const [itemSearch, setItemSearch] = useState("");
+  const [violations, setViolations] = useState<RuleViolation[]>([]);
+  const [evaluating, setEvaluating] = useState(false);
+  // Evaluation de la composition de la fiche consultee, pour le valideur.
+  const [detailViolations, setDetailViolations] = useState<{ offerId: string; items: RuleViolation[] } | null>(null);
+  /**
+   * Versions de la fiche consultee, de la plus recente a la plus ancienne.
+   *
+   * offer_versions etait ecrite a chaque changement, et le serveur exposait la
+   * restauration, mais aucun ecran ne lisait ni l'un ni l'autre : l'historique
+   * « avec diff avant/apres » et le rollback de l'administrateur, tous deux
+   * exiges par le cahier des charges (7.4, 7.7), n'existaient pas a l'ecran.
+   */
+  const [detailVersions, setDetailVersions] = useState<{ offerId: string; items: OfferVersion[] } | null>(null);
+  // Cle « offre:version » : l'ouverture d'une autre fiche ne garde pas la version deployee de la precedente.
+  const [expandedVersion, setExpandedVersion] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<OfferVersion | null>(null);
+  const [restoring, setRestoring] = useState(false);
   // Analystes marketing avec leur charge du moment. Les deux compteurs viennent
   // du serveur et sont comptes sur les offres reellement affectees : le chef de
   // service repartit « en fonction de leur disponibilite », il lui faut donc
@@ -257,6 +348,7 @@ export default function OffersPage() {
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") {
+        if (restoreTarget) { setRestoreTarget(null); return; }
         if (assignTarget) { setAssignTarget(null); return; }
         if (deleteTarget) { setDeleteTarget(null); return; }
         if (transitionOffer) { setTransitionOffer(null); setTransitionComment(""); return; }
@@ -266,7 +358,7 @@ export default function OffersPage() {
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [modalMode, deleteTarget, detailOffer, transitionOffer, assignTarget]);
+  }, [modalMode, deleteTarget, detailOffer, transitionOffer, assignTarget, restoreTarget]);
 
   useEffect(() => {
     function handleClickOutside() {
@@ -305,8 +397,15 @@ export default function OffersPage() {
       .then(({ data }) => { if (!cancelled) setDetailHistory({ offerId, entries: Array.isArray(data) ? data : [] }); })
       .catch(() => { if (!cancelled) setDetailHistory({ offerId, entries: [] }); });
 
+    // Les versions ne sont pas chargees pour un role de diffusion : il ne
+    // consulte que des offres publiees et n'a pas part a leur histoire.
+    if (!isDiffusionOnly) {
+      api.get(`/offers/${offerId}/versions`)
+        .then(({ data }) => { if (!cancelled) setDetailVersions({ offerId, items: Array.isArray(data) ? data : [] }); })
+        .catch(() => { if (!cancelled) setDetailVersions({ offerId, items: [] }); });
+    }
     return () => { cancelled = true; };
-  }, [detailOffer]);
+  }, [detailOffer, isDiffusionOnly]);
 
   /**
    * Ouvre la fiche designee par l'URL.
@@ -331,6 +430,79 @@ export default function OffersPage() {
     return () => { cancelled = true; };
   }, [requestedOffer, tc]);
 
+  /** Charge le catalogue une seule fois, a la premiere fiche ou au premier formulaire ouvert. */
+  const ensureCatalog = useCallback(async () => {
+    if (!canReadCatalog || catalog !== null) return;
+    try {
+      const { data } = await api.get("/catalog", { params: { size: 500 } });
+      const items: CatalogItem[] = data.content ?? data;
+      setCatalog(items.filter((item) => item.status !== "ARCHIVED"));
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.load")));
+      setCatalog([]);
+    }
+  }, [canReadCatalog, catalog, tc]);
+
+  useEffect(() => {
+    if (modalMode === "create" || modalMode === "update" || detailOffer) ensureCatalog();
+  }, [modalMode, detailOffer, ensureCatalog]);
+
+  /**
+   * Evalue la composition a chaque changement, avec un court delai pour ne pas
+   * interroger le serveur a chaque frappe. Le cahier des charges (7.3) veut que
+   * le chef de produit soit bloque ou averti *avant* la soumission : c'est ici
+   * qu'il l'est, puis le serveur rejoue le meme controle a l'enregistrement.
+   */
+  const compositionKey = form.catalogItemIds.join(",");
+  useEffect(() => {
+    if (!canEvaluateRules || (modalMode !== "create" && modalMode !== "update")) return;
+    if (!compositionKey) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setEvaluating(true);
+      api.post("/rules/evaluate", { catalogItemIds: compositionKey.split(",") })
+        .then(({ data }) => { if (!cancelled) setViolations(Array.isArray(data) ? data : []); })
+        .catch((e) => { if (!cancelled) toast.error(apiError(e, tc("errors.load"))); })
+        .finally(() => { if (!cancelled) setEvaluating(false); });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [compositionKey, modalMode, canEvaluateRules, tc]);
+
+  // Regles appliquees a la fiche consultee : le valideur voit ce qui a ete
+  // signale au chef de produit, et l'administrateur consulte les regles en jeu.
+  useEffect(() => {
+    if (!detailOffer || !canEvaluateRules) return;
+    const offerId = detailOffer.id;
+    // Sans brique, rien a evaluer : l'ecran n'affiche le verdict que sur une composition non vide.
+    if (detailOffer.catalogItemIds.length === 0) return;
+    let cancelled = false;
+    api.post("/rules/evaluate", { catalogItemIds: detailOffer.catalogItemIds })
+      .then(({ data }) => { if (!cancelled) setDetailViolations({ offerId, items: Array.isArray(data) ? data : [] }); })
+      .catch(() => { if (!cancelled) setDetailViolations({ offerId, items: [] }); });
+    return () => { cancelled = true; };
+  }, [detailOffer, canEvaluateRules]);
+
+  const blockingViolations = violations.filter((v) => v.blocking);
+  const catalogById = new Map((catalog ?? []).map((item) => [item.id, item]));
+  const itemLabel = (id: string) => catalogById.get(id)?.name ?? tc("unknownItem");
+
+  /** Briques proposees a l'ajout : celles qui repondent a la recherche et ne sont pas deja choisies. */
+  const itemSuggestions = (catalog ?? [])
+    .filter((item) => !form.catalogItemIds.includes(item.id))
+    .filter((item) => !itemSearch.trim() || item.name.toLowerCase().includes(itemSearch.trim().toLowerCase()))
+    .slice(0, 8);
+
+  function addItem(id: string) {
+    setForm((f) => ({ ...f, catalogItemIds: [...f.catalogItemIds, id] }));
+    setItemSearch("");
+  }
+  function removeItem(id: string) {
+    const remaining = form.catalogItemIds.filter((x) => x !== id);
+    setForm((f) => ({ ...f, catalogItemIds: remaining }));
+    // Plus de brique, plus rien a evaluer : l'effet ne repart pas sur une liste vide.
+    if (remaining.length === 0) setViolations([]);
+  }
+
   async function loadOffers() {
     try {
       const { data } = await api.get("/offers", { params: { size: 500 } });
@@ -339,7 +511,7 @@ export default function OffersPage() {
     finally { setLoading(false); }
   }
 
-  function resetForm() { setForm({ ...EMPTY_FORM }); setEditingOffer(null); }
+  function resetForm() { setForm({ ...EMPTY_FORM, catalogItemIds: [] }); setEditingOffer(null); setViolations([]); setItemSearch(""); }
   function openCreateModal() { resetForm(); setModalMode("create"); }
 
   /**
@@ -360,6 +532,9 @@ export default function OffersPage() {
       targetSegment: offer.targetSegment || "",
       customerType: offer.customerType || "",
       legalMentions: offer.legalMentions || "",
+      validFrom: offer.validFrom ? offer.validFrom.slice(0, 10) : "",
+      validUntil: offer.validUntil ? offer.validUntil.slice(0, 10) : "",
+      catalogItemIds: [...offer.catalogItemIds],
     });
     setModalMode("update"); setOpenMenuId(null);
   }
@@ -590,8 +765,9 @@ export default function OffersPage() {
         });
         toast.success(t("messages.enriched"));
       } else if (isUpdating) {
-        // catalogItemIds est volontairement absent : la composition ne se modifie
-        // pas depuis ce formulaire, et le serveur la conserve quand elle est omise.
+        // La composition et les dates sont des champs commerciaux : ils
+        // appartiennent au chef de produit, comme le prix, et non a
+        // l'enrichissement. Le serveur remplace la composition par celle envoyee.
         await api.patch(`/offers/${editingOffer!.id}`, {
           name: form.name,
           // Le reclassement est un champ commercial : il appartient au chef de
@@ -599,9 +775,12 @@ export default function OffersPage() {
           categoryId: form.categoryId || null,
           promotionalPrice: parseFloat(form.promotionalPrice) || null,
           currency: form.currency,
+          validFrom: toDateTime(form.validFrom, false),
+          validUntil: toDateTime(form.validUntil, true),
           targetSegment: form.targetSegment || null,
           customerType: form.customerType || null,
           legalMentions: form.legalMentions || null,
+          catalogItemIds: form.catalogItemIds,
         });
         toast.success(t("messages.updated"));
       } else {
@@ -611,13 +790,21 @@ export default function OffersPage() {
           longDescription: form.longDescription,
           promotionalPrice: parseFloat(form.promotionalPrice) || null,
           currency: form.currency,
+          validFrom: toDateTime(form.validFrom, false),
+          validUntil: toDateTime(form.validUntil, true),
           targetSegment: form.targetSegment || null, customerType: form.customerType || null,
-          legalMentions: form.legalMentions || null, catalogItemIds: [],
+          legalMentions: form.legalMentions || null, catalogItemIds: form.catalogItemIds,
         });
         toast.success(t("messages.created"));
       }
       setModalMode(null); resetForm(); loadOffers();
     } catch (e) {
+      // Une composition refusee revient avec le detail des regles violees : on
+      // l'affiche dans le formulaire, brique par brique, plutot qu'en un seul toast.
+      const body = (e as { response?: { data?: { code?: string; violations?: RuleViolation[] } } }).response?.data;
+      if (body?.code === "RULE_VIOLATION" && Array.isArray(body.violations)) {
+        setViolations(body.violations);
+      }
       toast.error(apiError(e, modalMode === "create" ? tc("errors.create") : tc("errors.update")));
     } finally { setCreating(false); }
   }
@@ -630,8 +817,27 @@ export default function OffersPage() {
     finally { setDeleting(false); setDeleteTarget(null); }
   }
 
+  /**
+   * Un motif est exige la ou le serveur l'exige : au rejet d'une offre soumise,
+   * et a l'annulation d'une offre deja validee. Une simple soumission (brouillon
+   * vers enrichissement) n'en demande pas.
+   */
+  function commentRequiredFor(from: OfferStatus, target: OfferStatus) {
+    if (from === "IN_VALIDATION" && (target === "IN_ENRICHMENT" || target === "DRAFT")) return true;
+    return from === "VALIDATED" && target === "DRAFT";
+  }
+
+  /** Libelle d'un bouton de transition : le statut cible, sauf quand le geste a un nom metier. */
+  function transitionLabel(from: OfferStatus, target: OfferStatus) {
+    if (from === "VALIDATED" && target === "DRAFT") return t("transition.cancelValidation");
+    if (from === "IN_VALIDATION" && target === "IN_ENRICHMENT") return t("transition.reject");
+    if (from === "IN_VALIDATION" && target === "VALIDATED") return t("transition.approve");
+    return t(`status.${target}`);
+  }
+
   async function handleTransition(offerId: string, targetStatus: OfferStatus) {
-    const needsComment = targetStatus === "IN_ENRICHMENT" || targetStatus === "DRAFT";
+    const from = transitionOffer?.status ?? offers.find((o) => o.id === offerId)?.status;
+    const needsComment = from ? commentRequiredFor(from, targetStatus) : false;
     if (needsComment && !transitionComment.trim()) {
       toast.error(t("transition.commentRequired"));
       return;
@@ -643,6 +849,54 @@ export default function OffersPage() {
     } catch (e) {
       toast.error(apiError(e, tc("errors.action")));
     }
+  }
+
+  /** Valeur d'un champ d'instantane, rendue lisible. */
+  function snapshotValue(field: string, value: unknown): string {
+    if (value === null || value === undefined || value === "") return "—";
+    if (field === "status" && typeof value === "string") return t.has(`status.${value}`) ? t(`status.${value}`) : value;
+    if (field === "targetSegment" && typeof value === "string") return t.has(`segments.${value}`) ? t(`segments.${value}`) : value;
+    if (field === "customerType" && typeof value === "string") return t.has(`customerTypes.${value}`) ? t(`customerTypes.${value}`) : value;
+    if (field === "validFrom" || field === "validUntil") return typeof value === "string" ? formatDate(value) : String(value);
+    if (field === "qualityScore") return `${value}%`;
+    if (Array.isArray(value)) return value.length === 0 ? "—" : value.map((id) => itemLabel(String(id))).join(", ");
+    return String(value);
+  }
+
+  function snapshotFieldLabel(field: string): string {
+    switch (field) {
+      case "status": return t("columns.status");
+      case "qualityScore": return t("columns.quality");
+      case "catalogItemIds": return t("form.composition");
+      default: return t.has(`form.${field}`) ? t(`form.${field}`) : field;
+    }
+  }
+
+  /** Champs qui different entre deux instantanes, dans l'ordre de presentation. */
+  function snapshotDiff(current: Record<string, unknown>, previous: Record<string, unknown> | null) {
+    return SNAPSHOT_FIELDS
+      .filter((field) => field in current || (previous !== null && field in previous))
+      .filter((field) => previous === null || JSON.stringify(current[field] ?? "") !== JSON.stringify(previous[field] ?? ""))
+      .map((field) => ({ field, before: previous ? snapshotValue(field, previous[field]) : null, after: snapshotValue(field, current[field]) }));
+  }
+
+  /**
+   * Restaure le contenu d'une version anterieure. Le statut ne bouge pas : la
+   * restauration porte sur la fiche, pas sur sa place dans le circuit. Le
+   * serveur trace l'operation comme une nouvelle version.
+   */
+  async function handleRestore() {
+    if (!detailOffer || !restoreTarget || restoring) return;
+    setRestoring(true);
+    try {
+      const { data } = await api.post(`/offers/${detailOffer.id}/versions/${restoreTarget.versionNumber}/restore`);
+      toast.success(t("versions.restored", { version: restoreTarget.versionNumber }));
+      setRestoreTarget(null);
+      setDetailOffer(data);
+      loadOffers();
+    } catch (e) {
+      toast.error(apiError(e, tc("errors.action")));
+    } finally { setRestoring(false); }
   }
 
   function formatPrice(price: number, currency: string) {
@@ -1002,7 +1256,9 @@ export default function OffersPage() {
                           {t("transition.title")}
                         </button>
                       )}
-                      {canDelete && (
+                      {/* Seul un brouillon se supprime : au-dela, le cycle de vie
+                          prevoit le retrait puis l'archivage, et le serveur refuse. */}
+                      {canDelete && offer.status === "DRAFT" && (
                         <button onClick={() => { setDeleteTarget(offer); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                           <svg className="size-4" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                           {tc("delete")}
@@ -1034,46 +1290,6 @@ export default function OffersPage() {
           </div>
         )}
       </div>
-
-      {/* ===== 3 FEATURE CARDS ===== */}
-      {offers.length === 0 && !loading && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { icon: "workflow", title: t("features.workflow"), desc: t("features.workflowDesc"), color: "text-primary bg-primary/10" },
-            { icon: "quality", title: t("features.quality"), desc: t("features.qualityDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
-            { icon: "multichannel", title: t("features.multichannel"), desc: t("features.multichannelDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
-          ].map((f) => (
-            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex items-start gap-4">
-              <div className={`rounded-xl p-3 shrink-0 ${f.color}`}>
-                {f.icon === "workflow" && (
-                  <svg className="size-6" viewBox="0 0 24 24" fill="none">
-                    <circle cx="6" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-                    <circle cx="18" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-                    <circle cx="12" cy="18" r="3" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M8 8l2.5 7.5M16 8l-2.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                )}
-                {f.icon === "quality" && (
-                  <svg className="size-6" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-                {f.icon === "multichannel" && (
-                  <svg className="size-6" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ===== MODAL TRANSITION ===== */}
       {transitionOffer && (
@@ -1124,6 +1340,9 @@ export default function OffersPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("transition.comment")}</label>
                 <input value={transitionComment} onChange={(e) => setTransitionComment(e.target.value)} placeholder={t("transition.commentPlaceholder")} className="input w-full h-10" />
+                {availableTransitions(transitionOffer).some((target) => commentRequiredFor(transitionOffer.status, target)) && (
+                  <p className="text-xs text-text-secondary dark:text-neutral-500">{t("transition.commentRequiredHint")}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("transition.availableTransitions")}</label>
@@ -1131,7 +1350,7 @@ export default function OffersPage() {
                   {availableTransitions(transitionOffer).map((target) => (
                     <button key={target} onClick={() => handleTransition(transitionOffer.id, target)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
                       <svg className="size-3" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      {t(`status.${target}`)}
+                      {transitionLabel(transitionOffer.status, target)}
                     </button>
                   ))}
                   {availableTransitions(transitionOffer).length === 0 && (
@@ -1345,9 +1564,95 @@ export default function OffersPage() {
                         </select>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.validFrom")}</label>
+                        <input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} className="input w-full h-10" />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.validUntil")}</label>
+                        <input type="date" min={form.validFrom || undefined} value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className="input w-full h-10" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-text-secondary dark:text-neutral-500 -mt-2">{t("form.validityHint")}</p>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.legalMentions")}</label>
                       <input value={form.legalMentions} onChange={(e) => setForm({ ...form, legalMentions: e.target.value })} className="input w-full h-10" />
+                    </div>
+
+                    {/* ===== COMPOSITION =====
+                        L'offre s'assemble a partir de briques existantes du
+                        catalogue (cahier des charges 7.2 et 7.4). Chaque
+                        modification est evaluee par le moteur de regles : ce qui
+                        bloque est affiche en rouge et empeche l'enregistrement,
+                        ce qui n'est qu'un avertissement reste en orange. */}
+                    <div className="flex flex-col gap-2 rounded-xl border border-border dark:border-neutral-800 p-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("form.composition")} ({form.catalogItemIds.length})</label>
+                        {evaluating && <div className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
+                      </div>
+                      {form.catalogItemIds.length > 0 ? (
+                        <ul className="flex flex-col gap-1.5">
+                          {form.catalogItemIds.map((id) => {
+                            const item = catalogById.get(id);
+                            return (
+                              <li key={id} className="flex items-center gap-2 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 px-3 py-2">
+                                <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200">
+                                  {item ? tclass(`types.${item.type}`) : "—"}
+                                </span>
+                                <span className="flex-1 min-w-0 text-sm text-black dark:text-white truncate">{itemLabel(id)}</span>
+                                <button type="button" onClick={() => removeItem(id)} aria-label={t("form.compositionRemove")} className="shrink-0 p-1 rounded-md text-neutral-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer">
+                                  <svg className="size-3.5" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-text-secondary dark:text-neutral-500">{t("form.compositionEmpty")}</p>
+                      )}
+                      <input
+                        value={itemSearch}
+                        onChange={(e) => setItemSearch(e.target.value)}
+                        placeholder={catalog === null ? tc("loading") : t("form.compositionSearch")}
+                        disabled={catalog === null}
+                        className="input w-full h-10 mt-1"
+                      />
+                      {catalog !== null && catalog.length === 0 && (
+                        <p className="text-xs text-text-secondary dark:text-neutral-500">{t("form.compositionNoCatalog")}</p>
+                      )}
+                      {catalog !== null && catalog.length > 0 && (
+                        itemSuggestions.length > 0 ? (
+                          <ul className="flex flex-col divide-y divide-border dark:divide-neutral-800 rounded-lg border border-border dark:border-neutral-800 overflow-hidden">
+                            {itemSuggestions.map((item) => (
+                              <li key={item.id}>
+                                <button type="button" onClick={() => addItem(item.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer">
+                                  <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200">{tclass(`types.${item.type}`)}</span>
+                                  <span className="flex-1 min-w-0 text-sm text-black dark:text-white truncate">{item.name}</span>
+                                  {item.categoryPath && <span className="hidden sm:block shrink-0 text-[11px] text-text-secondary dark:text-neutral-500 truncate max-w-[40%]">{item.categoryPath}</span>}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-text-secondary dark:text-neutral-500">{t("form.compositionNoResult")}</p>
+                        )
+                      )}
+                      {violations.length > 0 && (
+                        <ul className="flex flex-col gap-1.5 mt-1">
+                          {violations.map((v, i) => (
+                            <li key={`${v.ruleId ?? v.ruleType}-${i}`} className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs leading-relaxed ${v.blocking
+                              ? "bg-red-50 dark:bg-red-900/15 border border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-300"
+                              : "bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300"}`}>
+                              <span className="shrink-0 font-semibold uppercase tracking-wider text-[10px] mt-0.5">{v.blocking ? t("rules.blocking") : t("rules.warning")}</span>
+                              <span className="flex-1">{v.ruleName ? `${v.ruleName} : ` : ""}{v.message}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {form.catalogItemIds.length > 0 && !evaluating && violations.length === 0 && canEvaluateRules && (
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">{t("rules.ok")}</p>
+                      )}
                     </div>
                   </>
                 )}
@@ -1356,7 +1661,7 @@ export default function OffersPage() {
                 <button type="button" onClick={() => { setModalMode(null); resetForm(); }} className="tertiary-icon px-4 py-2 active-scale">
                   <p className="text-sm font-medium">{tc("cancel")}</p>
                 </button>
-                <button type="submit" disabled={creating || submitting} className={`${isEnriching ? "secondary-icon" : "primary-icon"} px-5 py-2 active-scale disabled:opacity-60`}>
+                <button type="submit" disabled={creating || submitting || (!isEnriching && blockingViolations.length > 0)} title={!isEnriching && blockingViolations.length > 0 ? t("rules.blockedHint") : undefined} className={`${isEnriching ? "secondary-icon" : "primary-icon"} px-5 py-2 active-scale disabled:opacity-60 disabled:cursor-not-allowed`}>
                   <span className="flex items-center gap-2">
                     {creating && <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
                     <p className="text-sm font-medium">{creating ? tc("saving") : tc("save")}</p>
@@ -1440,7 +1745,58 @@ export default function OffersPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("detail.updatedAt")}</p>
                   <p className="text-sm font-medium text-black dark:text-white">{formatDate(detailOffer.updatedAt)}</p>
                 </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.validFrom")}</p>
+                  <p className="text-sm font-medium text-black dark:text-white">{detailOffer.validFrom ? formatDate(detailOffer.validFrom) : "—"}</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.validUntil")}</p>
+                  <p className="text-sm font-medium text-black dark:text-white">{detailOffer.validUntil ? formatDate(detailOffer.validUntil) : "—"}</p>
+                </div>
               </div>
+              {/* Composition de la fiche et regles metier en jeu : le valideur se
+                  prononce sur un assemblage, il doit le voir. */}
+              {canReadCatalog && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">
+                    {t("form.composition")} ({detailOffer.catalogItemIds.length})
+                  </p>
+                  {detailOffer.catalogItemIds.length === 0 ? (
+                    <p className="text-xs text-text-secondary dark:text-neutral-500">{t("detail.compositionEmpty")}</p>
+                  ) : (
+                    <ul className="flex flex-col gap-1.5">
+                      {detailOffer.catalogItemIds.map((id) => {
+                        const item = catalogById.get(id);
+                        return (
+                          <li key={id} className="flex items-center gap-2 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 px-3 py-2">
+                            <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200">
+                              {item ? tclass(`types.${item.type}`) : "—"}
+                            </span>
+                            <span className="flex-1 min-w-0 text-sm text-black dark:text-white truncate">{catalog === null ? tc("loading") : itemLabel(id)}</span>
+                            {item?.basePrice ? <span className="shrink-0 text-xs text-text-secondary dark:text-neutral-400 tabular-nums">{formatPrice(item.basePrice, item.currency)}</span> : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {canEvaluateRules && detailViolations?.offerId === detailOffer.id && detailOffer.catalogItemIds.length > 0 && (
+                    detailViolations.items.length === 0 ? (
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400">{t("rules.ok")}</p>
+                    ) : (
+                      <ul className="flex flex-col gap-1.5">
+                        {detailViolations.items.map((v, i) => (
+                          <li key={`${v.ruleId ?? v.ruleType}-${i}`} className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs leading-relaxed ${v.blocking
+                            ? "bg-red-50 dark:bg-red-900/15 border border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-300"
+                            : "bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300"}`}>
+                            <span className="shrink-0 font-semibold uppercase tracking-wider text-[10px] mt-0.5">{v.blocking ? t("rules.blocking") : t("rules.warning")}</span>
+                            <span className="flex-1">{v.ruleName ? `${v.ruleName} : ` : ""}{v.message}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )
+                  )}
+                </div>
+              )}
               {detailOffer.longDescription && (
                 <div className="flex flex-col gap-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.longDescription")}</p>
@@ -1551,6 +1907,77 @@ export default function OffersPage() {
                 <div className="flex flex-col gap-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("form.legalMentions")}</p>
                   <p className="text-xs text-text-secondary dark:text-neutral-400">{detailOffer.legalMentions}</p>
+                </div>
+              )}
+              {/* ===== VERSIONS =====
+                  Chaque version est comparee a la precedente : seuls les champs
+                  qui ont change sont montres, avant et apres. L'administrateur
+                  peut ramener la fiche a l'une d'elles. */}
+              {detailVersions?.offerId === detailOffer.id && detailVersions.items.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">
+                    {t("versions.title")} ({detailVersions.items.length})
+                  </p>
+                  <ol className="flex flex-col gap-1.5">
+                    {detailVersions.items.map((version, index) => {
+                      const current = parseSnapshot(version.snapshot);
+                      const older = detailVersions.items[index + 1];
+                      const previous = older ? parseSnapshot(older.snapshot) : null;
+                      const changes = snapshotDiff(current, previous);
+                      const versionKey = `${detailOffer.id}:${version.versionNumber}`;
+                      const open = expandedVersion === versionKey;
+                      const isLatest = index === 0;
+                      return (
+                        <li key={version.id} className="rounded-xl border border-border dark:border-neutral-800 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedVersion(open ? null : versionKey)}
+                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors cursor-pointer"
+                          >
+                            <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 tabular-nums">
+                              v{version.versionNumber}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-xs font-medium text-black dark:text-white truncate">{version.changeDescription || t("versions.noDescription")}</span>
+                              <span className="block text-[11px] text-text-secondary dark:text-neutral-500">
+                                {version.changedByName ? `${version.changedByName} · ` : ""}{formatDate(version.createdAt)}
+                                {previous !== null ? ` · ${t("versions.changedFields", { count: changes.length })}` : ` · ${t("versions.initial")}`}
+                              </span>
+                            </span>
+                            <svg className={`size-3.5 shrink-0 text-neutral-500 transition-transform ${open ? "rotate-90" : ""}`} viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          </button>
+                          {open && (
+                            <div className="border-t border-border dark:border-neutral-800 px-3 py-2.5 flex flex-col gap-2 bg-neutral-50/60 dark:bg-neutral-800/30">
+                              {changes.length === 0 ? (
+                                <p className="text-xs text-text-secondary dark:text-neutral-500">{t("versions.noChange")}</p>
+                              ) : (
+                                <table className="w-full text-xs">
+                                  <tbody className="divide-y divide-border dark:divide-neutral-800">
+                                    {changes.map((change) => (
+                                      <tr key={change.field} className="align-top">
+                                        <td className="py-1.5 pr-3 font-semibold text-text-secondary dark:text-neutral-400 whitespace-nowrap">{snapshotFieldLabel(change.field)}</td>
+                                        {change.before !== null && (
+                                          <td className="py-1.5 pr-3 text-red-700 dark:text-red-400 line-through break-words">{change.before}</td>
+                                        )}
+                                        <td className="py-1.5 text-emerald-700 dark:text-emerald-400 break-words">{change.after}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                              {canRestore && !isLatest && (
+                                <div className="flex justify-end">
+                                  <button type="button" onClick={() => setRestoreTarget(version)} className="tertiary-icon px-3 py-1.5 active-scale">
+                                    <p className="text-xs font-medium">{t("versions.restore")}</p>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
               )}
             </div>
@@ -1680,6 +2107,27 @@ export default function OffersPage() {
                 <span className="flex items-center gap-2">
                   {assigning && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
                   <p className="text-sm font-medium">{assigning ? tc("saving") : t("assign.confirm")}</p>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL RESTAURATION D'UNE VERSION ===== */}
+      {restoreTarget && detailOffer && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setRestoreTarget(null); }}>
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="px-6 py-5 flex flex-col gap-3">
+              <h2 className="text-base font-bold text-black dark:text-white">{t("versions.restoreTitle", { version: restoreTarget.versionNumber })}</h2>
+              <p className="text-sm text-text-secondary dark:text-neutral-400 leading-relaxed">{t("versions.restoreWarning")}</p>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
+              <button onClick={() => setRestoreTarget(null)} className="tertiary-icon px-4 py-2 active-scale"><p className="text-sm font-medium">{tc("cancel")}</p></button>
+              <button onClick={handleRestore} disabled={restoring} className="primary-icon px-4 py-2 active-scale disabled:opacity-60">
+                <span className="flex items-center gap-2">
+                  {restoring && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                  <p className="text-sm font-medium">{t("versions.restore")}</p>
                 </span>
               </button>
             </div>

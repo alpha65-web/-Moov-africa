@@ -163,10 +163,18 @@ public class NotificationEventListener {
                     offer + "est passée en " + toStatus + ".",
                     null, true);
 
-            case "DRAFT" -> new Routing(NotificationType.OFFER_REJECTED,
-                    "Offre renvoyée au brouillon",
-                    offer + "a été renvoyée à son auteur.",
-                    null, true);
+            // Depuis VALIDEE, le retour au brouillon est l'annulation decidee par le
+            // chef de departement : l'auteur doit savoir que la validation acquise
+            // est perdue, et non croire a un simple renvoi pour correction.
+            case "DRAFT" -> "VALIDATED".equals(fromStatus)
+                    ? new Routing(NotificationType.OFFER_REJECTED,
+                        "Validation annulée par la direction",
+                        offer + "a été annulée après validation : le circuit reprend depuis le brouillon.",
+                        null, true)
+                    : new Routing(NotificationType.OFFER_REJECTED,
+                        "Offre renvoyée au brouillon",
+                        offer + "a été renvoyée à son auteur.",
+                        null, true);
 
             // ARCHIVED et tout statut inconnu : rien à signaler à personne.
             default -> null;
