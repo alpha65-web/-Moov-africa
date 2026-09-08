@@ -1,6 +1,6 @@
 -- Aligne les permissions sur la repartition des taches du cahier des charges.
 --
--- Trois ecarts constates entre regles/PROMPT_MAITRE (section 6, tableau des roles)
+-- Trois ecarts constates entre le cahier des charges (section 6, tableau des roles)
 -- et les permissions reellement accordees en base :
 --
 --   1. Les tests A/B sont attribues a l'analyste marketing (l. 104), mais les

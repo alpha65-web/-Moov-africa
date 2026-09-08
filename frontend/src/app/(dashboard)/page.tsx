@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { usePermissions, queueStatusesFor } from "@/lib/permissions";
-import api from "@/lib/api";
+import api, { apiError } from "@/lib/api";
+import toast from "react-hot-toast";
 import type { Offer } from "@/lib/types";
 import { useTranslations } from "next-intl";
 
@@ -299,8 +300,8 @@ export default function DashboardPage() {
         });
         setAllOffers(offers);
         setRecentOffers(offers.slice(0, 5));
-      } catch {
-        /* API pas disponible */
+      } catch (e) {
+        toast.error(apiError(e, tc("errors.load")));
       } finally {
         setLoading(false);
       }

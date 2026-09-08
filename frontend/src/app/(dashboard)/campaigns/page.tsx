@@ -131,7 +131,7 @@ export default function CampaignsPage() {
       const { data } = await api.get("/offers", { params: { size: 500 } });
       setOffers(Array.isArray(data) ? data : data.content ?? []);
     }
-    catch { /* */ }
+    catch (e) { toast.error(apiError(e, tc("errors.load"))); }
   }
 
   /**

@@ -93,7 +93,7 @@ export default function ExportsPage() {
 
   async function loadOffers() {
     try { const { data } = await api.get("/offers", { params: { size: 500 } }); setOffers(Array.isArray(data) ? data : data.content ?? []); }
-    catch { /* */ }
+    catch (e) { toast.error(apiError(e, tc("errors.load"))); }
   }
 
   async function loadConnection() {

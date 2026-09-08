@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import api from "@/lib/api";
+import api, { apiError } from "@/lib/api";
+import toast from "react-hot-toast";
 import { searchKeyHandler } from "@/lib/search";
 import { usePermissions, PERM } from "@/lib/permissions";
 import type { KpiEvent } from "@/lib/types";
@@ -195,6 +196,7 @@ function Skeleton({ className }: { className: string }) {
 
 export default function AnalyticsPage() {
   const t = useTranslations("analytics");
+  const tc = useTranslations("common");
   // Le perimetre equipe commande aussi ce rapprochement : l'analyste marketing,
   // qui n'a que ANALYTICS_VIEW, ne voit pas la diffusion des offres des autres.
   const { has } = usePermissions();
@@ -254,7 +256,7 @@ export default function AnalyticsPage() {
       const list: { id: string; name: string; status: string }[] = offers.content ?? offers;
       setOfferNames(Object.fromEntries(list.map((o) => [o.id, o.name])));
       setPublishedOffers(list.filter((o) => o.status === "PUBLISHED").map((o) => ({ id: o.id, name: o.name })));
-    } catch { /* API pas disponible */ }
+    } catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
   }
 

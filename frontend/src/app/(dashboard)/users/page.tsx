@@ -530,31 +530,6 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* ===== 4 FEATURE CARDS ===== */}
-      {users.length === 0 && !loading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: "roles", title: t("features.roles"), desc: t("features.rolesDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
-            { icon: "security", title: t("features.security"), desc: t("features.securityDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
-            { icon: "history", title: t("features.history"), desc: t("features.historyDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
-            { icon: "collaboration", title: t("features.collaboration"), desc: t("features.collaborationDesc"), color: "text-primary bg-primary/10" },
-          ].map((f) => (
-            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex items-start gap-4">
-              <div className={`rounded-xl p-3 shrink-0 ${f.color}`}>
-                {f.icon === "roles" && <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 15c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" stroke="currentColor" strokeWidth="1.5" /><circle cx="12" cy="9" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M17 10l2 2 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {f.icon === "security" && <svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 5-3 9-7 11-4-2-7-6-7-11V6l7-3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {f.icon === "history" && <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M3 12h2M19 12h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>}
-                {f.icon === "collaboration" && <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" /><circle cx="16" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" /><path d="M3 19c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5M11 19c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* ===== MODAL CRÉATION / ÉDITION ===== */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}>

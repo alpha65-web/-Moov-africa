@@ -468,29 +468,6 @@ export default function CategoriesPage() {
         )}
       </div>
 
-      {/* ===== FEATURE CARDS ===== */}
-      {categories.length === 0 && !loading && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { icon: "hierarchy", title: t("features.hierarchy"), desc: t("features.hierarchyDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
-            { icon: "organize", title: t("features.organize"), desc: t("features.organizeDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
-            { icon: "catalog", title: t("features.catalog"), desc: t("features.catalogDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
-          ].map((f) => (
-            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex items-start gap-4">
-              <div className={`rounded-xl p-3 shrink-0 ${f.color}`}>
-                {f.icon === "hierarchy" && <svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" /><circle cx="6" cy="19" r="3" stroke="currentColor" strokeWidth="1.5" /><circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.5" /><path d="M12 8v4M8 14l4-2 4 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>}
-                {f.icon === "organize" && <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" /></svg>}
-                {f.icon === "catalog" && <svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M8 7h8M8 11h6M8 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* ===== MODAL CRÉATION / ÉDITION ===== */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}>

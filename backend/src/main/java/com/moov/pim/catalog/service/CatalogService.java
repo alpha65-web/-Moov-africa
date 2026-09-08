@@ -417,7 +417,7 @@ public class CatalogService {
     /**
      * Perimetre de visibilite et d'intervention sur une fiche.
      *
-     * Le cahier des charges (regles/PROMPT_MAITRE..., regles de visibilite) impose
+     * Le cahier des charges (section 6, regles de visibilite) impose
      * deux regimes distincts :
      *   « un chef de produit ne voit que les offres qu'il a lui-meme creees,
      *     jamais celles des autres chefs de produit »

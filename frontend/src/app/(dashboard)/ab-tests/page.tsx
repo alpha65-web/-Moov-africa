@@ -76,7 +76,7 @@ export default function AbTestsPage() {
 
   async function loadOffers() {
     try { const { data } = await api.get("/offers", { params: { size: 500 } }); setOffers(Array.isArray(data) ? data : data.content ?? []); }
-    catch { /* */ }
+    catch (e) { toast.error(apiError(e, tc("errors.load"))); }
   }
 
   function resetForm() { setForm({ ...EMPTY_FORM }); }
@@ -324,31 +324,6 @@ export default function AbTestsPage() {
           </div>
         )}
       </div>
-
-      {/* ===== 4 FEATURE CARDS ===== */}
-      {tests.length === 0 && !loading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: "compare", title: t("features.compare"), desc: t("features.compareDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
-            { icon: "metrics", title: t("features.metrics"), desc: t("features.metricsDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
-            { icon: "winner", title: t("features.winner"), desc: t("features.winnerDesc"), color: "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30" },
-            { icon: "optimize", title: t("features.optimize"), desc: t("features.optimizeDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
-          ].map((f) => (
-            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-3">
-              <div className={`rounded-xl p-3 w-fit ${f.color}`}>
-                {f.icon === "compare" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="7" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" /><rect x="11" y="3" width="7" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M5.5 7h0M14.5 7h0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>}
-                {f.icon === "metrics" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M5 14l3-4 3 2 4-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {f.icon === "winner" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><path d="M10 2l2 4h4l-3 3 1 5-4-2-4 2 1-5-3-3h4l2-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>}
-                {f.icon === "optimize" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M15 3l2 2M3 15l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ===== MODAL CRÉATION ===== */}
       {showModal && (

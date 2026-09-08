@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api from "@/lib/api";
+import api, { apiError } from "@/lib/api";
+import toast from "react-hot-toast";
 import { searchKeyHandler } from "@/lib/search";
 import type { AuditLog } from "@/lib/types";
 import { useTranslations } from "next-intl";
@@ -37,6 +38,7 @@ const ENTITY_KEYS: Record<string, string> = {
 
 export default function AuditPage() {
   const t = useTranslations("audit");
+  const tc = useTranslations("common");
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +75,7 @@ export default function AuditPage() {
 
   async function loadLogs() {
     try { const { data } = await api.get("/audit", { params: { size: 500 } }); setLogs(data.content ?? data); }
-    catch { /* API pas disponible */ }
+    catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
   }
 

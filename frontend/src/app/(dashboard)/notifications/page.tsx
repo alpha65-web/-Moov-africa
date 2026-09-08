@@ -405,29 +405,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
-
-      {/* ===== BANNIÈRE EMAIL ===== */}
-      {canManageConfig && (
-      <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800/30 p-6 flex items-center gap-5">
-        <div className="size-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-          <svg className="size-7 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none">
-            <path d="M12 5c-4 0-7.5 3-7.5 7v4l-1.5 3h18l-1.5-3v-4c0-4-3.5-7-7.5-7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M9 20a3.5 3.5 0 007 0" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="18" cy="7" r="3" className="fill-primary stroke-blue-50 dark:stroke-blue-900/20" strokeWidth="2" />
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-black dark:text-white">{t("banner.title")}</p>
-          <p className="text-xs text-text-secondary dark:text-neutral-400 mt-1 leading-relaxed">{t("banner.description")}</p>
-        </div>
-        <Link href="/settings" className="primary-icon px-5 py-2.5 active-scale shrink-0">
-          <span className="flex items-center gap-2">
-            <svg className="size-4" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3" width="13" height="10" rx="2" stroke="currentColor" strokeWidth="1.2" /><path d="M1.5 5.5L8 9.5l6.5-4" stroke="currentColor" strokeWidth="1.2" /></svg>
-            <p className="text-sm font-medium whitespace-nowrap">{t("banner.cta")}</p>
-          </span>
-        </Link>
-      </div>
-      )}
     </div>
   );
 }

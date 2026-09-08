@@ -232,16 +232,13 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary dark:text-white flex items-center gap-3">
-          <span className="size-10 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-800 dark:from-neutral-500 dark:to-neutral-700 flex items-center justify-center">
-            <svg className="size-5 text-white" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5" /><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.93 4.93l1.41 1.41M13.66 13.66l1.41 1.41M4.93 15.07l1.41-1.41M13.66 6.34l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-          </span>
-          {t("title")}
-        </h1>
-        <p className="text-sm text-text-secondary dark:text-neutral-400 mt-1">{t("subtitle")}</p>
+    <div className="flex flex-col gap-6 pb-8">
+      {/* ===== HEADER ===== */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
+          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
+        </div>
       </div>
 
       {/* Layout: sidebar tabs + content */}

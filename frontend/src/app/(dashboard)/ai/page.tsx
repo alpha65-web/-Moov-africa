@@ -464,19 +464,13 @@ export default function AiPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary dark:text-white flex items-center gap-3">
-          <span className="size-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-            <svg className="size-5 text-white" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5L10 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-              <path d="M15 13l.75 2.25L18 16l-2.25.75L15 19l-.75-2.25L12 16l2.25-.75L15 13z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-            </svg>
-          </span>
-          {t("title")}
-        </h1>
-        <p className="text-sm text-text-secondary dark:text-neutral-400 mt-1">{t("subtitle")}</p>
+    <div className="flex flex-col gap-6 pb-8">
+      {/* ===== HEADER ===== */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-black dark:text-white">{t("title")}</h1>
+          <p className="text-sm text-text-secondary dark:text-neutral-500 mt-1">{t("subtitle")}</p>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -518,12 +512,12 @@ export default function AiPage() {
                 }`}>
                   {msg.role === "ai" && (
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="size-5 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+                      <span className="size-5 rounded-md bg-primary flex items-center justify-center">
                         <svg className="size-3 text-white" viewBox="0 0 20 20" fill="none">
                           <path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5L10 2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                         </svg>
                       </span>
-                      <span className="text-xs font-semibold text-violet-600 dark:text-violet-400">Moov AI</span>
+                      <span className="text-xs font-semibold text-primary">{t("tabs.assistant")}</span>
                     </div>
                   )}
                   {msg.content}
@@ -702,7 +696,7 @@ export default function AiPage() {
             <button
               onClick={handleGenerate}
               disabled={generating || !canGenerate}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
             >
               {generating ? (
                 <>
@@ -862,10 +856,10 @@ export default function AiPage() {
             {!extraction ? (
               <div className="flex flex-col items-center justify-center gap-4 py-14 text-center">
                 <svg className="size-20" viewBox="0 0 120 120" fill="none">
-                  <rect x="30" y="18" width="60" height="80" rx="7" className="fill-violet-50 dark:fill-violet-900/15 stroke-violet-200 dark:stroke-violet-800/30" strokeWidth="1.5" />
-                  <path d="M43 40h34M43 52h34M43 64h22" className="stroke-violet-200 dark:stroke-violet-800/40" strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="78" cy="80" r="12" className="fill-white dark:fill-neutral-900 stroke-violet-300 dark:stroke-violet-700/50" strokeWidth="1.6" />
-                  <path d="M74 80l3 3 5-6" className="stroke-violet-400 dark:stroke-violet-500" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <rect x="30" y="18" width="60" height="80" rx="7" className="fill-orange-50 dark:fill-orange-900/15 stroke-orange-200 dark:stroke-orange-800/30" strokeWidth="1.5" />
+                  <path d="M43 40h34M43 52h34M43 64h22" className="stroke-orange-200 dark:stroke-orange-800/40" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="78" cy="80" r="12" className="fill-white dark:fill-neutral-900 stroke-orange-300 dark:stroke-orange-700/50" strokeWidth="1.6" />
+                  <path d="M74 80l3 3 5-6" className="stroke-primary dark:stroke-primary-light" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <p className="text-sm text-text-secondary dark:text-neutral-500 max-w-xs leading-relaxed">
                   {t("extraction.emptyState")}
@@ -913,7 +907,7 @@ export default function AiPage() {
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {extraction.tags.map((tag) => (
-                        <span key={tag} className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                        <span key={tag} className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
                           {tag}
                         </span>
                       ))}

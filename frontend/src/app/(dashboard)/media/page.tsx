@@ -665,31 +665,6 @@ export default function MediaPage() {
         )}
       </div>
 
-      {/* ===== 4 FEATURE CARDS ===== */}
-      {media.length === 0 && !loading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: "formats", title: t("features.formats"), desc: t("features.formatsDesc"), color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" },
-            { icon: "validation", title: t("features.validation"), desc: t("features.validationDesc"), color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30" },
-            { icon: "versioning", title: t("features.versioning"), desc: t("features.versioningDesc"), color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30" },
-            { icon: "organization", title: t("features.organization"), desc: t("features.organizationDesc"), color: "text-primary bg-primary/10" },
-          ].map((f) => (
-            <div key={f.icon} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card flex flex-col gap-3">
-              <div className={`rounded-xl p-3 w-fit ${f.color}`}>
-                {f.icon === "formats" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" /><circle cx="6.5" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.2" /><path d="M2 14l4-4 3 3 4-5 5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {f.icon === "validation" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><path d="M10 2a5 5 0 015 5v1H5V7a5 5 0 015-5z" stroke="currentColor" strokeWidth="1.5" /><path d="M3 8h14v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M7 13l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {f.icon === "versioning" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" /><path d="M10 6v4l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M4 4l2 2M16 4l-2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
-                {f.icon === "organization" && <svg className="size-5" viewBox="0 0 20 20" fill="none"><path d="M2 5a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M7 11h6M7 14h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-black dark:text-white">{f.title}</p>
-                <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* ===== MODAL DÉTAIL ===== */}
       {detailMedia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setDetailMedia(null); }}>

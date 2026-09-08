@@ -53,3 +53,10 @@ docker-compose.override.yml
 
 # Journaux de demarrage local
 logs/
+
+# Documents de travail et fichiers d'outillage : ils restent sur le poste,
+# pas dans le depot livre.
+regles/
+frontend/CLAUDE.md
+frontend/AGENTS.md
+memoire/
