@@ -9,6 +9,8 @@ import toast from "react-hot-toast";
 import PhoneInput from "@/components/PhoneInput";
 import ActionMenu from "@/components/ActionMenu";
 import { useTranslations } from "next-intl";
+import { AVATAR_MAX_SIZE, resizeToDataUrl } from "@/lib/avatar";
+import { accentBar } from "@/lib/accent";
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -63,36 +65,6 @@ function Skeleton({ className }: { className: string }) {
 
 const PER_PAGE = 10;
 
-/** Cote maximal de l'avatar, en pixels. */
-const AVATAR_MAX_SIZE = 256;
-
-/**
- * Redimensionne une image dans un canvas et renvoie une data URI JPEG.
- * Le backend refuse au-dela de 256 Ko encodes : 256x256 en qualite 0.8 tient
- * tres largement sous cette limite quel que soit le fichier d'origine.
- */
-function resizeToDataUrl(file: File, maxSize: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read"));
-    reader.onload = () => {
-      const image = new window.Image();
-      image.onerror = () => reject(new Error("decode"));
-      image.onload = () => {
-        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(image.width * scale);
-        canvas.height = Math.round(image.height * scale);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) { reject(new Error("canvas")); return; }
-        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.8));
-      };
-      image.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 export default function UsersPage() {
   const t = useTranslations("users");
@@ -354,8 +326,9 @@ export default function UsersPage() {
           <button
             key={s.key}
             onClick={() => setFilterStatus(s.filterValue)}
-            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+            className="relative overflow-hidden rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 pl-6 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
           >
+            <span className={`absolute top-0 bottom-0 left-0 w-1 ${accentBar(s.color)}`} aria-hidden="true" />
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
@@ -396,9 +369,9 @@ export default function UsersPage() {
 
       {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[48px_1fr_1fr_80px_1.3fr_150px_90px_60px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
+        <div className="hidden md:grid grid-cols-[48px_1fr_1fr_80px_1.3fr_150px_90px_60px] gap-3 px-6 py-3 bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 rounded-t-2xl">
           {[t("columns.profile"), t("columns.name"), t("columns.firstName"), t("columns.sex"), t("columns.email"), t("columns.role"), t("columns.status"), t("columns.actions")].map((col, i) => (
-            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1 ${i === 7 ? "justify-end" : ""}`}>
+            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 flex items-center gap-1 ${i === 7 ? "justify-end" : ""}`}>
               {col}
               {i > 0 && i < 7 && <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M4 5l2-2 2 2M4 7l2 2 2-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </span>

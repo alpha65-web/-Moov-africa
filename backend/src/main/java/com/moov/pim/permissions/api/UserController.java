@@ -1,5 +1,6 @@
 package com.moov.pim.permissions.api;
 
+import com.moov.pim.permissions.api.dto.UpdateProfileRequest;
 import com.moov.pim.permissions.api.dto.UpdateUserRequest;
 import com.moov.pim.permissions.api.dto.UserResponse;
 import com.moov.pim.permissions.domain.AccountStatus;
@@ -51,6 +52,31 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal CustomUserDetails principal) {
         return ResponseEntity.ok(UserResponse.from(principal.getUser()));
+    }
+
+    /**
+     * Mise a jour de son propre profil : photo et coordonnees.
+     *
+     * La photo pouvait etre posee par l'administrateur a la creation du compte,
+     * mais son titulaire ne pouvait ni la voir ni la changer : la page Profil ne
+     * l'affichait pas et aucun endpoint ne lui etait ouvert. Le cahier des charges
+     * (fonctionnalites, section 1) prevoit la gestion de son profil par chaque
+     * utilisateur. Aucune permission particuliere : chacun n'agit que sur son
+     * propre compte, designe par le jeton.
+     */
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateMe(@AuthenticationPrincipal CustomUserDetails principal,
+                                                 @Valid @RequestBody UpdateProfileRequest request) {
+        User user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+
+        if (request.phone() != null) user.setPhone(blankToNull(request.phone()));
+        if (request.pseudo() != null) user.setPseudo(blankToNull(request.pseudo()));
+        if (request.address() != null) user.setAddress(blankToNull(request.address()));
+        if (request.avatarUrl() != null) user.setAvatarUrl(AvatarValidator.normalize(request.avatarUrl()));
+
+        user = userRepository.save(user);
+        return ResponseEntity.ok(UserResponse.from(user));
     }
 
     @GetMapping

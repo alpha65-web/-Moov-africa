@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api, { apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
 import type { LoginResponse } from "@/lib/types";
+import Avatar from "@/components/Avatar";
+import { AVATAR_MAX_FILE_BYTES, resizeToDataUrl } from "@/lib/avatar";
 
 type ProfileTab = "info" | "password" | "mfa";
 
@@ -18,6 +20,17 @@ export default function ProfilePage() {
   // Derive plutot que stocke : un changement impose ouvre directement
   // l'onglet mot de passe, sans setState dans un effet.
   const activeTab: ProfileTab = tab ?? (user?.forcePasswordChange ? "password" : "info");
+
+  /**
+   * Photo et coordonnees, modifiables par le titulaire lui-meme (PUT /users/me).
+   *
+   * La photo posee par l'administrateur a la creation du compte n'apparaissait
+   * nulle part pour son titulaire, qui ne pouvait pas non plus la changer : la
+   * page ne faisait que lire le profil.
+   */
+  const [profileForm, setProfileForm] = useState<{ phone: string; pseudo: string; address: string; avatarUrl: string | null } | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [changingPw, setChangingPw] = useState(false);
@@ -102,6 +115,39 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
+  // Le formulaire s'initialise sur le profil connu au premier rendu de l'onglet ;
+  // il est derive plutot qu'ecrit dans un effet.
+  const form = profileForm ?? {
+    phone: user.phone ?? "", pseudo: user.pseudo ?? "", address: user.address ?? "", avatarUrl: user.avatarUrl,
+  };
+
+  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+    if (!file) return;
+    if (file.size > AVATAR_MAX_FILE_BYTES) { toast.error(t("info.photoError")); return; }
+    resizeToDataUrl(file)
+      .then((dataUrl) => setProfileForm({ ...form, avatarUrl: dataUrl }))
+      .catch(() => toast.error(t("info.photoError")));
+  }
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (savingProfile) return;
+    setSavingProfile(true);
+    try {
+      // Une chaine vide retire la photo ; null la laisserait telle quelle.
+      await api.put("/users/me", {
+        phone: form.phone, pseudo: form.pseudo, address: form.address, avatarUrl: form.avatarUrl ?? "",
+      });
+      await refreshUser();
+      setProfileForm(null);
+      toast.success(t("info.saved"));
+    } catch (err) {
+      toast.error(apiError(err, t("info.saveError")));
+    } finally { setSavingProfile(false); }
+  }
+
   const TABS = [
     { key: "info" as const, label: t("tabs.info") },
     { key: "password" as const, label: t("tabs.password") },
@@ -112,9 +158,7 @@ export default function ProfilePage() {
     <div className="flex flex-col gap-6 pb-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center justify-center size-16 rounded-2xl bg-primary text-white text-2xl font-bold">
-          {user.firstName?.[0]}{user.lastName?.[0]}
-        </div>
+        <Avatar firstName={user.firstName} lastName={user.lastName} avatarUrl={user.avatarUrl} className="size-16" textClass="text-2xl" />
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-white">{user.firstName} {user.lastName}</h1>
           <p className="text-sm text-text-secondary dark:text-neutral-500 mt-0.5">{tr.has(user.role) ? tr(user.role) : user.role}</p>
@@ -176,6 +220,55 @@ export default function ProfilePage() {
                 </span>
               </div>
             </div>
+
+            {/* ===== PHOTO ET COORDONNEES, modifiables par le titulaire ===== */}
+            <form onSubmit={handleSaveProfile} className="mt-8 pt-6 border-t border-border dark:border-neutral-800 flex flex-col gap-5">
+              <h3 className="text-sm font-bold text-black dark:text-white">{t("info.editTitle")}</h3>
+              <div className="flex items-center gap-4">
+                <Avatar firstName={user.firstName} lastName={user.lastName} avatarUrl={form.avatarUrl} className="size-20" textClass="text-2xl" />
+                <div className="flex flex-col gap-2">
+                  <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" id="profile-avatar-input" />
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => avatarInputRef.current?.click()} className="tertiary-icon px-3 py-1.5 active-scale">
+                      <p className="text-xs font-medium">{form.avatarUrl ? t("info.changePhoto") : t("info.addPhoto")}</p>
+                    </button>
+                    {form.avatarUrl && (
+                      <button type="button" onClick={() => setProfileForm({ ...form, avatarUrl: null })} className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer">
+                        {t("info.removePhoto")}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-secondary dark:text-neutral-500">{t("info.photoHint")}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider">{t("info.phone")}</label>
+                  <input value={form.phone} onChange={(e) => setProfileForm({ ...form, phone: e.target.value })} className="input w-full h-10" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider">{t("info.pseudo")}</label>
+                  <input value={form.pseudo} onChange={(e) => setProfileForm({ ...form, pseudo: e.target.value })} className="input w-full h-10" />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider">{t("info.address")}</label>
+                  <input value={form.address} onChange={(e) => setProfileForm({ ...form, address: e.target.value })} className="input w-full h-10" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="submit" disabled={savingProfile || profileForm === null} className="primary-icon px-5 py-2 active-scale disabled:opacity-60 disabled:cursor-not-allowed">
+                  <span className="flex items-center gap-2">
+                    {savingProfile && <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                    <p className="text-sm font-medium">{t("info.save")}</p>
+                  </span>
+                </button>
+                {profileForm !== null && (
+                  <button type="button" onClick={() => setProfileForm(null)} className="tertiary-icon px-4 py-2 active-scale">
+                    <p className="text-sm font-medium">{t("info.cancel")}</p>
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
         )}
 
