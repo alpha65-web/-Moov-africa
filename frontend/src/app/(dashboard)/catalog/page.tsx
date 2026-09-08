@@ -427,25 +427,25 @@ export default function CatalogPage() {
       {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
         {/* En-tête orange */}
-        <div className="hidden md:grid grid-cols-[1fr_1.5fr_100px_110px_90px_60px] gap-4 px-6 py-3 bg-primary dark:bg-primary/90 rounded-t-2xl">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1">
+        <div className="hidden md:grid grid-cols-[1fr_1.5fr_100px_110px_90px_60px] gap-4 px-6 py-3 bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 rounded-t-2xl">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 flex items-center gap-1">
             {t("columns.name")}
             <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M6 3v6M3 7l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 flex items-center gap-1">
             {t("columns.description")}
             <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M6 3v6M3 7l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 flex items-center gap-1">
             {t("columns.price")}
             <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M6 3v6M3 7l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white flex items-center gap-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 flex items-center gap-1">
             {t("columns.category")}
             <svg className="size-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M6 3v6M3 7l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.status")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white text-right">{t("columns.actions")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.status")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 text-right">{t("columns.actions")}</span>
         </div>
 
         {loading ? (
