@@ -252,7 +252,7 @@ export default function SettingsPage() {
                 onClick={() => setTab(tb.key)}
                 className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
                   tab === tb.key
-                    ? "bg-white dark:bg-neutral-800 text-primary dark:text-white shadow-sm lg:shadow-card"
+                    ? "bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm lg:shadow-card"
                     : "text-text-secondary dark:text-neutral-400 hover:text-primary dark:hover:text-white hover:bg-white/50 dark:hover:bg-neutral-800/30"
                 }`}
               >
@@ -269,7 +269,7 @@ export default function SettingsPage() {
           {tab === "general" && (
             <div className="space-y-6">
               <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-card p-6 space-y-5">
-                <h2 className="text-lg font-semibold text-primary dark:text-white">{t("general.title")}</h2>
+                <h2 className="text-lg font-semibold text-black dark:text-white">{t("general.title")}</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
             <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-card overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
                 <div>
-                  <h2 className="text-lg font-semibold text-primary dark:text-white">{t("notifications.header")}</h2>
+                  <h2 className="text-lg font-semibold text-black dark:text-white">{t("notifications.header")}</h2>
                   <p className="text-xs text-text-secondary dark:text-neutral-400 mt-0.5">
                     {activeNotifs > 1 ? t("notifications.activeCountPlural", { count: activeNotifs }) : t("notifications.activeCount", { count: activeNotifs })}
                   </p>
@@ -346,7 +346,7 @@ export default function SettingsPage() {
                   {notifConfigs.map((config) => (
                     <div key={config.id} className="flex items-center justify-between px-6 py-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
                       <div className="min-w-0 flex-1 mr-4">
-                        <p className="text-sm font-semibold text-primary dark:text-white">{t(`notifications.types.${config.type}`)}</p>
+                        <p className="text-sm font-semibold text-black dark:text-white">{t(`notifications.types.${config.type}`)}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-text-secondary dark:text-neutral-400">
                             {t(`notifications.channels.${config.channel}`)}
@@ -366,7 +366,7 @@ export default function SettingsPage() {
             <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-card overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
                 <div>
-                  <h2 className="text-lg font-semibold text-primary dark:text-white">{t("kpi.header")}</h2>
+                  <h2 className="text-lg font-semibold text-black dark:text-white">{t("kpi.header")}</h2>
                   <p className="text-xs text-text-secondary dark:text-neutral-400 mt-0.5">
                     {activeKpis > 1 ? t("kpi.activeCountPlural", { count: activeKpis }) : t("kpi.activeCount", { count: activeKpis })}
                   </p>
@@ -415,7 +415,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between">
                           <div className="min-w-0 flex-1 mr-4">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-primary dark:text-white">{config.label}</p>
+                              <p className="text-sm font-semibold text-black dark:text-white">{config.label}</p>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-text-secondary dark:text-neutral-400">{config.kpiCode}</span>
                             </div>
                             {config.thresholdExpression && (
@@ -443,7 +443,7 @@ export default function SettingsPage() {
               {/* Politique reellement appliquee par le serveur, en lecture seule */}
               <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-card p-6 space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-primary dark:text-white">{t("security.serverPolicy")}</h2>
+                  <h2 className="text-lg font-semibold text-black dark:text-white">{t("security.serverPolicy")}</h2>
                   <p className="text-xs text-text-secondary dark:text-neutral-400 mt-0.5">{t("security.serverPolicyDesc")}</p>
                 </div>
 
@@ -480,7 +480,7 @@ export default function SettingsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold text-primary dark:text-white">{t("security.myMfa")}</h2>
+                      <h2 className="text-lg font-semibold text-black dark:text-white">{t("security.myMfa")}</h2>
                       <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                         user?.totpEnabled
                           ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
@@ -506,7 +506,7 @@ export default function SettingsPage() {
           {tab === "integrations" && (
             <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-border dark:border-neutral-800 shadow-card overflow-hidden">
               <div className="px-6 py-4 border-b border-border dark:border-neutral-800">
-                <h2 className="text-lg font-semibold text-primary dark:text-white">{t("integrations.header")}</h2>
+                <h2 className="text-lg font-semibold text-black dark:text-white">{t("integrations.header")}</h2>
                 <p className="text-xs text-text-secondary dark:text-neutral-400 mt-0.5">{t("integrations.headerDesc")}</p>
               </div>
 
@@ -532,7 +532,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-semibold text-primary dark:text-white">{target.system}</p>
+                            <p className="text-sm font-semibold text-black dark:text-white">{target.system}</p>
                             {target.lastStatus && (
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                                 EXPORT_STATUS_STYLES[target.lastStatus] ?? EXPORT_STATUS_STYLES.PENDING
@@ -549,7 +549,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="text-right shrink-0 ml-4">
-                        <p className="text-sm font-semibold text-primary dark:text-white">
+                        <p className="text-sm font-semibold text-black dark:text-white">
                           {target.total} <span className="text-xs font-normal text-text-secondary dark:text-neutral-400">{t("integrations.total")}</span>
                         </p>
                         {target.failed > 0 && (

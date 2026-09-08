@@ -3,6 +3,7 @@ package com.moov.pim.analytics.service;
 import com.moov.pim.analytics.domain.AuditAction;
 import com.moov.pim.analytics.domain.AuditLog;
 import com.moov.pim.analytics.repository.AuditLogRepository;
+import com.moov.pim.permissions.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,6 +28,8 @@ import static org.mockito.Mockito.*;
 class AuditServiceTest {
 
     @Mock private AuditLogRepository auditLogRepository;
+    // Resout les noms d'auteurs de la page ; les tests portent sur le journal, un mock vide suffit.
+    @Mock private UserRepository userRepository;
 
     @InjectMocks private AuditService auditService;
 

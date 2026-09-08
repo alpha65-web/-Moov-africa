@@ -7,10 +7,17 @@ import { useLocale, useTranslations } from "next-intl";
 // trouvait ici masquait 44 locales dont les fichiers n'etaient que des copies du
 // francais : ces fichiers ont ete supprimes, la liste se suffit desormais a
 // elle-meme. Ajouter une entree suppose de livrer messages/<code>.json complet.
+// Les drapeaux sont les images de public/flags/svg : un caractere emoji se
+// rend differemment selon le systeme et n'a pas sa place dans l'interface.
 const LANGUAGES: { code: string; label: string; flag: string }[] = [
-  { code: "fr", label: "Français", flag: "🇫🇷" },
-  { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "fr", label: "Français", flag: "/flags/svg/fr.svg" },
+  { code: "en", label: "English", flag: "/flags/svg/gb.svg" },
 ];
+
+function Flag({ src, alt }: { src: string; alt: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- petite image statique locale, sans optimisation utile
+  return <img src={src} alt={alt} width={18} height={13} className="h-[13px] w-[18px] rounded-[2px] object-cover shrink-0" />;
+}
 
 export default function LanguageSwitcher() {
   const locale = useLocale();
@@ -49,13 +56,13 @@ export default function LanguageSwitcher() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
       >
-        <span className="text-base">{current.flag}</span>
-        <span className="text-neutral-600 dark:text-neutral-400 flex-1 text-left truncate">
+        <Flag src={current.flag} alt={current.label} />
+        <span className="flex-1 text-left truncate">
           {current.label}
         </span>
-        <svg className={`size-3.5 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 16 16" fill="none">
+        <svg className={`size-3.5 text-white/60 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 16 16" fill="none">
           <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -83,7 +90,7 @@ export default function LanguageSwitcher() {
                     : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
                 }`}
               >
-                <span className="text-base">{lang.flag}</span>
+                <Flag src={lang.flag} alt={lang.label} />
                 <span className="truncate">{lang.label}</span>
                 {lang.code === locale && (
                   <svg className="size-3.5 ml-auto text-primary shrink-0" viewBox="0 0 16 16" fill="none">

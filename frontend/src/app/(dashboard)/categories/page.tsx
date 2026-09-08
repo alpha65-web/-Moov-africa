@@ -7,6 +7,7 @@ import { usePermissions, PERM } from "@/lib/permissions";
 import type { Category, ItemType } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import { accentBar } from "@/lib/accent";
 import ActionMenu from "@/components/ActionMenu";
 
 const EMPTY_FORM = { name: "", description: "", type: "", parentId: "" };
@@ -307,7 +308,8 @@ export default function CategoriesPage() {
       {/* ===== STAT CARDS ===== */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {cardData.map((s) => (
-          <div key={s.key} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+          <div key={s.key} className="relative overflow-hidden rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 pl-6 shadow-card transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+            <span className={`absolute top-0 bottom-0 left-0 w-1 ${accentBar(s.color)}`} aria-hidden="true" />
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
@@ -339,9 +341,9 @@ export default function CategoriesPage() {
 
       {/* ===== TABLE ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1.1fr_1fr_90px_100px_0.7fr_60px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
+        <div className="hidden md:grid grid-cols-[1.1fr_1fr_90px_100px_0.7fr_60px] gap-3 px-6 py-3 bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 rounded-t-2xl">
           {[t("columns.name"), t("columns.description"), t("columns.type"), t("columns.status"), t("columns.parent"), t("columns.actions")].map((col, i) => (
-            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-white ${i === 5 ? "text-right" : ""}`}>{col}</span>
+            <span key={i} className={`text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 ${i === 5 ? "text-right" : ""}`}>{col}</span>
           ))}
         </div>
 

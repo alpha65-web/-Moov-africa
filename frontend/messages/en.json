@@ -53,7 +53,16 @@
     "audit": "Audit",
     "settings": "Settings",
     "theme": "Theme",
-    "logout": "Log out"
+    "logout": "Log out",
+    "productName": "Offer management",
+    "profile": "My profile",
+    "close": "Close menu",
+    "sections": {
+      "navigation": "Navigation",
+      "content": "Content",
+      "steering": "Steering",
+      "administration": "Administration"
+    }
   },
   "dashboard": {
     "greeting_morning": "Good morning",
@@ -408,7 +417,7 @@
     "editTitle": "Edit campaign",
     "channelStats": {
       "title": "Diffusion by channel",
-      "subtitle": "Counted on the campaigns actually recorded. Views and clicks are not shown: they require a connection to the social network APIs, which the platform does not have.",
+      "subtitle": "Campaigns prepared, sent and scheduled per channel, counted on the campaigns recorded in the platform.",
       "channel": "Channel",
       "campaigns": "Campaigns",
       "sent": "Sent",
@@ -744,14 +753,15 @@
     "filterByAction": "Filter by action",
     "filterByEntity": "Filter by entity",
     "detail": "Audit details",
-    "userId": "User ID",
+    "userId": "Author",
     "entityId": "Entity ID",
     "ipAddress": "IP Address",
     "userAgent": "User Agent",
     "viewDetails": "View details",
     "previousValue": "Previous value",
     "newValue": "New value",
-    "empty": "No audit entries"
+    "empty": "No audit entries",
+    "systemActor": "System"
   },
   "rules": {
     "title": "Business Rules",
@@ -974,7 +984,20 @@
       "mfa": "MFA",
       "mfaEnabled": "Enabled",
       "mfaDisabled": "Disabled",
-      "statusActive": "Active"
+      "statusActive": "Active",
+      "editTitle": "Photo and contact details",
+      "addPhoto": "Add a photo",
+      "changePhoto": "Change photo",
+      "removePhoto": "Remove photo",
+      "photoHint": "JPG or PNG, up to 2 MB. The image is reduced to 256 pixels before upload.",
+      "photoError": "The photo must be an image of at most 2 MB.",
+      "phone": "Phone",
+      "pseudo": "Nickname",
+      "address": "Address",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "Profile updated.",
+      "saveError": "Profile update failed."
     },
     "password": {
       "title": "Change password",
@@ -1084,7 +1107,7 @@
   },
   "analytics": {
     "title": "Analytics",
-    "subtitle": "Track performance indicators for your offers.",
+    "subtitle": "Time To Market, time spent per workflow stage and event feed, computed on real offers.",
     "dateFrom": "From",
     "dateTo": "To",
     "apply": "Apply",
@@ -1092,13 +1115,15 @@
       "totalEvents": "Total events",
       "avgDuration": "Average duration",
       "uniqueTypes": "Unique types",
-      "offersTracked": "Offers tracked"
+      "offersTracked": "Offers tracked",
+      "ttmMedian": "Median Time To Market",
+      "bottleneck": "Longest stage"
     },
     "columns": {
       "event": "Event",
       "type": "Type",
-      "offerId": "Offer ID",
-      "actorId": "Actor ID",
+      "offerId": "Offer",
+      "actorId": "Actor",
       "duration": "Duration",
       "date": "Date"
     },
@@ -1162,7 +1187,9 @@
         "CALL_CENTER": "Call centre",
         "WEBSITE": "Website"
       }
-    }
+    },
+    "durationHours": "{h} h {min} min",
+    "durationDays": "{d} d {h} h"
   },
   "abTests": {
     "title": "A/B Tests",
@@ -1363,7 +1390,19 @@
     "totpHint": "Enter the 6-digit code from your authenticator app.",
     "totpRequired": "6-digit code required",
     "mfaRequired": "Two-factor authentication required.",
-    "totpInvalid": "Incorrect verification code. Check the code shown in your authenticator app."
+    "totpInvalid": "Incorrect verification code. Check the code shown in your authenticator app.",
+    "panel": {
+      "product": "Product and offer information management platform",
+      "tagline": "A single repository to design, validate and distribute Moov Africa Burkina Faso offers.",
+      "features": {
+        "catalog": "Product, service and pack catalog",
+        "workflow": "Offer validation workflow",
+        "media": "Media library and graphic validation",
+        "diffusion": "Multichannel distribution"
+      },
+      "copyright": "© 2026 Moov Africa Burkina Faso",
+      "restricted": "Restricted to Moov Africa staff"
+    }
   },
   "notFound": {
     "title": "404",
@@ -1381,7 +1420,7 @@
     "tabs": {
       "assistant": "Assistant",
       "generation": "Generation",
-      "insights": "Insights",
+      "insights": "Diagnostic",
       "extraction": "Datasheet"
     },
     "assistant": {
@@ -1391,7 +1430,9 @@
       "suggestion3": "Active campaigns status",
       "suggestion4": "Catalog quality score",
       "error": "The assistant could not answer.",
-      "sources": "Figures used"
+      "sources": "Figures used",
+      "emptyTitle": "Ask a question about the repository",
+      "emptyHint": "Offers, products, campaigns, rules: the assistant answers with the platform's real figures and cites the data used. Pick a suggestion below or type your question."
     },
     "generation": {
       "title": "AI Content Generation",
@@ -1522,5 +1563,11 @@
       "SERVICE": "Service",
       "PACK": "Pack"
     }
+  },
+  "topbar": {
+    "appName": "PIM Moov Africa",
+    "online": "Server online",
+    "offline": "Server unreachable",
+    "checking": "Connecting"
   }
 }

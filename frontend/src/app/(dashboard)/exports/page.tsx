@@ -6,6 +6,7 @@ import { searchKeyHandler } from "@/lib/search";
 import type { IntegrationApiKey, IntegrationEndpoint, IntegrationExport, Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import { accentBar } from "@/lib/accent";
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -303,7 +304,8 @@ export default function ExportsPage() {
       {/* ===== 3 STAT CARDS ===== */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {statCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+          <div key={card.label} className="relative overflow-hidden rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 pl-6 shadow-card">
+            <span className={`absolute top-0 bottom-0 left-0 w-1 ${accentBar(card.color)}`} aria-hidden="true" />
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${card.bg} ${card.color}`}>{card.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{card.label}</span>
@@ -351,9 +353,9 @@ export default function ExportsPage() {
 
       {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_1fr_110px_90px_170px_70px_130px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
+        <div className="hidden md:grid grid-cols-[1fr_1fr_110px_90px_170px_70px_130px] gap-3 px-6 py-3 bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 rounded-t-2xl">
           {[t("columns.system"), t("columns.offerId"), t("columns.type"), t("columns.status"), t("columns.channel"), t("columns.retries"), t("columns.createdAt")].map((col, i) => (
-            <span key={i} className="text-[11px] font-semibold uppercase tracking-wider text-white">{col}</span>
+            <span key={i} className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{col}</span>
           ))}
         </div>
 

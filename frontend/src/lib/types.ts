@@ -205,6 +205,8 @@ export const OFFER_STATUS_COLORS: Record<OfferStatus, string> = {
 export interface AuditLog {
   id: string;
   userId: string;
+  /** Nom de l'auteur, resolu par le serveur ; null pour une action systeme. */
+  userName: string | null;
   action: string;
   entityType: string;
   entityId: string;
@@ -251,8 +253,12 @@ export interface KpiConfig {
 export interface KpiEvent {
   id: string;
   offerId: string;
+  /** Nom de l'offre, resolu par le serveur ; null si elle a ete supprimee. */
+  offerName: string | null;
   eventType: string;
   actorId: string;
+  /** Nom de l'acteur, resolu par le serveur ; null si le compte a disparu. */
+  actorName: string | null;
   durationMs: number | null;
   createdAt: string;
 }

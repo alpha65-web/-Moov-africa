@@ -19,9 +19,30 @@ public class AuditService {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final AuditLogRepository auditLogRepository;
+    private final com.moov.pim.permissions.repository.UserRepository userRepository;
 
-    public AuditService(AuditLogRepository auditLogRepository) {
+    public AuditService(AuditLogRepository auditLogRepository,
+                        com.moov.pim.permissions.repository.UserRepository userRepository) {
         this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
+    }
+
+    /**
+     * Projette une page du journal avec le nom de l'auteur de chaque action.
+     *
+     * Le journal ne portait que l'identifiant du compte : l'ecran d'audit
+     * n'affichait donc pas qui avait agi, alors que c'est la premiere question
+     * qu'on lui pose. Une seule lecture groupee des comptes de la page.
+     */
+    private org.springframework.data.domain.Page<AuditLogResponse> withNames(
+            org.springframework.data.domain.Page<com.moov.pim.analytics.domain.AuditLog> page) {
+        java.util.Map<UUID, String> names = userRepository.findAllById(
+                        page.getContent().stream().map(com.moov.pim.analytics.domain.AuditLog::getUserId)
+                                .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet()))
+                .stream().collect(java.util.stream.Collectors.toMap(
+                        com.moov.pim.permissions.domain.User::getId,
+                        u -> u.getFirstName() + " " + u.getLastName(), (a, b) -> a));
+        return page.map(log -> AuditLogResponse.from(log, names.get(log.getUserId())));
     }
 
     /**
@@ -74,17 +95,16 @@ public class AuditService {
 
     @Transactional(readOnly = true)
     public Page<AuditLogResponse> getRecentLogs(Pageable pageable) {
-        return auditLogRepository.findAllByOrderByCreatedAtDesc(pageable).map(AuditLogResponse::from);
+        return withNames(auditLogRepository.findAllByOrderByCreatedAtDesc(pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<AuditLogResponse> getEntityHistory(String entityType, UUID entityId, Pageable pageable) {
-        return auditLogRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId, pageable)
-                .map(AuditLogResponse::from);
+        return withNames(auditLogRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId, pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<AuditLogResponse> getUserHistory(UUID userId, Pageable pageable) {
-        return auditLogRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(AuditLogResponse::from);
+        return withNames(auditLogRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable));
     }
 }

@@ -10,6 +10,11 @@
 
   --color-primary: #ff6500;
   --color-primary-light: #ff8c42;
+  /* Bleu Moov Africa, releve sur le logo : couleur des boutons d'action et de la
+     barre laterale. L'orange du logo reste la couleur d'accent. */
+  --color-brand: #0065b3;
+  --color-brand-light: #1978d2;
+  --color-brand-dark: #004f8f;
   --color-secondary: #333;
   --color-secondary-light: #444;
   --color-tertiary: #dddddd;
@@ -75,7 +80,7 @@
   }
 
   .primary-icon {
-    @apply cursor-pointer flex gap-2 *:text-sm *:text-white items-center justify-center bg-linear-to-t from-primary overflow-hidden from-0% to-primary-light to-100% p-2 rounded-lg shadow-primary-normal transition-all duration-200 ease-out active:shadow-primary-clicked active:from-60%;
+    @apply cursor-pointer flex gap-2 *:text-sm *:text-white items-center justify-center bg-linear-to-t from-brand overflow-hidden from-0% to-brand-light to-100% p-2 rounded-lg shadow-primary-normal transition-all duration-200 ease-out active:shadow-primary-clicked active:from-60%;
   }
 
   .secondary-icon {
@@ -98,13 +103,31 @@
     @apply border rounded-2xl bg-bg border-border shadow-card;
   }
 
+  /* L'ombre des cartes est un relief clair d'un pixel : sur fond sombre il se
+     lisait comme un liseré blanc autour de chaque carte. */
+  .dark .shadow-card {
+    box-shadow:
+      inset 1px 1px 0 rgba(255, 255, 255, 0.05),
+      inset -1px -1px 0 rgba(0, 0, 0, 0.4);
+  }
+
   .input {
-    @apply bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-orange-500 transition-all duration-100 ease-in-out;
+    @apply bg-white h-9 text-sm text-black border-black/10 outline-none border px-2 focus-within:border-brand transition-all duration-100 ease-in-out;
     border-radius: 7px;
   }
 
   .dark .input {
     @apply bg-neutral-800 text-white border-white/10;
+  }
+
+  /* La hauteur fixe de .input ecrasait les zones de texte sur une seule ligne :
+     l'attribut rows n'avait aucun effet. */
+  textarea.input {
+    height: auto;
+    min-height: 5.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    line-height: 1.45;
   }
 
   .hide-scrollbar::-webkit-scrollbar {

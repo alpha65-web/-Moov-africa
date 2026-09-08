@@ -11,6 +11,7 @@ import ActionMenu from "@/components/ActionMenu";
 import type { CatalogItem, Offer, OfferStatus } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import { accentBar } from "@/lib/accent";
 import CategoryPicker from "@/components/CategoryPicker";
 
 const PER_PAGE = 10;
@@ -988,8 +989,9 @@ export default function OffersPage() {
           <button
             key={s.key}
             onClick={() => setFilterStatus(s.filterValue)}
-            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+            className="relative overflow-hidden rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 pl-6 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
           >
+            <span className={`absolute top-0 bottom-0 left-0 w-1 ${accentBar(s.color)}`} aria-hidden="true" />
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>
                 {cardIcons[idx]}
@@ -1083,15 +1085,15 @@ export default function OffersPage() {
       {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
         {/* En-tête bleu navy */}
-        <div className="hidden md:grid grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_110px_60px] gap-3 px-6 py-3 bg-slate-800 dark:bg-slate-900 rounded-t-2xl">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.offer")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.type")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.price")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.period")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.status")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.quality")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.lastModified")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white text-right">{t("columns.actions")}</span>
+        <div className="hidden md:grid grid-cols-[1.2fr_0.7fr_90px_100px_100px_80px_110px_60px] gap-3 px-6 py-3 bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 rounded-t-2xl">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.offer")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.type")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.price")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.period")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.status")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.quality")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.lastModified")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 text-right">{t("columns.actions")}</span>
         </div>
 
         {loading ? (
@@ -1366,7 +1368,7 @@ export default function OffersPage() {
       {/* ===== MODAL CRÉATION / ÉDITION ===== */}
       {modalMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) { setModalMode(null); resetForm(); } }}>
-          <div ref={modalRef} className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+          <div ref={modalRef} className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
               <div className="flex items-center gap-2.5 min-w-0">
                 <h2 className="text-base font-bold text-black dark:text-white truncate">{isEnriching ? t("enrichTitle") : isUpdating ? t("updateTitle") : t("createTitle")}</h2>
@@ -1384,7 +1386,7 @@ export default function OffersPage() {
               </button>
             </div>
             <form onSubmit={handleSubmit}>
-              <div className="px-6 py-5 flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
+              <div className="px-6 py-5 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
                 {/* Le formulaire d'enrichissement ne porte que les champs que
                     PATCH /enrich traite. Le nom, le prix, la devise, le segment
                     et le type de client relevent de la creation : les laisser
@@ -1687,7 +1689,7 @@ export default function OffersPage() {
       {/* ===== MODAL DÉTAIL ===== */}
       {detailOffer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={(e) => { if (e.target === e.currentTarget) setDetailOffer(null); }}>
-          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+          <div className="bg-white dark:bg-neutral-900 border border-border dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-neutral-800">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -1702,8 +1704,8 @@ export default function OffersPage() {
                 <svg className="size-4 text-neutral-500" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
               </button>
             </div>
-            <div className="px-6 py-5 flex flex-col gap-5 max-h-[60vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="px-6 py-5 flex flex-col gap-5 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">{t("columns.status")}</p>
                   <span className={`inline-flex items-center w-fit px-2 py-0.5 text-[11px] font-semibold rounded-md ${STATUS_STYLES[detailOffer.status]}`}>{t(`status.${detailOffer.status}`)}</span>

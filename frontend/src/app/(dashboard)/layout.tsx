@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
+import Topbar from "@/components/Topbar";
 
 export default function DashboardLayout({
   children,
@@ -41,6 +42,7 @@ export default function DashboardLayout({
   return (
     <div className="h-dvh bg-bg dark:bg-neutral-950 overflow-hidden">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Topbar />
 
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center gap-3 px-4 py-3 border-b border-border dark:border-neutral-800 bg-white dark:bg-neutral-900">
@@ -52,10 +54,10 @@ export default function DashboardLayout({
             <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
-        <span className="text-sm font-semibold text-secondary dark:text-white">Moov Africa PIM</span>
+        <span className="text-sm font-semibold text-brand dark:text-white">PIM Moov Africa</span>
       </div>
 
-      <main className="lg:ml-65 h-dvh overflow-y-auto hide-scrollbar p-4 pt-16 lg:p-6 lg:pt-6">
+      <main className="lg:ml-65 h-dvh overflow-y-auto hide-scrollbar p-4 pt-16 lg:p-6 lg:pt-20">
         {children}
       </main>
     </div>

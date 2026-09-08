@@ -498,8 +498,8 @@ export default function AiPage() {
             {messages.length === 0 && (
               <div className="h-full flex items-center justify-center text-center">
                 <div>
-                  <p className="text-sm text-text-secondary dark:text-neutral-400">{t("subtitle")}</p>
-                  <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1">{t("poweredBy")}</p>
+                  <p className="text-sm font-semibold text-black dark:text-white">{t("assistant.emptyTitle")}</p>
+                  <p className="text-xs text-text-secondary dark:text-neutral-500 mt-1 max-w-md mx-auto leading-relaxed">{t("assistant.emptyHint")}</p>
                 </div>
               </div>
             )}
@@ -507,7 +507,7 @@ export default function AiPage() {
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === "user"
-                    ? "bg-primary text-white rounded-br-md"
+                    ? "bg-brand text-white rounded-br-md"
                     : "bg-neutral-100 dark:bg-neutral-800 text-text-secondary dark:text-neutral-300 rounded-bl-md"
                 }`}>
                   {msg.role === "ai" && (
@@ -578,7 +578,7 @@ export default function AiPage() {
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || typing}
-                className="size-10 rounded-xl bg-primary hover:bg-primary/90 text-white flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="size-10 rounded-xl bg-brand hover:bg-brand-light text-white flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 <svg className="size-4" viewBox="0 0 20 20" fill="none">
                   <path d="M3 10h14M12 5l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -696,7 +696,7 @@ export default function AiPage() {
             <button
               onClick={handleGenerate}
               disabled={generating || !canGenerate}
-              className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
             >
               {generating ? (
                 <>
@@ -736,7 +736,7 @@ export default function AiPage() {
                     <button
                       onClick={handleApplySeo}
                       disabled={applying}
-                      className="flex-1 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 py-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="size-4" viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       {applying ? tc("saving") : t("generation.applySeo")}
@@ -746,7 +746,7 @@ export default function AiPage() {
                     <button
                       onClick={handleApply}
                       disabled={applying}
-                      className="flex-1 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 py-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="size-4" viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       {applying ? tc("saving") : t("generation.apply")}

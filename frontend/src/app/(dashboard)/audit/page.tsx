@@ -95,7 +95,7 @@ export default function AuditPage() {
     if (filterEntity && log.entityType !== filterEntity) return false;
     if (search) {
       const q = search.toLowerCase();
-      return (log.userId || "").toLowerCase().includes(q) || (log.entityType || "").toLowerCase().includes(q) || (log.action || "").toLowerCase().includes(q) || (log.ipAddress || "").toLowerCase().includes(q);
+      return (log.userId || "").toLowerCase().includes(q) || (log.userName || "").toLowerCase().includes(q) || (log.entityType || "").toLowerCase().includes(q) || (log.action || "").toLowerCase().includes(q) || (log.ipAddress || "").toLowerCase().includes(q);
     }
     return true;
   });
@@ -149,8 +149,9 @@ export default function AuditPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-blue-600 dark:bg-blue-700 text-white rounded-t-2xl">
+              <tr className="bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 text-text-secondary dark:text-neutral-400 rounded-t-2xl">
                 <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider first:rounded-tl-2xl">{t("columns.date")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider">{t("columns.user")}</th>
                 <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider">{t("columns.action")}</th>
                 <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider">{t("columns.entity")}</th>
                 <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider">{t("columns.ip")}</th>
@@ -161,14 +162,14 @@ export default function AuditPage() {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(5)].map((__, j) => (
+                    {[...Array(6)].map((__, j) => (
                       <td key={j} className="px-4 py-3"><div className="w-24 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center">
+                  <td colSpan={6} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="size-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
                         <svg className="size-6 text-neutral-400" viewBox="0 0 16 16" fill="none">
@@ -184,6 +185,7 @@ export default function AuditPage() {
                 paginated.map((log) => (
                   <tr key={log.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
                     <td className="px-4 py-3"><p className="text-xs text-text-secondary dark:text-neutral-400 whitespace-nowrap">{formatDate(log.createdAt)}</p></td>
+                    <td className="px-4 py-3"><span className="text-xs font-medium text-black dark:text-white whitespace-nowrap" title={log.userId}>{log.userName ?? t("systemActor")}</span></td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-medium ${ACTION_COLORS[log.action] || "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"}`} style={{ borderRadius: 4 }}>
                         {t(`actions.${log.action}`)}
@@ -245,7 +247,8 @@ export default function AuditPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider mb-1">{t("userId")}</label>
-                  <p className="text-sm font-bold text-black dark:text-white font-mono break-all">{detailLog.userId}</p>
+                  <p className="text-sm font-bold text-black dark:text-white">{detailLog.userName ?? t("systemActor")}</p>
+                  <p className="text-[11px] text-text-secondary dark:text-neutral-500 font-mono break-all">{detailLog.userId}</p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-text-secondary dark:text-neutral-500 uppercase tracking-wider mb-1">{t("entityId")}</label>

@@ -8,6 +8,8 @@ import java.util.UUID;
 public record AuditLogResponse(
         UUID id,
         UUID userId,
+        /** Nom de l'auteur de l'action ; nul pour une action systeme ou un compte supprime. */
+        String userName,
         String action,
         String entityType,
         UUID entityId,
@@ -18,8 +20,12 @@ public record AuditLogResponse(
         LocalDateTime createdAt
 ) {
     public static AuditLogResponse from(AuditLog log) {
+        return from(log, null);
+    }
+
+    public static AuditLogResponse from(AuditLog log, String userName) {
         return new AuditLogResponse(
-                log.getId(), log.getUserId(), log.getAction().name(),
+                log.getId(), log.getUserId(), userName, log.getAction().name(),
                 log.getEntityType(), log.getEntityId(),
                 log.getPreviousValue(), log.getNewValue(),
                 log.getIpAddress(), log.getUserAgent(), log.getCreatedAt()

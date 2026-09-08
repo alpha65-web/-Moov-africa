@@ -47,13 +47,22 @@
     "notifications": "Notifications",
     "categories": "Catégories",
     "abTests": "Tests A/B",
-    "analytics": "Analytics",
+    "analytics": "Indicateurs",
     "exports": "Exports",
     "ai": "IA",
     "audit": "Audit",
     "settings": "Paramètres",
     "theme": "Thème",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "productName": "Gestion des offres",
+    "profile": "Mon profil",
+    "close": "Fermer le menu",
+    "sections": {
+      "navigation": "Navigation",
+      "content": "Contenus",
+      "steering": "Pilotage",
+      "administration": "Administration"
+    }
   },
   "dashboard": {
     "greeting_morning": "Bonjour",
@@ -408,7 +417,7 @@
     "editTitle": "Modifier la campagne",
     "channelStats": {
       "title": "Diffusion par canal",
-      "subtitle": "Compté sur les campagnes réellement enregistrées. Les vues et clics ne sont pas affichés : ils supposent un raccordement aux interfaces des réseaux sociaux, dont la plateforme ne dispose pas.",
+      "subtitle": "Campagnes préparées, diffusées et programmées par canal, comptées sur les campagnes enregistrées dans la plateforme.",
       "channel": "Canal",
       "campaigns": "Campagnes",
       "sent": "Diffusées",
@@ -419,13 +428,13 @@
   },
   "media": {
     "title": "Médiathèque",
-    "subtitle": "Gérez vos fichiers et assets numériques.",
-    "upload": "Uploader",
+    "subtitle": "Gérez vos fichiers et actifs numériques.",
+    "upload": "Déposer un fichier",
     "refresh": "Actualiser",
     "searchPlaceholder": "Rechercher par nom de fichier...",
-    "uploadFirst": "Uploader mon premier fichier",
+    "uploadFirst": "Déposer mon premier fichier",
     "emptyTitle": "Aucun média pour le moment",
-    "emptyDescription": "Uploadez vos premiers fichiers pour commencer à gérer vos assets numériques. Images, PDF et vidéos sont supportés.",
+    "emptyDescription": "Déposez vos premiers fichiers pour commencer à gérer vos actifs numériques. Images, PDF et vidéos sont pris en charge.",
     "stats": {
       "total": "Fichiers totaux",
       "pending": "En attente",
@@ -454,7 +463,7 @@
     "uploadForm": {
       "selectFile": "Sélectionner un fichier",
       "maxSize": "Taille max : 10 Mo",
-      "uploading": "Upload en cours..."
+      "uploading": "Dépôt en cours..."
     },
     "status": {
       "PENDING": "En attente",
@@ -468,7 +477,7 @@
       "linkToOffer": "Associer à une offre"
     },
     "messages": {
-      "uploaded": "Fichier uploadé avec succès",
+      "uploaded": "Fichier déposé avec succès",
       "approved": "Média approuvé",
       "rejected": "Média rejeté",
       "deleted": "Média supprimé",
@@ -744,14 +753,15 @@
     "filterByAction": "Filtrer par action",
     "filterByEntity": "Filtrer par entité",
     "detail": "Détails de l'audit",
-    "userId": "Utilisateur ID",
+    "userId": "Auteur",
     "entityId": "Entité ID",
     "ipAddress": "Adresse IP",
     "userAgent": "User Agent",
     "viewDetails": "Voir les détails",
     "previousValue": "Valeur précédente",
     "newValue": "Nouvelle valeur",
-    "empty": "Aucune entrée d'audit"
+    "empty": "Aucune entrée d'audit",
+    "systemActor": "Système"
   },
   "rules": {
     "title": "Règles métier",
@@ -974,7 +984,20 @@
       "mfa": "MFA",
       "mfaEnabled": "Activé",
       "mfaDisabled": "Désactivé",
-      "statusActive": "Actif"
+      "statusActive": "Actif",
+      "editTitle": "Photo et coordonnées",
+      "addPhoto": "Ajouter une photo",
+      "changePhoto": "Changer la photo",
+      "removePhoto": "Retirer la photo",
+      "photoHint": "JPG ou PNG, 2 Mo au plus. L'image est réduite à 256 pixels avant l'envoi.",
+      "photoError": "La photo doit être une image de 2 Mo au plus.",
+      "phone": "Téléphone",
+      "pseudo": "Pseudo",
+      "address": "Adresse",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "saved": "Profil mis à jour.",
+      "saveError": "La mise à jour du profil a échoué."
     },
     "password": {
       "title": "Changer le mot de passe",
@@ -1083,8 +1106,8 @@
     }
   },
   "analytics": {
-    "title": "Analytics",
-    "subtitle": "Suivez les indicateurs de performance de vos offres.",
+    "title": "Indicateurs et Time To Market",
+    "subtitle": "Time To Market, durée par étape du circuit et flux des événements, calculés sur les offres réelles.",
     "dateFrom": "Du",
     "dateTo": "Au",
     "apply": "Appliquer",
@@ -1092,13 +1115,15 @@
       "totalEvents": "Total événements",
       "avgDuration": "Durée moyenne",
       "uniqueTypes": "Types uniques",
-      "offersTracked": "Offres suivies"
+      "offersTracked": "Offres suivies",
+      "ttmMedian": "Time To Market médian",
+      "bottleneck": "Étape la plus longue"
     },
     "columns": {
       "event": "Événement",
       "type": "Type",
-      "offerId": "Offre ID",
-      "actorId": "Acteur ID",
+      "offerId": "Offre",
+      "actorId": "Acteur",
       "duration": "Durée",
       "date": "Date"
     },
@@ -1162,7 +1187,9 @@
         "CALL_CENTER": "Centre d'appel",
         "WEBSITE": "Site web"
       }
-    }
+    },
+    "durationHours": "{h} h {min} min",
+    "durationDays": "{d} j {h} h"
   },
   "abTests": {
     "title": "Tests A/B",
@@ -1363,7 +1390,19 @@
     "totpHint": "Saisissez le code à 6 chiffres de votre application d authentification.",
     "totpRequired": "Code à 6 chiffres requis",
     "mfaRequired": "Authentification à deux facteurs requise.",
-    "totpInvalid": "Code de vérification incorrect. Vérifiez le code affiché par votre application."
+    "totpInvalid": "Code de vérification incorrect. Vérifiez le code affiché par votre application.",
+    "panel": {
+      "product": "Plateforme de gestion de l'information produits et offres",
+      "tagline": "Un référentiel unique pour concevoir, valider et diffuser les offres de Moov Africa Burkina Faso.",
+      "features": {
+        "catalog": "Catalogue de produits, services et packs",
+        "workflow": "Circuit de validation des offres",
+        "media": "Médiathèque et validation graphique",
+        "diffusion": "Diffusion multicanale"
+      },
+      "copyright": "© 2026 Moov Africa Burkina Faso",
+      "restricted": "Accès réservé aux collaborateurs Moov Africa"
+    }
   },
   "notFound": {
     "title": "404",
@@ -1381,7 +1420,7 @@
     "tabs": {
       "assistant": "Assistant",
       "generation": "Génération",
-      "insights": "Insights",
+      "insights": "Diagnostic",
       "extraction": "Fiche technique"
     },
     "assistant": {
@@ -1391,7 +1430,9 @@
       "suggestion3": "État des campagnes actives",
       "suggestion4": "Score qualité du catalogue",
       "error": "L assistant n a pas pu répondre.",
-      "sources": "Chiffres utilisés"
+      "sources": "Chiffres utilisés",
+      "emptyTitle": "Posez une question sur le référentiel",
+      "emptyHint": "Offres, produits, campagnes, règles : l'assistant répond avec les chiffres réels de la plateforme et cite les données utilisées. Choisissez une suggestion ci-dessous ou écrivez votre question."
     },
     "generation": {
       "title": "Génération de contenu IA",
@@ -1522,5 +1563,11 @@
       "SERVICE": "Service",
       "PACK": "Pack"
     }
+  },
+  "topbar": {
+    "appName": "PIM Moov Africa",
+    "online": "Serveur en ligne",
+    "offline": "Serveur injoignable",
+    "checking": "Liaison en cours"
   }
 }

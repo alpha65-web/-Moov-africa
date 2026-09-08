@@ -8,6 +8,7 @@ import api, { apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { Offer } from "@/lib/types";
 import { useTranslations } from "next-intl";
+import { accentBar } from "@/lib/accent";
 
 /**
  * Carte de synthese du tableau de bord.
@@ -559,14 +560,19 @@ export default function DashboardPage() {
       {/* Le nombre de cartes varie de 4 à 6 selon le rôle : items-stretch garde la
           rangée d'aplomb quand un libellé passe sur deux lignes, et xl:grid-cols-3
           évite qu'une sixième carte se retrouve seule sur une deuxième rangée. */}
-      <div className={`grid grid-cols-2 gap-4 items-stretch ${statCards.length > 4 ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
+      <div className={`grid grid-cols-2 gap-4 items-stretch ${
+        statCards.length > 4 ? "lg:grid-cols-3"
+          : statCards.length === 3 ? "lg:grid-cols-3"
+          : statCards.length <= 2 ? "lg:grid-cols-2"
+          : "lg:grid-cols-4"}`}>
         {statCards.map((card, i) => (
           <Link
             key={card.label}
             href={card.href}
-            className="h-full block rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group animate-fade-in"
+            className="relative overflow-hidden h-full block rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 pl-6 shadow-card transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group animate-fade-in"
             style={{ animationDelay: `${i * 80}ms`, animationFillMode: "backwards" }}
           >
+            <span className={`absolute top-0 bottom-0 left-0 w-1 ${accentBar(card.accent)}`} aria-hidden="true" />
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-500">

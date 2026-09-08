@@ -34,6 +34,9 @@ public class KpiSummaryService {
     private static final String STATUS_PREFIX = "STATUS_";
     private static final String INITIAL_STAGE = "DRAFT";
     private static final String PUBLISHED_STAGE = "PUBLISHED";
+    /** Etapes du circuit de production, avant la mise sur le marche. */
+    private static final java.util.Set<String> WORKFLOW_STAGES = java.util.Set.of(
+            "DRAFT", "IN_ENRICHMENT", "IN_VALIDATION", "VALIDATED", "PLANNED");
 
     private final KpiEventRepository kpiEventRepository;
 
@@ -110,6 +113,12 @@ public class KpiSummaryService {
         }
 
         ttm.sort(Comparator.comparingLong(KpiSummaryResponse.OfferTimeToMarket::durationMs).reversed());
+
+        // Seules les etapes qui precedent la mise en ligne mesurent la productivite
+        // du circuit. Le temps passe en PUBLIEE ou en SUSPENDUE est une duree de
+        // commercialisation, pas un delai de traitement : le compter designait
+        // « Publiee » comme goulot d'etranglement, ce qui n'a aucun sens.
+        dwellByStage.keySet().removeIf(stage -> !WORKFLOW_STAGES.contains(stage));
 
         List<KpiSummaryResponse.StageStat> stages = new ArrayList<>();
         for (Map.Entry<String, List<Long>> entry : dwellByStage.entrySet()) {

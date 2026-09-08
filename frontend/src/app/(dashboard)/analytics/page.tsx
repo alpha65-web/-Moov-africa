@@ -7,6 +7,7 @@ import { searchKeyHandler } from "@/lib/search";
 import { usePermissions, PERM } from "@/lib/permissions";
 import type { KpiEvent } from "@/lib/types";
 import { useTranslations } from "next-intl";
+import { accentBar } from "@/lib/accent";
 
 /**
  * KpiEventListener n'emet que deux familles d'evenements :
@@ -306,7 +307,12 @@ export default function AnalyticsPage() {
     if (ms === null || ms === undefined) return "—";
     if (ms < 1000) return t("durationMs", { ms });
     if (ms < 60000) return t("durationSec", { sec: (ms / 1000).toFixed(1) });
-    return t("durationMin", { min: (ms / 60000).toFixed(1) });
+    if (ms < 3600000) return t("durationMin", { min: (ms / 60000).toFixed(1) });
+    // Au-dela de l'heure, des minutes a quatre chiffres ne se lisent plus :
+    // heures et minutes, puis jours et heures.
+    const hours = Math.floor(ms / 3600000);
+    if (hours < 48) return t("durationHours", { h: hours, min: Math.round((ms % 3600000) / 60000) });
+    return t("durationDays", { d: Math.floor(hours / 24), h: hours % 24 });
   }
 
   const filtered = useMemo(() => {
@@ -314,7 +320,8 @@ export default function AnalyticsPage() {
       if (filterType && ev.eventType !== filterType) return false;
       if (search) {
         const q = search.toLowerCase();
-        if (!(ev.offerId || "").toLowerCase().includes(q) && !(ev.actorId || "").toLowerCase().includes(q) && !(ev.eventType || "").toLowerCase().includes(q)) return false;
+        if (!(ev.offerId || "").toLowerCase().includes(q) && !(ev.actorId || "").toLowerCase().includes(q) && !(ev.eventType || "").toLowerCase().includes(q)
+          && !(ev.offerName || "").toLowerCase().includes(q) && !(ev.actorName || "").toLowerCase().includes(q)) return false;
       }
       if (dateFrom) {
         const from = new Date(dateFrom);
@@ -349,12 +356,12 @@ export default function AnalyticsPage() {
       icon: (<svg className="size-6" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" /><path d="M7 17V13M12 17V9M17 17V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>),
     },
     {
-      label: t("stats.avgDuration"), value: formatDuration(stats.avgDuration),
+      label: t("stats.ttmMedian"), value: summary?.ttmMedianMs != null ? formatDuration(summary.ttmMedianMs) : "—",
       color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30",
       icon: (<svg className="size-6" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>),
     },
     {
-      label: t("stats.uniqueTypes"), value: stats.uniqueTypes,
+      label: t("stats.bottleneck"), value: summary?.bottleneckStage ? (ts.has(summary.bottleneckStage) ? ts(summary.bottleneckStage) : summary.bottleneckStage) : "—",
       color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30",
       icon: (<svg className="size-6" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>),
     },
@@ -377,7 +384,8 @@ export default function AnalyticsPage() {
       {/* ===== 4 STAT CARDS ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card">
+          <div key={card.label} className="relative overflow-hidden rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 pl-6 shadow-card">
+            <span className={`absolute top-0 bottom-0 left-0 w-1 ${accentBar(card.color)}`} aria-hidden="true" />
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${card.bg} ${card.color}`}>{card.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{card.label}</span>
@@ -501,9 +509,9 @@ export default function AnalyticsPage() {
 
       {/* ===== TABLEAU ===== */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_120px_1fr_1fr_100px_160px] gap-3 px-6 py-3 bg-blue-600 dark:bg-blue-700 rounded-t-2xl">
+        <div className="hidden md:grid grid-cols-[1fr_120px_1fr_1fr_100px_160px] gap-3 px-6 py-3 bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 rounded-t-2xl">
           {[t("columns.event"), t("columns.type"), t("columns.offerId"), t("columns.actorId"), t("columns.duration"), t("columns.date")].map((col, i) => (
-            <span key={i} className="text-[11px] font-semibold uppercase tracking-wider text-white">{col}</span>
+            <span key={i} className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{col}</span>
           ))}
         </div>
 
@@ -554,8 +562,8 @@ export default function AnalyticsPage() {
                   <span className={`inline-flex items-center w-fit px-2.5 py-0.5 text-[11px] font-semibold rounded-md ${style.badge}`}>
                     {eventLabel(evType, t, t.has)}
                   </span>
-                  <span className="text-xs text-text-secondary dark:text-neutral-400 font-mono truncate">{ev.offerId.slice(0, 12)}...</span>
-                  <span className="text-xs text-text-secondary dark:text-neutral-400 font-mono truncate">{ev.actorId.slice(0, 12)}...</span>
+                  <span className="text-xs text-black dark:text-white truncate" title={ev.offerId}>{ev.offerName ?? offerNames[ev.offerId] ?? ev.offerId.slice(0, 8)}</span>
+                  <span className="text-xs text-text-secondary dark:text-neutral-400 truncate" title={ev.actorId}>{ev.actorName ?? "—"}</span>
                   <span className="text-xs font-medium text-black dark:text-white tabular-nums">{formatDuration(ev.durationMs)}</span>
                   <span className="text-xs text-text-secondary dark:text-neutral-400">{formatDate(ev.createdAt)}</span>
                 </div>

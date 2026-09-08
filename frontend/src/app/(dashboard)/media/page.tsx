@@ -9,6 +9,7 @@ import ActionMenu from "@/components/ActionMenu";
 import type { Offer } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useTranslations } from "next-intl";
+import { accentBar } from "@/lib/accent";
 
 interface MediaAsset {
   id: string;
@@ -430,8 +431,9 @@ export default function MediaPage() {
           <button
             key={s.key}
             onClick={() => setFilterStatus(s.filterValue)}
-            className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+            className="relative overflow-hidden rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 pl-6 shadow-card text-left cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
           >
+            <span className={`absolute top-0 bottom-0 left-0 w-1 ${accentBar(s.color)}`} aria-hidden="true" />
             <div className="flex items-center gap-3 mb-3">
               <div className={`rounded-xl p-2.5 ${s.bg} ${s.color}`}>{s.icon}</div>
               <span className="text-sm font-medium text-text-secondary dark:text-neutral-400">{s.label}</span>
@@ -482,14 +484,14 @@ export default function MediaPage() {
           les bords d'une banniere ou d'un logo horizontal, precisement ce qu'il
           s'agit de reconnaitre. */}
       <div className="rounded-2xl border border-border dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-card overflow-hidden">
-        <div className="hidden md:grid grid-cols-[64px_1fr_110px_130px_150px_110px_50px] gap-3 px-6 py-3 bg-slate-800 dark:bg-slate-900 rounded-t-2xl">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.file")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.type")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.status")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.size")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">{t("columns.date")}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white text-right">{t("columns.actions")}</span>
+        <div className="hidden md:grid grid-cols-[64px_1fr_110px_130px_150px_110px_50px] gap-3 px-6 py-3 bg-neutral-50 dark:bg-neutral-800/40 border-b border-border dark:border-neutral-800 rounded-t-2xl">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.file")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.type")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.status")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.size")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400">{t("columns.date")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-neutral-400 text-right">{t("columns.actions")}</span>
         </div>
         {loading ? (
           <div className="px-6 py-4 flex flex-col gap-1">

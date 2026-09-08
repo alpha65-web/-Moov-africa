@@ -2,6 +2,8 @@ package com.moov.pim.analytics.service;
 
 import com.moov.pim.analytics.domain.KpiEvent;
 import com.moov.pim.analytics.repository.KpiEventRepository;
+import com.moov.pim.lifecycle.repository.OfferRepository;
+import com.moov.pim.permissions.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,6 +21,9 @@ import static org.mockito.Mockito.*;
 class KpiServiceTest {
 
     @Mock private KpiEventRepository kpiEventRepository;
+    // Resolvent les noms d'offres et d'acteurs ; les tests portent sur les evenements, des mocks vides suffisent.
+    @Mock private OfferRepository offerRepository;
+    @Mock private UserRepository userRepository;
 
     @InjectMocks private KpiService kpiService;
 
