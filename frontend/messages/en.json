@@ -659,7 +659,21 @@
     "notProvided": "Not provided",
     "lastLogin": "Last login",
     "never": "Never",
-    "createdAt": "Created on"
+    "createdAt": "Created on",
+    "resetRequests": {
+      "title": "Password reset requests",
+      "subtitle": "People who can no longer log in and are waiting for a temporary password.",
+      "empty": "No pending request.",
+      "requestedAt": "Requested on",
+      "origin": "Origin",
+      "handle": "Reset",
+      "cancel": "Dismiss",
+      "cancelConfirm": "Dismiss this request without resetting the password?",
+      "cancelled": "Request dismissed",
+      "cancelError": "The request could not be dismissed",
+      "pendingBadge": "Reset requested",
+      "hint": "Resetting the password from the record automatically closes the request."
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -1402,7 +1416,15 @@
       },
       "copyright": "© 2026 Moov Africa Burkina Faso",
       "restricted": "Restricted to Moov Africa staff"
-    }
+    },
+    "forgotTitle": "Forgotten password",
+    "forgotSubtitle": "Enter your address: the administrator will set a temporary password for you.",
+    "forgotSubmit": "Send request",
+    "forgotSubmitting": "Sending...",
+    "forgotSentTitle": "Request recorded",
+    "forgotSentSubtitle": "If this address matches an account, the administrator can see your request. They will give you a temporary password, which you will have to change on first login.",
+    "forgotBack": "Back to login",
+    "forgotError": "The request could not be sent. Please try again shortly."
   },
   "notFound": {
     "title": "404",

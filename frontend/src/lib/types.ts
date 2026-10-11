@@ -333,6 +333,25 @@ export interface IntegrationApiKey {
   revokedAt: string | null;
 }
 
+/**
+ * Demande de reinitialisation en attente, telle que l'administrateur la voit.
+ *
+ * Elle ne porte aucun secret : c'est un signalement, l'administrateur repose
+ * ensuite le mot de passe depuis la fiche du compte.
+ */
+export interface PasswordResetRequest {
+  id: string;
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  status: string;
+  requesterIp: string | null;
+  requestedAt: string;
+  handledAt: string | null;
+}
+
 export const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Administrateur",
   ADMIN_SYSTEME: "Administrateur Systeme",

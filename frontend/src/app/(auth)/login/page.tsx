@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import api from "@/lib/api";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
@@ -48,6 +49,9 @@ export default function LoginPage() {
   // le backend repond 403 MFA_REQUIRED tant que le code n'accompagne pas la connexion.
   const [mfaRequired, setMfaRequired] = useState(false);
   const [totpCode, setTotpCode] = useState("");
+  // La plateforme n'envoie pas de courriel : « mot de passe oublie » depose une
+  // demande que l'administrateur voit dans sa file, il n'ouvre pas de session.
+  const [mode, setMode] = useState<"login" | "forgot" | "forgotSent">("login");
 
   const lottieRef = useRef<HTMLDivElement>(null);
 
@@ -72,8 +76,33 @@ export default function LoginPage() {
   const emailEmpty = touched.email && email.trim() === "";
   const passwordEmpty = touched.password && password.trim() === "";
 
+  const handleForgotSubmit = async () => {
+    setTouched((prev) => ({ ...prev, email: true }));
+    if (!email.trim() || loading) return;
+
+    setError(null);
+    setLoading(true);
+    try {
+      await api.post("/auth/password-reset-requests", { email: email.trim() });
+      setMode("forgotSent");
+    } catch {
+      // Le serveur repond 202 meme pour une adresse inconnue : une erreur ici
+      // signale un probleme de reseau ou de service, pas un compte introuvable.
+      setError(t("forgotError"));
+      playLottie("/lottie/error.json");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (mode === "forgot") {
+      await handleForgotSubmit();
+      return;
+    }
+
     setTouched({ email: true, password: true });
 
     if (!email.trim() || !password.trim()) return;
@@ -150,10 +179,22 @@ export default function LoginPage() {
 
         <div className="flex flex-col items-center gap-1">
           <h1 className="text-lg sm:text-xl font-bold text-secondary dark:text-white tracking-tight">
-            {success ? t("successTitle") : t("heading")}
+            {success
+              ? t("successTitle")
+              : mode === "forgot"
+                ? t("forgotTitle")
+                : mode === "forgotSent"
+                  ? t("forgotSentTitle")
+                  : t("heading")}
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary dark:text-neutral-400 text-center leading-relaxed">
-            {success ? t("successSubtitle") : t("subtitle")}
+            {success
+              ? t("successSubtitle")
+              : mode === "forgot"
+                ? t("forgotSubtitle")
+                : mode === "forgotSent"
+                  ? t("forgotSentSubtitle")
+                  : t("subtitle")}
           </p>
         </div>
 
@@ -168,8 +209,21 @@ export default function LoginPage() {
         />
       </div>
 
+      {/* ===== CONFIRMATION DE LA DEMANDE ===== */}
+      {mode === "forgotSent" && (
+        <div className="flex flex-col gap-3.5 px-6 sm:px-8 pb-6 sm:pb-8">
+          <button
+            type="button"
+            onClick={() => { setMode("login"); setError(null); setPassword(""); }}
+            className="primary-icon w-full h-10 active-scale"
+          >
+            <p className="whitespace-nowrap text-sm font-medium">{t("forgotBack")}</p>
+          </button>
+        </div>
+      )}
+
       {/* ===== FORMULAIRE ===== */}
-      {!success && (
+      {!success && mode !== "forgotSent" && (
         <div className="flex flex-col gap-3.5 px-6 sm:px-8 pb-6 sm:pb-8">
           {/* Email */}
           <div className="flex flex-col gap-1.5">
@@ -194,6 +248,7 @@ export default function LoginPage() {
           </div>
 
           {/* Mot de passe */}
+          {mode === "login" && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-text-secondary dark:text-neutral-400">
               {t("password")}
@@ -242,10 +297,18 @@ export default function LoginPage() {
                 {t("passwordRequired")}
               </p>
             )}
+            <button
+              type="button"
+              onClick={() => { setMode("forgot"); setError(null); setTouched({ email: false, password: false }); }}
+              className="self-end text-[11px] font-medium text-primary hover:underline"
+            >
+              {t("forgotPassword")}
+            </button>
           </div>
+          )}
 
           {/* Code 2FA — affiche uniquement lorsque le backend le reclame */}
-          {mfaRequired && (
+          {mode === "login" && mfaRequired && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-text-secondary dark:text-neutral-400">
                 {t("totpLabel")}
@@ -287,10 +350,22 @@ export default function LoginPage() {
                 <LoaderIcon className="w-4 h-4 text-white animate-spin" />
               )}
               <p className="whitespace-nowrap text-sm font-medium">
-                {loading ? t("submitting") : t("submit")}
+                {mode === "forgot"
+                  ? (loading ? t("forgotSubmitting") : t("forgotSubmit"))
+                  : (loading ? t("submitting") : t("submit"))}
               </p>
             </span>
           </button>
+
+          {mode === "forgot" && (
+            <button
+              type="button"
+              onClick={() => { setMode("login"); setError(null); }}
+              className="text-[11px] font-medium text-text-secondary dark:text-neutral-400 hover:underline"
+            >
+              {t("forgotBack")}
+            </button>
+          )}
         </div>
       )}
     </form>

@@ -1,5 +1,6 @@
 package com.moov.pim.permissions.api;
 
+import com.moov.pim.permissions.api.dto.PasswordResetRequestResponse;
 import com.moov.pim.permissions.api.dto.UpdateProfileRequest;
 import com.moov.pim.permissions.api.dto.UpdateUserRequest;
 import com.moov.pim.permissions.api.dto.UserResponse;
@@ -12,6 +13,7 @@ import com.moov.pim.permissions.repository.UserRepository;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.permissions.security.PasswordPolicyService;
 import com.moov.pim.permissions.service.AvatarValidator;
+import com.moov.pim.permissions.service.PasswordResetRequestService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,6 +22,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -38,15 +41,44 @@ public class UserController {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordPolicyService passwordPolicyService;
+    private final PasswordResetRequestService passwordResetRequestService;
 
     public UserController(UserRepository userRepository,
                           RoleRepository roleRepository,
                           PasswordEncoder passwordEncoder,
-                          PasswordPolicyService passwordPolicyService) {
+                          PasswordPolicyService passwordPolicyService,
+                          PasswordResetRequestService passwordResetRequestService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.passwordPolicyService = passwordPolicyService;
+        this.passwordResetRequestService = passwordResetRequestService;
+    }
+
+    /**
+     * File des demandes de reinitialisation en attente.
+     *
+     * C'est le seul endroit ou l'administrateur apprend qu'une personne ne peut
+     * plus se connecter : la plateforme n'envoie pas de courriel.
+     */
+    @GetMapping("/password-reset-requests")
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
+    public ResponseEntity<List<PasswordResetRequestResponse>> pendingPasswordResetRequests() {
+        return ResponseEntity.ok(passwordResetRequestService.pending());
+    }
+
+    /**
+     * Ecarte une demande sans reposer de mot de passe.
+     *
+     * Une demande traitee, elle, se cloture toute seule au moment ou
+     * l'administrateur pose le nouveau mot de passe.
+     */
+    @PostMapping("/password-reset-requests/{id}/cancel")
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
+    public ResponseEntity<Void> cancelPasswordResetRequest(@PathVariable UUID id,
+                                                            @AuthenticationPrincipal CustomUserDetails principal) {
+        passwordResetRequestService.cancel(id, principal.getUserId());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")
@@ -110,7 +142,8 @@ public class UserController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
     public ResponseEntity<UserResponse> update(@PathVariable UUID id,
-                                                @Valid @RequestBody UpdateUserRequest request) {
+                                                @Valid @RequestBody UpdateUserRequest request,
+                                                @AuthenticationPrincipal CustomUserDetails principal) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
 
@@ -132,7 +165,8 @@ public class UserController {
 
         // Reinitialisation du mot de passe par un administrateur : les sessions en
         // cours sont invalidees et l'utilisateur devra le changer a la reconnexion.
-        if (request.password() != null && !request.password().isBlank()) {
+        boolean passwordWasReset = request.password() != null && !request.password().isBlank();
+        if (passwordWasReset) {
             passwordPolicyService.validate(request.password());
             user.setPasswordHash(passwordEncoder.encode(request.password()));
             user.setForcePasswordChange(true);
@@ -147,6 +181,13 @@ public class UserController {
         }
 
         user = userRepository.save(user);
+
+        // Reposer le mot de passe est la reponse a la demande : la file se vide
+        // d'elle-meme, sans second geste que l'on finirait par oublier.
+        if (passwordWasReset) {
+            passwordResetRequestService.closeAfterReset(user.getId(), principal.getUserId());
+        }
+
         return ResponseEntity.ok(UserResponse.from(user));
     }
 

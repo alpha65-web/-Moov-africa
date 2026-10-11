@@ -65,7 +65,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private boolean isAuthEndpoint(HttpServletRequest request) {
         String path = request.getServletPath();
         return "POST".equalsIgnoreCase(request.getMethod())
-                && (path.equals("/auth/login") || path.equals("/auth/refresh") || path.equals("/auth/register"));
+                && (path.equals("/auth/login") || path.equals("/auth/refresh") || path.equals("/auth/register")
+                    || path.equals("/auth/password-reset-requests"));
     }
 
     private boolean isStaticOrHealth(String path) {

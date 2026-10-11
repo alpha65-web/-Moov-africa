@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import api, { apiError } from "@/lib/api";
 import { searchKeyHandler } from "@/lib/search";
-import type { User } from "@/lib/types";
+import type { PasswordResetRequest, User } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/types";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/PhoneInput";
@@ -71,6 +71,7 @@ export default function UsersPage() {
   const tc = useTranslations("common");
 
   const [users, setUsers] = useState<User[]>([]);
+  const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("");
@@ -98,7 +99,7 @@ export default function UsersPage() {
 
   const isEditing = !!editingUser;
 
-  useEffect(() => { loadUsers(); purgeLegacyDrafts(); }, []);
+  useEffect(() => { loadUsers(); loadResetRequests(); purgeLegacyDrafts(); }, []);
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -126,6 +127,28 @@ export default function UsersPage() {
     try { const { data } = await api.get("/users"); setUsers(data); }
     catch (e) { toast.error(apiError(e, tc("errors.load"))); }
     finally { setLoading(false); }
+  }
+
+  /**
+   * File des demandes de reinitialisation.
+   *
+   * C'est le seul canal par lequel l'administrateur apprend qu'une personne ne
+   * peut plus se connecter : la plateforme n'envoie aucun courriel.
+   */
+  async function loadResetRequests() {
+    try { const { data } = await api.get("/users/password-reset-requests"); setResetRequests(data); }
+    catch { /* la file est un complement : son echec ne doit pas masquer la liste */ }
+  }
+
+  async function dismissResetRequest(request: PasswordResetRequest) {
+    if (!confirm(t("resetRequests.cancelConfirm"))) return;
+    try {
+      await api.post(`/users/password-reset-requests/${request.id}/cancel`);
+      toast.success(t("resetRequests.cancelled"));
+      loadResetRequests();
+    } catch (e) {
+      toast.error(apiError(e, t("resetRequests.cancelError")));
+    }
   }
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -237,7 +260,7 @@ export default function UsersPage() {
       if (form.password) payload.password = form.password;
       await api.put(`/users/${editingUser.id}`, payload);
       toast.success(t("messages.updated"));
-      setShowModal(false); resetForm(); loadUsers();
+      setShowModal(false); resetForm(); loadUsers(); loadResetRequests();
     } catch (e) {
       toast.error(apiError(e, t("messages.updateError")));
     } finally { setCreating(false); }
@@ -343,6 +366,72 @@ export default function UsersPage() {
           </button>
         ))}
       </div>
+
+      {/* ===== DEMANDES DE REINITIALISATION ===== */}
+      {resetRequests.length > 0 && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-900/10 p-4 flex flex-col gap-3">
+          <div className="flex items-start gap-2.5">
+            <svg className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" viewBox="0 0 16 16" fill="none">
+              <rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            <div className="flex flex-col gap-0.5">
+              <h2 className="text-sm font-semibold text-secondary dark:text-white">
+                {t("resetRequests.title")} ({resetRequests.length})
+              </h2>
+              <p className="text-xs text-text-secondary dark:text-neutral-400">{t("resetRequests.subtitle")}</p>
+            </div>
+          </div>
+
+          <ul className="flex flex-col gap-2">
+            {resetRequests.map((request) => {
+              const account = users.find((u) => u.id === request.userId);
+              return (
+                <li
+                  key={request.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white dark:bg-neutral-900 border border-border dark:border-neutral-700 px-3 py-2.5"
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm font-medium text-secondary dark:text-white truncate">
+                      {request.firstName} {request.lastName}
+                      <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium ${ROLE_STYLES[request.role] || ""}`}>
+                        {ROLE_LABELS[request.role] || request.role}
+                      </span>
+                    </span>
+                    <span className="text-xs text-text-secondary dark:text-neutral-400 truncate">
+                      {request.email}
+                    </span>
+                    <span className="text-[11px] text-neutral-400">
+                      {t("resetRequests.requestedAt")} {new Date(request.requestedAt).toLocaleString()}
+                      {request.requesterIp ? ` · ${t("resetRequests.origin")} ${request.requesterIp}` : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => dismissResetRequest(request)}
+                      className="h-8 px-3 rounded-lg text-xs font-medium border border-border dark:border-neutral-700 text-text-secondary dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      {t("resetRequests.cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!account}
+                      onClick={() => account && openEditModal(account)}
+                      className="primary-icon h-8 px-3 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t("resetRequests.handle")}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <p className="text-[11px] text-text-secondary dark:text-neutral-400">{t("resetRequests.hint")}</p>
+        </div>
+      )}
 
       {/* ===== RECHERCHE + FILTRES ===== */}
       <div className="flex items-center gap-3">

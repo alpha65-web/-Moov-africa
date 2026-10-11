@@ -7,7 +7,9 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-const PUBLIC_PATHS = ["/auth/login", "/auth/refresh"];
+// Appels emis depuis l'ecran de connexion, avant toute session : ils ne portent
+// pas de jeton, et un echec ne doit pas etre lu comme une session expiree.
+const PUBLIC_PATHS = ["/auth/login", "/auth/refresh", "/auth/password-reset-requests"];
 
 interface SessionHandlers {
   onSessionExpired: () => void;

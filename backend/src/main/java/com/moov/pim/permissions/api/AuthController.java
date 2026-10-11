@@ -3,6 +3,7 @@ package com.moov.pim.permissions.api;
 import com.moov.pim.permissions.api.dto.ChangePasswordRequest;
 import com.moov.pim.permissions.api.dto.LoginRequest;
 import com.moov.pim.permissions.api.dto.LoginResponse;
+import com.moov.pim.permissions.api.dto.PasswordResetRequestCreate;
 import com.moov.pim.permissions.api.dto.RefreshTokenRequest;
 import com.moov.pim.permissions.api.dto.RegisterRequest;
 import com.moov.pim.permissions.api.dto.TotpSetupResponse;
@@ -10,6 +11,7 @@ import com.moov.pim.permissions.api.dto.TotpVerifyRequest;
 import com.moov.pim.permissions.api.dto.UserResponse;
 import com.moov.pim.permissions.security.CustomUserDetails;
 import com.moov.pim.permissions.service.AuthService;
+import com.moov.pim.permissions.service.PasswordResetRequestService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,9 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetRequestService passwordResetRequestService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService,
+                          PasswordResetRequestService passwordResetRequestService) {
         this.authService = authService;
+        this.passwordResetRequestService = passwordResetRequestService;
     }
 
     @PostMapping("/login")
@@ -76,6 +81,22 @@ public class AuthController {
         String refreshToken = request != null ? request.refreshToken() : null;
         authService.logout(principal.getUserId(), refreshToken);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Depot d'une demande de reinitialisation depuis l'ecran de connexion.
+     *
+     * Point d'entree public : la personne ne peut precisement plus s'authentifier.
+     * La reponse est toujours 202, que l'adresse corresponde ou non a un compte,
+     * pour que l'ecran de connexion ne renseigne personne sur les comptes
+     * existants. Le geste ne change aucun mot de passe : il signale seulement le
+     * compte a l'administrateur.
+     */
+    @PostMapping("/password-reset-requests")
+    public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequestCreate request,
+                                                      HttpServletRequest httpRequest) {
+        passwordResetRequestService.submit(request.email(), extractIp(httpRequest));
+        return ResponseEntity.accepted().build();
     }
 
     @PostMapping("/totp/setup")

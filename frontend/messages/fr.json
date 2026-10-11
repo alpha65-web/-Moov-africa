@@ -659,7 +659,21 @@
     "notProvided": "Non renseigné",
     "lastLogin": "Dernière connexion",
     "never": "Jamais",
-    "createdAt": "Créé le"
+    "createdAt": "Créé le",
+    "resetRequests": {
+      "title": "Demandes de réinitialisation",
+      "subtitle": "Personnes qui ne peuvent plus se connecter et attendent un mot de passe provisoire.",
+      "empty": "Aucune demande en attente.",
+      "requestedAt": "Demandé le",
+      "origin": "Origine",
+      "handle": "Réinitialiser",
+      "cancel": "Écarter",
+      "cancelConfirm": "Écarter cette demande sans réinitialiser le mot de passe ?",
+      "cancelled": "Demande écartée",
+      "cancelError": "La demande n'a pas pu être écartée",
+      "pendingBadge": "Réinitialisation demandée",
+      "hint": "Réinitialiser le mot de passe depuis la fiche ferme automatiquement la demande."
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -1402,7 +1416,15 @@
       },
       "copyright": "© 2026 Moov Africa Burkina Faso",
       "restricted": "Accès réservé aux collaborateurs Moov Africa"
-    }
+    },
+    "forgotTitle": "Mot de passe oublié",
+    "forgotSubtitle": "Indiquez votre adresse : l'administrateur vous posera un mot de passe provisoire.",
+    "forgotSubmit": "Envoyer la demande",
+    "forgotSubmitting": "Envoi en cours...",
+    "forgotSentTitle": "Demande enregistrée",
+    "forgotSentSubtitle": "Si cette adresse correspond à un compte, l'administrateur voit votre demande. Il vous transmettra un mot de passe provisoire, que vous devrez changer à la première connexion.",
+    "forgotBack": "Revenir à la connexion",
+    "forgotError": "La demande n'a pas pu être envoyée. Réessayez dans un instant."
   },
   "notFound": {
     "title": "404",

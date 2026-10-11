@@ -94,7 +94,11 @@ public class SecurityConfig {
                 .permissionsPolicyHeader(pp -> pp.policy("geolocation=(), camera=(), microphone=()"))
             )
             .authorizeHttpRequests(auth -> {
-                auth.requestMatchers("/auth/login", "/auth/refresh",
+                // "/auth/password-reset-requests" est public par necessite : celui qui
+                // depose la demande est justement celui qui ne peut plus se connecter.
+                // Le point d'entree ne divulgue rien et ne change aucun mot de passe,
+                // et RateLimitFilter le protege comme la connexion.
+                auth.requestMatchers("/auth/login", "/auth/refresh", "/auth/password-reset-requests",
                         "/auth/webauthn/login/options", "/auth/webauthn/login/verify").permitAll();
                 if (swaggerEnabled) {
                     auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll();
